@@ -243,3 +243,29 @@ def test_dispatch_preserves_explicit_measured_environment_factory(tmp_path, monk
     backend = dispatch.backend_for(_cpu_job(tmp_path))
     assert backend.make_measured_env is measured
     assert backend.make_env is cpu.make_env
+
+
+def test_recovery_real_publication_and_statistics_are_separate_children(tmp_path):
+    from test_recovery_continuation import fixture
+
+    from native_stand.artifacts.checkpoint import save_full
+    from native_stand.artifacts.io import file_sha256
+
+    adapter, context, io = fixture(tmp_path)
+    timer = adapter.measurement = context.measurement = Measurement(True)
+    with timer.section("task_post_update_total"):
+        adapter.after_update(context, 1, {})
+    adapter.pending = dict(
+        end_update=6, episode_cursor=0, comparison_sha256=adapter.domain, rows={}
+    )
+    cp = context.run_dir / "full.pt"
+    save_full(cp, adapter.capture(context, {"updates": 6}))
+    ref = dict(checkpoint=str(cp), sha256=file_sha256(cp), update=6)
+    with timer.section("after_save_total"):
+        adapter.after_save(context, ref)
+    assert adapter.pending is None
+    assert context.refs.candidate_index(context.run_dir.name)["last_review"]["checkpoint"] == ref
+    assert adapter.candidates["best_candidate"] is None
+    assert timer.parents["course_statistics"] == "task_post_update_total"
+    assert timer.parents["candidate_references_views"] == "after_save_total"
+    assert io.env.completed == []
