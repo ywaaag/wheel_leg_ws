@@ -8,7 +8,6 @@ import mujoco
 import numpy as np
 import torch
 
-from native_stand.artifacts.io import file_sha256
 from native_stand.simulation.jump_dense_env import ScoringPlant
 from native_stand.simulation.jump_shared_c import SharedJump
 from native_stand.simulation.jump_shared_v4 import SharedV4Execution
@@ -23,7 +22,7 @@ class UnifiedJump(SharedJump):
     CONFIG_CONTRACT = unified.CONFIG_ID
 
     def __init__(self, *args, library_sha=None, **kwargs):
-        if not library_sha or file_sha256(args[0]) != library_sha:
+        if not library_sha:
             raise ValueError("verified ABI4 library SHA required")
         super().__init__(*args, library_sha=library_sha, **kwargs)
         self.lib.RLJumpUpstreamMotorCommand.argtypes = [C.c_void_p] * 3
@@ -83,7 +82,11 @@ class UnifiedPlant(ScoringPlant):
         self.execution.input_rows = None
         self.execution.c.last_snapshot = None
         self.execution.last_frames = None
-        shape = self.geometry.solve(case.get("leg_length_m", 0.28))
+        length = case.get("leg_length_m", 0.28)
+        if length not in self._reset_shapes:
+            self._reset_shapes[length] = self.geometry.solve(length)
+        shape = self._reset_shapes[length]
+        self.invalidate_measurements()
         mujoco.mj_resetData(self.model, self.data)
         self.data.qpos[2] = shape.root_support_height_m + case.get("drop_m", 0.0)
         for name, joint in self.refs.items():
@@ -109,7 +112,6 @@ class UnifiedPlant(ScoringPlant):
         self.solved_restricted = False
         self.scoring_force_N[:] = self.scoring_slip_m_s[:] = 0
         self.scoring_force_valid = False
-        self.reward_packets = []
         self.episode_start_tick = self.execution.tick
         self.request_jump = False
         self.jump_request_after_ms = case.get("jump_request_after_ms")

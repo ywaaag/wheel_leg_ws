@@ -71,16 +71,17 @@ class NormalizedCritic:
         )
 
 
-def controller_fields(state, inputs, *, fault_count=13, phase_count=9):
+def controller_fields(state, inputs, *, fault_count=13, phase_count=9, layout=None):
     """All C values that can change next control/event; no privileged Actor data."""
     now = int(inputs.now)
     values = {}
-    defs = []
+    defs = [] if layout is None else layout
 
     def add(name, value, scale=1.0, unit="dimensionless"):
         a = np.asarray(value, float)
         values[name] = a
-        defs.append(Field(name, a.shape, np.asarray(scale), unit))
+        if layout is None:
+            defs.append(Field(name, a.shape, np.asarray(scale), unit))
 
     def elapsed(stamp):
         return ((now - int(stamp)) & 0xFFFFFFFF) * 0.001

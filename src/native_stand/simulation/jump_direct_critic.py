@@ -28,17 +28,29 @@ def pack(env, actor, *, wheel_cap=4.8, phase_count=10, schema_class=FullCritic):
     p = env.plant
     e = p.execution
     v = e.v4
+    signature = (wheel_cap, phase_count, schema_class)
+    if getattr(env, "_pack_signature", signature) != signature:
+        raise ValueError("Critic packing contract changed")
+    env._pack_signature = signature
+    layout = getattr(env, "_controller_layout", None)
     values, fields = controller_fields(
-        e.c.states[0], e.c.inputs[0], fault_count=14, phase_count=phase_count
+        e.c.states[0], e.c.inputs[0], fault_count=14, phase_count=phase_count, layout=layout
     )
+    if layout is None:
+        env._controller_layout = fields
     values["C.raw_output"] = values.pop("C.mean")
-    fields = [f for f in fields if f.name != "C.mean"] + [
-        Field("C.raw_output", (6,), np.array(1.0), "raw Normal action")
-    ]
+    previous = getattr(env, "schema", None)
+    if previous is None:
+        fields = [f for f in fields if f.name != "C.mean"] + [
+            Field("C.raw_output", (6,), np.array(1.0), "raw Normal action")
+        ]
     extras = {}
 
     def add(name, value, scale, unit):
-        extras[name] = (np.asarray(value), scale, unit)
+        if previous is None:
+            extras[name] = (np.asarray(value), scale, unit)
+        else:
+            values[name] = np.asarray(value)
 
     add("Actor.delayed37", actor, 1.0, "deployed normalized fields")
     for name in [
@@ -51,7 +63,7 @@ def pack(env, actor, *, wheel_cap=4.8, phase_count=10, schema_class=FullCritic):
         "xfrc_applied",
         "qfrc_actuator",
     ]:
-        a = np.asarray(getattr(p.data, name)).copy()
+        a = np.asarray(getattr(p.data, name))
         scale = (
             10.0
             if name in ["qvel"]
@@ -62,7 +74,7 @@ def pack(env, actor, *, wheel_cap=4.8, phase_count=10, schema_class=FullCritic):
             else 1.0
         )
         add("physics." + name, a, scale, "SI state; qpos includes xyz/quaternion/radians")
-    for name, scale, unit in [
+    model_fields = [
         ("body_mass", 25.0, "kg"),
         ("body_inertia", 1.0, "kg m2"),
         ("dof_armature", 0.1, "kg m2"),
@@ -71,8 +83,13 @@ def pack(env, actor, *, wheel_cap=4.8, phase_count=10, schema_class=FullCritic):
         ("geom_friction", 1.0, "dimensionless"),
         ("eq_solref", 0.02, "solver seconds/ratio"),
         ("eq_solimp", 1.0, "solver impedance"),
-    ]:
-        add("model." + name, getattr(p.model, name).copy(), scale, unit)
+    ]
+    model_epoch = getattr(p, "_parameter_epoch", 0)
+    if getattr(env, "_model_fields_epoch", None) != model_epoch:
+        env._model_fields = {name: getattr(p.model, name).copy() for name, _, _ in model_fields}
+        env._model_fields_epoch = model_epoch
+    for name, scale, unit in model_fields:
+        add("model." + name, env._model_fields[name], scale, unit)
     add("execution.subcycle", [e.tick % 5, e.tick % 10], [5, 10], "ms within PD/Actor cycle")
     # Include all serialized tensor state. Known static lookup indices are
     # excluded; no hidden response/queue value is replaced by zero padding.
@@ -95,7 +112,7 @@ def pack(env, actor, *, wheel_cap=4.8, phase_count=10, schema_class=FullCritic):
     for name, tensor in vars(v).items():
         if not torch.is_tensor(tensor) or name in {"ids", "columns", "sign"}:
             continue
-        a = tensor.detach().cpu().numpy().copy()
+        a = tensor.detach().cpu().numpy()
         if name in time_stamps:
             add("V4." + name + ".valid", a >= 0, 1.0, "bool")
             a = np.where(a >= 0, e.tick - a, 0.0)
@@ -176,7 +193,7 @@ def pack(env, actor, *, wheel_cap=4.8, phase_count=10, schema_class=FullCritic):
             continue
         if name not in scales:
             raise ValueError("unregistered response Critic tensor " + name)
-        a = tensor.detach().cpu().numpy().copy()
+        a = tensor.detach().cpu().numpy()
         if name in {"qhist", "vhist", "queue"}:
             a = np.roll(a, -e.tick % len(a), axis=0)
         add("response." + name, a, *scales[name])
@@ -195,6 +212,11 @@ def pack(env, actor, *, wheel_cap=4.8, phase_count=10, schema_class=FullCritic):
         elif name in {"takeoff_COM_height_m", "peak_COM_height_m"}:
             add("reward." + name + ".known", 1.0, 1.0, "bool")
         add("reward." + name, value, 100.0 if name.endswith("_J") else 1.0, "J or explicit SI/bool")
-    values, fields = extend_fields(values, fields, extras)
-    schema = schema_class.reuse(fields, getattr(env, "schema", None))
+    if previous is None:
+        values, fields = extend_fields(values, fields, extras)
+        schema = schema_class(fields)
+    else:
+        schema = previous
+    # Encode makes an owned float32 result and checks every dynamic name/shape/
+    # finite value. The live NumPy views above never escape this boundary.
     return schema.encode(values), schema

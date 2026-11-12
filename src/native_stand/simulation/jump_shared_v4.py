@@ -32,12 +32,14 @@ class SharedV4Execution:
         config=None,
         library_sha=None,
         control_class=SharedJump,
+        capture_frames=False,
     ):
         self.c = control_class(library, n, config=config, library_sha=library_sha)
         self.v4 = Execution(V4, response_class, n, device=device, dtype=dtype)
         self.v4.leg.external_pd = self._pd
         self.tick = 0
         self.last_frames = None
+        self.capture_frames = capture_frames
         self.C_PD_calls = 0
         self.timing_version = "jump_same_C_target5_V4_sensor_postPD_v1"
         self.input_rows = None
@@ -137,7 +139,10 @@ class SharedV4Execution:
             i.dq[3] = dq[k, 3]
             i.dq[4] = dq[k, 4]
             self.c.inputs[k] = i
-        rc, frames = self.c.pd()
+        rc, frames = self.c.pd(as_dict=False)
+        # Upstream fallback is an execution result, not a mutation of the C
+        # checkpoint frame. Preserve that distinction in the Critic as before.
+        frames = list(frames)
         # Non-Jump owners retain their original C PD/compensation/cap contract,
         # supplied only with their actually adopted target. Actor is external.
         for k, code in enumerate(rc):
@@ -156,26 +161,21 @@ class SharedV4Execution:
                 )
                 if upstream(C.byref(i), target.ctypes.data, C.byref(f)):
                     raise RuntimeError("upstream C PD input")
-                frames[k] = {
-                    name: (
-                        array(getattr(f, name))
-                        if isinstance(getattr(f, name), C.Array)
-                        else int(getattr(f, name))
-                    )
-                    for name, _ in self.c.FrameType._fields_
-                }
-        self.last_frames = frames
+                frames[k] = f
+        self.last_frames = self.c.frame_records(frames) if self.capture_frames else None
         self.C_PD_calls += 1
-        final = torch.tensor(
-            np.stack([f["final_model_nm"] for f in frames]), device=v.device, dtype=v.dtype
+        final = torch.as_tensor(
+            np.stack([np.asarray(f.final_model_nm) for f in frames]), device=v.device, dtype=v.dtype
         )
-        adopted = torch.tensor(
-            np.stack([f["adopted"] for f in frames]), device=v.device, dtype=v.dtype
+        adopted = torch.as_tensor(
+            np.stack([np.asarray(f.adopted) for f in frames]), device=v.device, dtype=v.dtype
         )
         v.adopted.copy_(adopted)
         v.wheel_raw.copy_(
-            torch.tensor(
-                np.stack([f["pd_nm"][[2, 5]] for f in frames]), device=v.device, dtype=v.dtype
+            torch.as_tensor(
+                np.stack([np.asarray(f.pd_nm)[[2, 5]] for f in frames]),
+                device=v.device,
+                dtype=v.dtype,
             )
         )
         v.wheel_PD.copy_(final[:, [2, 5]])

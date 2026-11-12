@@ -9,7 +9,6 @@ from __future__ import annotations
 import mujoco
 import numpy as np
 import torch
-from scipy.spatial.transform import Rotation
 from tensordict import TensorDict
 
 from native_stand.simulation.jump_direct_env import EngineeringPlant
@@ -29,7 +28,6 @@ class ScoringPlant(EngineeringPlant):
         self.scoring_force_N = np.zeros(2)
         self.scoring_slip_m_s = np.zeros(2)
         self.scoring_force_valid = False
-        self.reward_packets = []
 
     def capture_solved_forces(self, model, data):
         super().capture_solved_forces(model, data)
@@ -56,54 +54,33 @@ class ScoringPlant(EngineeringPlant):
         self.scoring_force_valid = True
 
     def scoring_packet(self, dt_s, *, fault=False, packet_type=Packet):
-        readback = self.readback()
-        shape = self.geometry.measure(
-            {
-                name: float(self.data.qpos[self.model.jnt_qposadr[j]])
-                for name, j in self.refs.items()
-            }
-        )
-        velocity = np.zeros(6)
-        mujoco.mj_objectVelocity(
-            self.model, self.data, mujoco.mjtObj.mjOBJ_BODY, self.root, velocity, 0
-        )
-        upright_rotation = (
-            self.data.xmat[self.root].reshape(3, 3)
-            @ Rotation.from_euler("x", -np.pi / 2).as_matrix()
-        )
+        shape = self.measured_shape()
+        kinematics = self.kinematics()
         state = self.execution.c.states[0]
         return packet_type(
             dt_s=dt_s,
             phase=int(state.phase),
             owner=int(state.owner),
-            COM_height_m=readback["COM_height_m"],
-            COM_velocity_m_s=tuple(self.COM_velocity()),
-            root_height_m=readback["root_height_m"],
-            tilt_rad=tuple(readback["tilt_rad"]),
-            omega_rad_s=tuple(upright_rotation.T @ velocity[:3]),
+            COM_height_m=float(kinematics["COM"][2]),
+            COM_velocity_m_s=tuple(kinematics["COM_velocity"]),
+            root_height_m=float(self.data.qpos[2]),
+            tilt_rad=tuple(kinematics["tilt"]),
+            omega_rad_s=tuple(kinematics["omega"]),
             leg_length_m=tuple(shape.length),
             leg_swing_rad=tuple(shape.swing),
             spring_length_m=tuple(shape.spring),
-            contact=tuple(readback["wheel_contact"]),
-            tire_clearance_m=tuple(readback["clearance_m"]),
+            contact=tuple(self.solved_ground_contact),
+            tire_clearance_m=tuple(self.tire_clearance()),
             wheel_normal_force_N=tuple(self.scoring_force_N),
             contact_slip_m_s=tuple(self.scoring_slip_m_s),
             actual_motor_Nm=tuple(self.data.qfrc_actuator[self.vids]),
-            actual_dq_rad_s=tuple(readback["actual_dq"]),
-            adopted_target=tuple(readback["adopted"]),
+            actual_dq_rad_s=tuple(self.data.qvel[self.vids]),
+            adopted_target=tuple(state.adopted),
             force_valid=self.scoring_force_valid,
             motion_confirmed=bool(state.success and state.phase == 7),
             fault=bool(fault or state.fault or self.solved_restricted),
             external_takeoff_assist=False,
         )
-
-    def integrate_control(self):
-        before = self.physics_steps
-        try:
-            return super().integrate_control()
-        finally:
-            if self.physics_steps > before:
-                self.reward_packets.append(self.scoring_packet(0.001))
 
 
 class DenseCritic(NormalizedCritic):

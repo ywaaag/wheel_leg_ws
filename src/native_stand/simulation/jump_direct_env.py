@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import copy
 import ctypes as C
+from functools import partial
 
 import mujoco
 import numpy as np
-import torch
 from scipy.spatial.transform import Rotation
 
 from native_stand.simulation.jump_probe import JumpProbePlant
@@ -40,14 +40,18 @@ class EngineeringPlant(JumpProbePlant):
         self.geometry = ClosedChain(description, springs, stop_margin_m=0.0)
         shape = self.geometry.solve(0.28)
         super().__init__(
-            description, springs, mechanics, V4, response_class, shape, charge_step=charge_step
+            description,
+            springs,
+            mechanics,
+            V4,
+            response_class,
+            shape,
+            charge_step=charge_step,
+            execution_factory=partial(execution_factory, library, library_sha=library_sha),
         )
-        self.execution = execution_factory(library, V4, response_class, 1, library_sha=library_sha)
-        self.execution.reset(
-            self.execution.v4.ids,
-            torch.tensor(self.data.qpos[self.qids][None], dtype=torch.float32),
-            torch.tensor(self.data.qvel[self.vids][None], dtype=torch.float32),
-        )
+        self._reset_shapes = {0.28: shape}
+        self._measurement_epoch = 0
+        self._parameter_epoch = 0
         self.root = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "robot")
         self.ground = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "ground")
         self.wheel_bodies = [
@@ -68,6 +72,53 @@ class EngineeringPlant(JumpProbePlant):
         cfg.model_id = 0x53494D33
         cfg.model_input_id = self.execution.c.INPUT_CONTRACT
         cfg.model_output_id = self.execution.c.OUTPUT_CONTRACT
+
+    def invalidate_measurements(self, *, parameters_changed=False):
+        """Reset/restore/scene mutation boundary; never a phase transition."""
+        self._measurement_epoch += 1
+        self._measured_shape = self._kinematics = None
+        if parameters_changed:
+            self._parameter_epoch += 1
+
+    def measured_shape(self):
+        token = (self._measurement_epoch, self.physics_steps, self.execution.tick)
+        if getattr(self, "_shape_token", None) != token or self._measured_shape is None:
+            self._measured_shape = self.geometry.measure(
+                {n: float(self.data.qpos[self.model.jnt_qposadr[j]]) for n, j in self.refs.items()}
+            )
+            self._shape_token = token
+        return self._measured_shape
+
+    def kinematics(self):
+        token = (self._measurement_epoch, self.physics_steps, self.execution.tick)
+        if getattr(self, "_kinematics_token", None) != token or self._kinematics is None:
+            m, d = self.model, self.data
+            rotation = d.xmat[self.root].reshape(3, 3)
+            upright = rotation @ Rotation.from_euler("x", -np.pi / 2).as_matrix()
+            velocity = np.zeros(6)
+            mujoco.mj_objectVelocity(m, d, mujoco.mjtObj.mjOBJ_BODY, self.root, velocity, 0)
+            self._kinematics = dict(
+                COM=self.COM(),
+                COM_velocity=self.COM_velocity(),
+                tilt=Rotation.from_matrix(upright).as_euler("xyz")[:2],
+                omega=upright.T @ velocity[:3],
+                gyro=rotation.T @ velocity[:3],
+            )
+            self._kinematics_token = token
+        return self._kinematics
+
+    def tire_clearance(self):
+        m, d = self.model, self.data
+        clear = []
+        for body in self.wheel_bodies:
+            bottoms = []
+            for g in np.flatnonzero(m.geom_bodyid == body):
+                axis = abs(d.geom_xmat[g].reshape(3, 3)[2, 2])
+                size = m.geom_size[g]
+                extent = size[1] * axis + size[0] * np.sqrt(max(0.0, 1 - axis * axis))
+                bottoms.append(d.geom_xpos[g, 2] - extent)
+            clear.append(min(bottoms))
+        return np.asarray(clear)
 
     def capture_solved_forces(self, m, d):
         self.solved_ground_Fz_N = float(d.qfrc_constraint[2])
@@ -95,9 +146,7 @@ class EngineeringPlant(JumpProbePlant):
 
     def feedback(self):
         m, d, e = self.model, self.data, self.execution
-        self.shape = self.geometry.measure(
-            {name: float(d.qpos[m.jnt_qposadr[j]]) for name, j in self.refs.items()}
-        )
+        self.shape = self.measured_shape()
         q, dq = d.qpos[self.qids], d.qvel[self.vids]
         rotation = d.xmat[self.root].reshape(3, 3)
         spread = (47.1033888 + 47.1080837) * np.pi / 180 + np.array([q[0] + q[1], -q[3] + q[4]])
@@ -126,9 +175,7 @@ class EngineeringPlant(JumpProbePlant):
         )
         m, d = self.model, self.data
         rotation = d.xmat[self.root].reshape(3, 3)
-        velocity = np.zeros(6)
-        mujoco.mj_objectVelocity(m, d, mujoco.mjtObj.mjOBJ_BODY, self.root, velocity, 0)
-        i.gyro[:] = rotation.T @ velocity[:3]
+        i.gyro[:] = self.kinematics()["gyro"]
         acceleration = np.zeros(6)
         mujoco.mj_rnePostConstraint(m, d)
         mujoco.mj_objectAcceleration(m, d, mujoco.mjtObj.mjOBJ_BODY, self.root, acceleration, 0)
@@ -157,36 +204,23 @@ class EngineeringPlant(JumpProbePlant):
         return self.integrate(request)
 
     def readback(self):
-        m, d = self.model, self.data
-        shape = self.geometry.measure(
-            {n: float(d.qpos[m.jnt_qposadr[j]]) for n, j in self.refs.items()}
-        )
-        clear = []
-        for body in self.wheel_bodies:
-            bottoms = []
-            for g in np.flatnonzero(m.geom_bodyid == body):
-                axis = abs(d.geom_xmat[g].reshape(3, 3)[2, 2])
-                size = m.geom_size[g]
-                extent = size[1] * axis + size[0] * np.sqrt(max(0.0, 1 - axis * axis))
-                bottoms.append(d.geom_xpos[g, 2] - extent)
-            clear.append(min(bottoms))
-        tilt = Rotation.from_matrix(
-            d.xmat[self.root].reshape(3, 3) @ Rotation.from_euler("x", -np.pi / 2).as_matrix()
-        ).as_euler("xyz")[:2]
+        d = self.data
+        shape = self.measured_shape()
+        kinematics = self.kinematics()
         s = self.execution.c.states[0]
         return dict(
             time_s=float(d.time),
             phase=int(s.phase),
             owner=int(s.owner),
             fault=int(s.fault),
-            COM_height_m=float(self.COM()[2]),
-            COM_vz_m_s=float(self.COM_velocity()[2]),
+            COM_height_m=float(kinematics["COM"][2]),
+            COM_vz_m_s=float(kinematics["COM_velocity"][2]),
             wheel_contact=self.solved_ground_contact.copy(),
-            clearance_m=np.array(clear),
+            clearance_m=self.tire_clearance(),
             restricted_ground_contact=self.solved_restricted,
             spring_m=shape.spring.copy(),
             closure_m=shape.closure_m,
-            tilt_rad=tilt,
+            tilt_rad=kinematics["tilt"].copy(),
             root_height_m=float(d.qpos[2]),
             motor_Nm=self.actual_motor.copy(),
             NET_Nm=self.actual_NET.copy(),
@@ -272,6 +306,7 @@ class DirectEngineeringEnv:
         self.prepared_tick = value["prepared_tick"]
         self._obs = copy.deepcopy(value["cached_observations"])
         self.total_episodes = value["total_episodes"]
+        p.invalidate_measurements()
 
     def close(self):
         pass

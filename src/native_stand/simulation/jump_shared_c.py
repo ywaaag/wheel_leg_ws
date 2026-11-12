@@ -185,6 +185,7 @@ class SharedJump:
         self.n = n
         self.library = str(library)
         self.library_sha = library_sha
+        self.measurement = None
         lib = self.lib = C.CDLL(str(library))
         lib.RLJumpSize.argtypes = [U]
         lib.RLJumpSize.restype = U
@@ -235,11 +236,15 @@ class SharedJump:
             raise ValueError("batch size")
         for k, i in enumerate(inputs):
             self.inputs[k] = i
+        if self.measurement is not None:
+            self.measurement.count("jump_C_FSM_calls")
         return self.lib.RLJumpBatch(
             self.states, self.inputs, C.byref(self.config), self.frames, self.n, pd
         )
 
     def observe(self):
+        if self.measurement is not None:
+            self.measurement.count("jump_C_encode_calls")
         out = np.empty((self.n, 37), np.float32)
         valid = np.empty(self.n, np.uint32)
         self.lib.RLJumpEncodeBatch(
@@ -249,6 +254,8 @@ class SharedJump:
         return out, valid.astype(bool)
 
     def publish(self, mean, mask=None, sequences=None, *, snapshot=None):
+        if self.measurement is not None:
+            self.measurement.count("jump_C_publish_calls")
         a = np.ascontiguousarray(mean, dtype=np.float32)
         if a.shape != (self.n, 6) or not np.isfinite(a).all():
             raise ValueError("finite batch mean")
@@ -277,20 +284,26 @@ class SharedJump:
         )
         return rc
 
-    def pd(self):
-        rc = np.empty(self.n, np.int32)
-        self.lib.RLJumpPdBatch(self.states, self.inputs, self.frames, rc.ctypes.data, self.n)
-        return rc, [
+    def frame_records(self, frames=None):
+        """Owned diagnostic snapshots, requested only by an actual consumer."""
+        if self.measurement is not None:
+            self.measurement.count("jump_C_diagnostic_snapshots")
+        return [
             {
-                name: (
-                    array(getattr(f, name))
-                    if isinstance(getattr(f, name), C.Array)
-                    else int(getattr(f, name))
-                )
+                name: array(getattr(f, name))
+                if isinstance(getattr(f, name), C.Array)
+                else int(getattr(f, name))
                 for name, _ in self.FrameType._fields_
             }
-            for f in self.frames
+            for f in (self.frames if frames is None else frames)
         ]
+
+    def pd(self, *, as_dict=True):
+        if self.measurement is not None:
+            self.measurement.count("jump_C_PD_calls")
+        rc = np.empty(self.n, np.int32)
+        self.lib.RLJumpPdBatch(self.states, self.inputs, self.frames, rc.ctypes.data, self.n)
+        return rc, self.frame_records() if as_dict else self.frames
 
     def state_dict(self):
         return dict(
