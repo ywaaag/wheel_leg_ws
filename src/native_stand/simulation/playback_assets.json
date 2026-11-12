@@ -1,0 +1,18 @@
+{
+  "version": "authored_USD_playback_asset_binding_v1",
+  "asset_sha256": "32a56efc5ee677a7ae3b5e59c3848a141276ec4957757acde239b774b0c901b7",
+  "bindings": {
+    "description": {
+      "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_09__jump_cpu_preparation/ready_v1/geometry_description.json",
+      "sha256": "d6155bb0708cd0ad55cad2e3971e0779083d1ba07a415b2f5c7f570781322560"
+    },
+    "initial_states": {
+      "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__recovery_standalone_restart10000/initial_states.json",
+      "sha256": "6e1e68c7b344abeafce7965af977b16ada8649e8f5dbad76dee892098718313d"
+    },
+    "V4": {
+      "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_10_30__bilateral_detailed_response_v4/candidate_contract.json",
+      "sha256": "5510088cc1f57f823718fd36218beb32cabf3c1d8ce708cf75531129178dc1cd"
+    }
+  }
+}

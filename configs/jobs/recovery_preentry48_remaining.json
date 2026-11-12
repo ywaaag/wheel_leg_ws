@@ -1,0 +1,197 @@
+{
+  "preset": "recovery_cubic_v2",
+  "name": "recovery_preentry48_remaining",
+  "initialization": {
+    "mode": "actor_only",
+    "checkpoint": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_11__recovery_preentry48_restart/initial_actor.pt",
+    "sha256": "9bcdb05e46fdadaaa1957659afa295c41f3cba941687c7f8a69b9cbc1fd7b633"
+  },
+  "limits": {
+    "smoke_updates": 0,
+    "formal_updates": 8334,
+    "sample_limit": 1092354048,
+    "chain_wall_s": null,
+    "evaluation_wall_s": 3600.0
+  },
+  "storage": {
+    "checkpoint_every_updates": 100,
+    "keep_recent_checkpoints": 2,
+    "metrics_every_updates": 10,
+    "tensorboard": true,
+    "milestones": [
+      12
+    ],
+    "max_output_bytes": 6442450944,
+    "terminal_reserve_bytes": 268435456
+  },
+  "assets": {
+    "recovery_cubic_preparation": {
+      "path": "/home/kellen/wheel_leg_native_train/runs/2026_11_10__recovery_standalone_prior_finalize/delivery.json",
+      "sha256": "7d39e05775672cefa68347a3aba02b7d7c97f9552acb0c5652ad927fafce745d"
+    },
+    "recovery_initial_actor": {
+      "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_11__recovery_preentry48_restart/initial_actor.pt",
+      "sha256": "9bcdb05e46fdadaaa1957659afa295c41f3cba941687c7f8a69b9cbc1fd7b633"
+    },
+    "recovery_training_contract": {
+      "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_11__recovery_preentry48_restart/output_contract.json",
+      "sha256": "71d2b06b6617b9499f056e9951b2ca7c3a3ee8b2d100169a4e57f09ba21575db"
+    },
+    "recovery_learning_acceptance": {
+      "path": "/home/kellen/wheel_leg_native_train/runs/2026_11_10__recovery_standalone_prior_finalize/delivery.json",
+      "sha256": "7d39e05775672cefa68347a3aba02b7d7c97f9552acb0c5652ad927fafce745d"
+    },
+    "qualified_physical_BC_anchor": {
+      "path": "/home/kellen/wheel_leg_native_train/runs/2026_11_10__recovery_standalone_prior_finalize/qualified_physical_BC_anchor.npz",
+      "sha256": "692c4ee40fef43549a1f96e41543f4abd5287e71f09ca5546adc079760722f13",
+      "coefficient": 0.1,
+      "sampling": "full_pool_height_dq_stratified",
+      "batch_size": 512
+    },
+    "recovery": {
+      "entry_family": "swing",
+      "gate": {
+        "hold_seconds": 10.0,
+        "standing_height_m": [
+          0.3,
+          0.4
+        ],
+        "dual_contact_min": 0.95,
+        "peak_tilt_max_rad": 0.18,
+        "closure_max_m": 0.005,
+        "saturation_fraction_max": 0.05
+      }
+    },
+    "recovery_isaac_runtime": {
+      "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_11__recovery_preentry48_restart/runtime_contract.json",
+      "sha256": "81d6c19ec5e64189fb5609310f7e2ec0d55fc0cbc76e7594ee4a1a51c819a25b"
+    },
+    "recovery_isaac_acceptance": {
+      "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_11__recovery_preentry48_restart/Isaac_acceptance.json",
+      "sha256": "9f3ee22de6386127f57faa1c137ea282a187f629769830fe8c228a92d03a6d58"
+    },
+    "physical_gpu_uuid": "GPU-e704e7d4-2965-4712-9759-ba6b9910bd72",
+    "gpu_resource_policy": {
+      "mode": "shared_authorized",
+      "authorization": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_11__recovery_preentry48_restart/authorization.json",
+        "sha256": "4ef965c0df74e48171cadc924c724121d42d7dea3403f3361e2959ec94a119d8"
+      },
+      "minimum_free_MiB": 8192,
+      "minimum_disk_free_bytes": 4294967296,
+      "storage_path": "/home/kellen/wheel_leg_native_train/runs"
+    },
+    "recovery_critic_contract": {
+      "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__recovery_standalone_restart10000/critic_contract.json",
+      "sha256": "59b912bc5df2309445b13da135c29ffa5f9d1ad5dd01067f37c4293644d8d487"
+    },
+    "recovery_standalone_course": {
+      "version": "recovery_Swing_priority_own_hold_v2",
+      "own_control_entire_episode": true,
+      "initial_stage": 0,
+      "HF_is_promotion_gate": false,
+      "first_episode": "full_Swing",
+      "fractions_student_seconds": [
+        0.15,
+        0.075,
+        0.075,
+        0.7
+      ]
+    },
+    "old_Recovery_action_prior": {
+      "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_09__recovery_Swing_handover_restart10000/preserved_models/old_Recovery1500_action_prior.pt",
+      "sha256": "dc7fad5a2245639fe864f5d7c4e0cd277fb5c9e175d453b545e3519fbc1a9989",
+      "coefficient": 0.01,
+      "max_rows": 64,
+      "quality": "UNKNOWN current V4, low student Swing state only",
+      "actor_hidden_dims": [
+        512,
+        256,
+        128
+      ]
+    },
+    "preserve_periodic_Recovery_actor": true,
+    "recovery_legacy_reward": {
+      "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_11__recovery_preentry48_restart/reward_recipe.json",
+      "sha256": "61a944aeff5d6ad761f7aee93f8537c54bc1c8bce275d04bd498a41cd3784611"
+    }
+  },
+  "experiment_variables": {
+    "goal": "repair pre-entry low-height runaway while wheel motor4.8Nm is user-mandated",
+    "authorization": {
+      "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_11__recovery_preentry48_restart/authorization.json",
+      "sha256": "4ef965c0df74e48171cadc924c724121d42d7dea3403f3361e2959ec94a119d8"
+    },
+    "old_settlement": {
+      "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_11__recovery_preentry48_restart/old_settlement.json",
+      "sha256": "0c966e26e8cbf2b34915540edcf3b8df64250472ffc9a4a1e526b4cd9f51698f"
+    },
+    "source_selection": {
+      "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_11__recovery_preentry48_restart/source_selection.json",
+      "sha256": "b0200bf741fa5b898238f4d1823226a55b851d2af834ab9e904d186fed58e3ed"
+    },
+    "reward_recipe": {
+      "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_11__recovery_preentry48_restart/reward_recipe.json",
+      "sha256": "61a944aeff5d6ad761f7aee93f8537c54bc1c8bce275d04bd498a41cd3784611"
+    },
+    "attribution": "reward and user-mandated actuator cap both changed; not a one-variable causal experiment",
+    "extra_evaluation_episodes": 0,
+    "new_Adam_and_Critic": true,
+    "old_budget_not_refreshed": true
+  },
+  "notifications": {
+    "enabled": false,
+    "target": null
+  },
+  "backend": "isaac_recovery",
+  "runtime": {
+    "envs": 1024,
+    "steps_per_env": 128,
+    "seed": 111101,
+    "device": "cuda:0",
+    "headless": true
+  },
+  "reward": {
+    "version": "recovery_preentry_runaway48_physical_v8",
+    "dt": 0.01,
+    "weights": [
+      1.0
+    ],
+    "fields": {
+      "source": "recovery_isaac.lifecycle"
+    }
+  },
+  "ppo": {
+    "learning_rate": 1e-05,
+    "critic_learning_rate": 9e-05,
+    "epochs": 4,
+    "minibatches": 4
+  },
+  "diagnostics": {
+    "engineering_smoke_in_first_formal_updates": 12,
+    "training_candidate_selection": {
+      "maximum_candidates": 2,
+      "version": "recovery_own_hold_training_candidates_v1",
+      "every_updates": 100,
+      "minimum_ended": 16
+    },
+    "recovery_audit_metrics": true
+  },
+  "model": {
+    "critic_input": 909,
+    "critic_privileged_version": "recovery_standalone_height_causal909_v5"
+  },
+  "observation": {
+    "critic_dim": 909
+  },
+  "control": {
+    "effort_limits_nm": [
+      40.0,
+      40.0,
+      4.8,
+      40.0,
+      40.0,
+      4.8
+    ]
+  }
+}

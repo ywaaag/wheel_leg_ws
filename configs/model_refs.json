@@ -1,0 +1,9 @@
+{
+  "fixed_models": [
+    {
+      "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_09__motion_yaw1to4_u1600_preserved/model_update_1600.pt",
+      "sha256": "09f27b74507b55da1a7cc0c81e2b77ed7b25a0d43bfe7a74a1806d2252915ef5",
+      "consumer": "user_fixed_motion_u1600"
+    }
+  ]
+}

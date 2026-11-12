@@ -1,0 +1,15 @@
+{
+  "policy_sha256": "abe10db68b0ad62a3e0ceac5285ebb0041ff084134bc313edb235ae46d427d7e",
+  "large_contract_sha256": "590babda612dad2c86a10921172d87676908da36b8a75f0e709afd0d41c2e300",
+  "source_C0_contract_sha256": "1db5cb51a7d102e738a6ddeb65406f8108463f6eac3dca1be430f9587e4734e5",
+  "center_definition_canonical_json_sha256": "d7d7faf41f7519fe39678387ed4172b79f9e5a2d9b2aba9744e04dbbf1d97347",
+  "source_checkpoint": "/home/kellen/wheel_leg_native_train/runs/2026_11_11-09_59__motion2097_turn_response_independentDR_full7903/checkpoints/model_update_3000.pt",
+  "binding_kind": "explicit geometry extension .20-.30; unchanged physical target function .30-.40; bounded engineering smoke, not calibrated support",
+  "full_continuation": false,
+  "geometry_evidence_sha256": "15cea4bb4c39b5cbf269e9a019667dae4fd9b49f61d5adf22b00a5845aec0918",
+  "source_center_binding": {
+    "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_12__motion_spin_motion_start_selection/motion_center_binding.json",
+    "sha256": "9c3120f5177eaa3469f20073a82d799cf35a70db815738933a07f86bd7a42c20"
+  },
+  "full_training_state_preserved": true
+}

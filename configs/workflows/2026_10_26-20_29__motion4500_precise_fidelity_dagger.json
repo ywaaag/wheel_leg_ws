@@ -1,0 +1,279 @@
+{
+  "version": "motion31_mcu_distillation_cycle_v3",
+  "teacher": "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/model_update_4500.pt",
+  "teacher_sha256": "0be977b308cfe493fdddee54823e21c713508fa582ce1618ab34e57b13fbc619",
+  "parent_spec": "/home/kellen/wheel_leg_native_train/configs/experiments/2026_10_25-23_52__motion1500_posture_retention312_10000/spec.json",
+  "parent_spec_sha256": "aedc185399e3e8b23c17b18323638d9e766b29bfa98efc1579153838dcfc4cf8",
+  "xml": "/home/kellen/wheel_leg_sim2sim/assets/wheeled_infantry.xml",
+  "cases": [
+    {
+      "case_id": "posture_0",
+      "target": [
+        0.0,
+        0.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_1",
+      "target": [
+        0.5,
+        0.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_2",
+      "target": [
+        1.0,
+        0.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_3",
+      "target": [
+        1.5,
+        0.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_4",
+      "target": [
+        2.0,
+        0.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_5",
+      "target": [
+        3.0,
+        0.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_6",
+      "target": [
+        -0.5,
+        0.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_7",
+      "target": [
+        -1.0,
+        0.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_8",
+      "target": [
+        -1.5,
+        0.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_9",
+      "target": [
+        -2.0,
+        0.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_10",
+      "target": [
+        -3.0,
+        0.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_11",
+      "target": [
+        0.0,
+        0.5,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_12",
+      "target": [
+        0.0,
+        1.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_13",
+      "target": [
+        0.0,
+        1.5,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_14",
+      "target": [
+        0.0,
+        2.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_15",
+      "target": [
+        0.0,
+        3.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_16",
+      "target": [
+        0.0,
+        4.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_17",
+      "target": [
+        0.0,
+        -0.5,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_18",
+      "target": [
+        0.0,
+        -1.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_19",
+      "target": [
+        0.0,
+        -1.5,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_20",
+      "target": [
+        0.0,
+        -2.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_21",
+      "target": [
+        0.0,
+        -3.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_22",
+      "target": [
+        0.0,
+        0.0,
+        0.34
+      ],
+      "variant": 1
+    },
+    {
+      "case_id": "posture_23",
+      "target": [
+        0.0,
+        0.0,
+        0.34
+      ],
+      "variant": 2
+    }
+  ],
+  "split_yaw_rad": [
+    0.0,
+    0.015,
+    -0.015
+  ],
+  "seed": 20261026,
+  "test_case_indices": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23
+  ],
+  "limits": {
+    "rounds": 5,
+    "steps_per_round": 5000,
+    "fit_wall_s": 1200,
+    "wall_s": 7200,
+    "storage_bytes": 1073741824
+  },
+  "xml_sha256": "663e121ef9aed4bfab09ff0d3d98321b7ce77d80b63584235e4da691bd3aebf3",
+  "authorization": "AUTHORIZED",
+  "objective": "teacher_fidelity",
+  "solver_profile": "closure_contact_tight_v1",
+  "plant_profile": "motion_mcu_currentplant_v1",
+  "output": "/home/kellen/wheel_leg_native_train/artifacts/2026_10_26-20_29__motion4500_precise_fidelity_dagger",
+  "export_directory": "/home/kellen/wheel_leg_native_train/deployment_protocol/2026_10_26-20_29__motion4500_precise_small31_onnx",
+  "scope": "用户2026-10-26：请继续优化学生的表现，复刻Teacher。仅CPU BC与同域MuJoCo状态聚合；不用Isaac/GPU/PPO，不改固件或实机。",
+  "initial_student": "/home/kellen/wheel_leg_native_train/artifacts/2026_10_26-17_49__motion4500_small31_mcu_distillation/round_01/fit/best_validation.pt",
+  "initial_student_sha256": "89e2a17ca0db44ad7918fb9ae53103dde0470fe106af7cf3e77dfdb8a641c135",
+  "initial_dataset": "/home/kellen/wheel_leg_native_train/artifacts/2026_10_26-17_49__motion4500_small31_mcu_distillation/round_01/dataset/dataset.pt",
+  "initial_dataset_sha256": "9d3436d7c740b4ae628eb3aba989470797fc405f368be1dbda1acfd9afa39b24",
+  "standing_batch_fraction": 0.5,
+  "source_native_evidence_reference": "Teacher4500 candidate_registry update4500:24 conditions/192 envs; this is independent MuJoCo fidelity, not new Native certification"
+}

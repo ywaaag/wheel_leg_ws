@@ -1,0 +1,306 @@
+{
+  "version": "motion31_mcu_distillation_cycle_v3",
+  "teacher": "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/model_update_4500.pt",
+  "teacher_sha256": "0be977b308cfe493fdddee54823e21c713508fa582ce1618ab34e57b13fbc619",
+  "parent_spec": "/home/kellen/wheel_leg_native_train/configs/experiments/2026_10_25-23_52__motion1500_posture_retention312_10000/spec.json",
+  "parent_spec_sha256": "aedc185399e3e8b23c17b18323638d9e766b29bfa98efc1579153838dcfc4cf8",
+  "xml": "/home/kellen/wheel_leg_sim2sim/assets/wheeled_infantry.xml",
+  "cases": [
+    {
+      "case_id": "posture_0",
+      "target": [
+        0.0,
+        0.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_1",
+      "target": [
+        0.5,
+        0.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_2",
+      "target": [
+        1.0,
+        0.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_3",
+      "target": [
+        1.5,
+        0.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_4",
+      "target": [
+        2.0,
+        0.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_5",
+      "target": [
+        3.0,
+        0.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_6",
+      "target": [
+        -0.5,
+        0.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_7",
+      "target": [
+        -1.0,
+        0.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_8",
+      "target": [
+        -1.5,
+        0.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_9",
+      "target": [
+        -2.0,
+        0.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_10",
+      "target": [
+        -3.0,
+        0.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_11",
+      "target": [
+        0.0,
+        0.5,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_12",
+      "target": [
+        0.0,
+        1.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_13",
+      "target": [
+        0.0,
+        1.5,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_14",
+      "target": [
+        0.0,
+        2.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_15",
+      "target": [
+        0.0,
+        3.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_16",
+      "target": [
+        0.0,
+        4.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_17",
+      "target": [
+        0.0,
+        -0.5,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_18",
+      "target": [
+        0.0,
+        -1.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_19",
+      "target": [
+        0.0,
+        -1.5,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_20",
+      "target": [
+        0.0,
+        -2.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_21",
+      "target": [
+        0.0,
+        -3.0,
+        0.34
+      ],
+      "variant": 0
+    },
+    {
+      "case_id": "posture_22",
+      "target": [
+        0.0,
+        0.0,
+        0.34
+      ],
+      "variant": 1
+    },
+    {
+      "case_id": "posture_23",
+      "target": [
+        0.0,
+        0.0,
+        0.34
+      ],
+      "variant": 2
+    }
+  ],
+  "split_yaw_rad": [
+    0.0,
+    0.015,
+    -0.015
+  ],
+  "seed": 20261026,
+  "test_case_indices": [
+    0,
+    4,
+    9,
+    12,
+    18,
+    16,
+    21
+  ],
+  "limits": {
+    "rounds": 3,
+    "steps_per_round": 5000,
+    "fit_wall_s": 1200,
+    "wall_s": 10800,
+    "storage_bytes": 2147483648
+  },
+  "source_evaluations_sha256": {
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_192.json": "f91a3c04289c660fc9462019b3b1ff91ddc98511c6c837c52d46ede0fdba78be",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_192.npz": "592bd0161435803c15dfb531027da456ae794ac4b69e64d062293c4719d3dd3d",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_193.json": "bdfe64bb4681ad8c80ecb41409f546512a96c0b1fd371fda8120f17be8854f23",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_193.npz": "fb05596c5fe3e85b50ac97b01d39cbca044976cd01d056162166154ff3de4554",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_194.json": "91be93e88ba029a142f68c168d733b37d78134196e919339770af7a9253e2345",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_194.npz": "a9c1f389c9a57c3752b5b86d31caa74f5f24ff39f8b4a9e7d87119d02888fa2a",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_195.json": "55e37ac99196edf6fe88df05d6ea373677c3643756ef2c2da795b0124e4ed3cf",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_195.npz": "500e1fedd337c3ab4a37f6f5d17bc9dc4d73bc929607a6e358cdf2783387ff06",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_196.json": "3c7e77bb4ecd4670780b9a4a5bf4e43b0ea8689b17cf8e867d06be51ad8d973f",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_196.npz": "668fb512d01f8da800312ac18e46433586399f5e4c02daab359319b571f23e00",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_197.json": "863463b1389809d6b65eba84f9f0be63133e62a5237244802e31449cb8074e94",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_197.npz": "38c4b1e62bca2aa861b64556f0675de1c68ddd1b2ee7c8a88cfc99c00da8bba5",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_198.json": "975b96fd8efd14480391e1984074d73d4c68bf999a53dcc46835f8729be720e5",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_198.npz": "9eec462f35d8bbed4194d6ddf32c38c7c30bb9c17a2a5cf08c2a0be40c7ac6d4",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_199.json": "61239c7c8a1ba4a08fbbaf46f6a4f6bc35d3ec7ecdec81fe14d50e6334a5e9e5",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_199.npz": "754a7f24905098dccb5929712b12c31fd5c0f25b45df059900080f694415a2c7",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_200.json": "85980a0eab836fb208888e714de0b0a15019b4be686fb93e2e3356ae05374120",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_200.npz": "84934f6b7bacc0cf685efab846f4cd3608033bfe0c245dcdbfcbf6690b0751a7",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_201.json": "0e0cfa2edaa992d6c283418d73cac71e2bf16bb14cb4e4f317e71e5ac6781120",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_201.npz": "58e3d93c0a9982b1d18f4be40d490c646ca5818fd8a8cb8ada7192a2dc7c0025",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_202.json": "eea196b3b38e46775de7dd03122469440dad2474353f8cc6e8c49c30d5feccd9",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_202.npz": "43a050a1678d0917a934d02ceb64feac01ae51cf9eea0cafd0796c38a9dd60a3",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_203.json": "e97672fbd3a55a1107e824af38e072e5e937f2b3e2e1c028d44f08a8210cc2db",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_203.npz": "fc5abdb3d2a7affefaa18b2263b61479d66b6c6ebd8a06e5ce8d5bff49b8b05c",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_204.json": "54e4d69277f8696d3e862b48037dbec5792a1bfa1b6fa0d5cea0c62eb36f6003",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_204.npz": "9049726f36b01f6ecb8f30f82f4ae656bac35b49da38c65ac1c477e6b717e81e",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_205.json": "c156b97825447cb6960beb0aad1e7248c97b4ea998024839da8da1e6bb349e57",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_205.npz": "1d13e710c6ae41110ca5071055d7d187419e80612176943913ffc7c2d40cd37c",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_206.json": "7e8016b10adaf233006be96fd8af864215951f43d1d01bd7bc44d36106765fa1",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_206.npz": "e15386d9d06eaa1ad24e0d6b11739a225f4da4ef212f3291517503c6286aa461",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_207.json": "6fcc2e62a658f217fdb5b2aa5f6f89ff16c58b3229a211ce1a119894fd922412",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_207.npz": "5530e83cebf3229856f2172f4139c707f89df6cae3408909519595d2833ef089",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_208.json": "2af11e7e91aa8eea024a6290ece2799fbc77ede0f74058f209a9c9a91c4d5d73",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_208.npz": "c5c07ba8ffb312ccc5f18d71e850bcca5a41c1cb8be07c718cb4d09ccd2fb677",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_209.json": "4f3ddc796bc1746b7f014199dfe9918b1f24b5d47613a698fa3de89d4c58c89c",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_209.npz": "4d18fe3a7daa5bc7aaa16c88c41869ede97219cdd0448f625d63516739e1c53c",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_210.json": "793126a07eaa61591341f90eb4c4b2471de8bdc66da8fdff2d60e95627284f2a",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_210.npz": "b9e08b25b670967f532028aca7fd39550e686e23ffe903afc3abfa61cda3fc0c",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_211.json": "2ec660553e8ce755217fc2d462662e47e0322aa590a4492f187e32dcf563fdb8",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_211.npz": "334329231d221d4872a2038bbafe60924627c6a14805835b244dd42a5b4ed535",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_212.json": "aa39aac512a91d885df62179b5958c41a4e1e957a0397f361127846d8f2422ed",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_212.npz": "bcef2b27bc1b2954e12e44f9b9364dc9a163d3a7e112949f8f6629d4dc3dd98d",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_213.json": "478036e00bef78b5e26a77a420cded44eb75cd69a1335c5dcfd9da9d67ff87a2",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_213.npz": "50aa12bd68489e46555ad68f5d979f639b0743f937dfd1da9b3e06e913de6092",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_214.json": "a12b0127cb037a1cd094529f466a814b8934592da9be46ef1a269fc62e53ba30",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_214.npz": "0c139b2814059745f527cdd71d0dbcfed24b0f4d9b5891ed433544f5074026f2",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/evaluation_215.json": "7505377b83b76f891447141c64cfebd164c747a5069d922b39b1f46b71db2679",
+    "/home/kellen/wheel_leg_native_train/runs/2026_10_25-23_52__motion1500_posture_retention312_10000/formal/trace_215.npz": "f7c2ed08999d6ead5659f84589e3828b7484177a9ebf99dc23ed710ec766cabb"
+  },
+  "xml_sha256": "663e121ef9aed4bfab09ff0d3d98321b7ce77d80b63584235e4da691bd3aebf3",
+  "authorization": "UNAUTHORIZED",
+  "objective": "teacher_fidelity",
+  "solver_profile": "closure_contact_tight_v1",
+  "plant_profile": "motion_mcu_currentplant_v1",
+  "output": "/home/kellen/wheel_leg_native_train/artifacts/YYYY_M_D-HH_MM__motion4500_precise_fidelity",
+  "export_directory": "/home/kellen/wheel_leg_native_train/deployment_protocol/YYYY_M_D-HH_MM__motion4500_precise_small31_onnx",
+  "scope": "示例：新Teacher采集、Student独立闭环和聚合补教固定同一精度/Plant；以复制4500在MuJoCo中的能力为目标，绝对漂移另报。执行前更换新输出名并记录当次运行范围。"
+}

@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Motion31 manual preview</title>
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#0b0e13; --card:#131821; --card-2:#0f141c; --canvas:#0a0d12;
+    --line:#242e3b; --line-soft:#1b2230; --grid:#1b2230; --axis:#2c3644;
+    --text:#e5ebf2; --muted:#8c9aab; --dim:#5d6a7a;
+    --model-1:#4c9aff; --model-2:#f5a623;
+    --ok:#3ddc97; --warn:#f5a623; --bad:#ff5d5d;
+    --radius:10px; --radius-sm:6px; --gap:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font:13px/1.5 "Roboto","Inter","Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif;
+    color:var(--text);
+    background:
+      radial-gradient(60rem 32rem at 0% 0%,rgba(76,154,255,.06),transparent 70%),
+      radial-gradient(52rem 30rem at 100% 100%,rgba(245,166,35,.05),transparent 70%),
+      var(--bg);
+    background-attachment:fixed;
+  }
+  header{
+    position:sticky;top:0;z-index:3;
+    display:flex;gap:12px;align-items:center;flex-wrap:wrap;
+    padding:11px 18px;
+    border-bottom:1px solid var(--line);
+    background:rgba(11,14,19,.82);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  }
+  h1{font-size:15px;margin:0;font-weight:600;letter-spacing:.01em}
+  h1::before{
+    content:"";display:inline-block;width:7px;height:7px;margin-right:8px;
+    border-radius:50%;background:var(--model-1);vertical-align:middle;
+    box-shadow:0 0 0 3px rgba(76,154,255,.16);
+  }
+  .note{color:var(--muted);font-size:12px;line-height:1.5}
+  #status{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:3px 10px;border-radius:999px;font-size:12px;
+    border:1px solid var(--line);background:rgba(140,154,171,.10);color:var(--muted);
+    transition:color .16s ease,background .16s ease,border-color .16s ease;
+  }
+  #status::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+  #status.ok{color:var(--ok);border-color:rgba(61,220,151,.35);background:rgba(61,220,151,.10)}
+  #status.warn{color:var(--warn);border-color:rgba(245,166,35,.38);background:rgba(245,166,35,.12)}
+
+  #chrome{padding:14px 18px 0;display:grid;gap:var(--gap)}
+  #chrome:empty{display:none}
+
+  main{padding:14px 18px 22px;display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:var(--gap);align-items:start}
+  section{
+    border:1px solid var(--line);border-radius:var(--radius);
+    padding:12px 14px;background:linear-gradient(180deg,var(--card),var(--card-2));
+    box-shadow:0 1px 0 rgba(255,255,255,.02) inset,0 6px 18px rgba(0,0,0,.22);
+  }
+  section.span-all{grid-column:1/-1}
+  section.chart{grid-column:span 1;min-width:0}
+  section.wide{grid-column:1/-1}
+  section[hidden]{display:none}
+  canvas.tall{height:210px}
+  section.zoomed{grid-column:1/-1}
+  section.zoomed canvas{height:340px}
+  section.zoomed canvas.tall{height:420px}
+  button.zoom{margin-left:8px;padding:1px 8px;font-size:11px;color:var(--muted);background:transparent;
+    border-color:var(--line-soft);font-weight:400;letter-spacing:0}
+  button.zoom:hover{color:var(--text);background:#1c242f}
+  .tools{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .hint{color:var(--dim);font-size:11px;margin-top:6px;line-height:1.45}
+  h2{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+    font-size:11px;margin:0 0 10px;color:var(--muted);font-weight:600;
+    letter-spacing:.08em;text-transform:uppercase;
+  }
+  .row{display:flex;justify-content:space-between;gap:10px;align-items:center;margin:8px 0;flex-wrap:wrap}
+  .label{color:var(--muted)}
+  .val{font-variant-numeric:tabular-nums;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:22px;background:transparent;margin:0 0 4px;
+  }
+  input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:var(--line)}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;width:14px;height:14px;margin-top:-5px;border-radius:50%;
+    background:var(--text);border:2px solid var(--model-1);cursor:pointer;
+    transition:transform .12s ease,box-shadow .12s ease;
+  }
+  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.12);box-shadow:0 0 0 4px rgba(76,154,255,.16)}
+  input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:var(--line)}
+  input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--text);border:2px solid var(--model-1);cursor:pointer}
+  select{
+    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--line);
+    background:#161d26;color:var(--text);font:inherit;font-size:12px;
+  }
+  select:focus{outline:none;border-color:var(--model-1);box-shadow:0 0 0 3px rgba(76,154,255,.18)}
+  input[type=number]{
+    width:96px;padding:5px 8px;border-radius:var(--radius-sm);
+    border:1px solid var(--line);background:var(--card-2);color:var(--text);
+    font:inherit;font-variant-numeric:tabular-nums;text-align:right;
+    transition:border-color .12s ease,box-shadow .12s ease;
+  }
+  input[type=number]:focus{outline:none;border-color:var(--model-1);box-shadow:0 0 0 3px rgba(76,154,255,.18)}
+
+  button{
+    background:#1a2129;color:var(--text);border:1px solid var(--line);
+    border-radius:var(--radius-sm);padding:6px 12px;cursor:pointer;font:inherit;
+    transition:background .08s ease,transform .08s ease,border-color .12s ease,color .12s ease;
+  }
+  button:hover{background:#222b36;border-color:#33404f}
+  button:active{transform:translateY(1px)}
+  button:focus-visible{outline:2px solid var(--model-1);outline-offset:2px}
+  button.danger{border-color:rgba(255,93,93,.42);background:rgba(255,93,93,.12);color:#ffc4c4}
+  button.danger:hover{background:rgba(255,93,93,.20)}
+  button.model{border-left:3px solid var(--line);opacity:.78}
+  button.model[aria-pressed="true"]{opacity:1;background:rgba(76,154,255,.12);border-color:rgba(76,154,255,.55);color:#dceaff}
+  button.model[data-model="2"][aria-pressed="true"]{background:rgba(245,166,35,.12);border-color:rgba(245,166,35,.55);color:#ffe6bd}
+  button.model[data-model="1"]{border-left-color:var(--model-1)}
+  button.model[data-model="2"]{border-left-color:var(--model-2)}
+
+  table{width:100%;border-collapse:collapse}
+  tr{border-bottom:1px solid rgba(36,46,59,.55)}
+  tr:last-child{border-bottom:none}
+  tr:nth-child(odd) td{background:rgba(255,255,255,.014)}
+  td{padding:4px 2px;color:var(--muted);font-size:12.5px}
+  td:first-child{padding-left:4px}
+  td:last-child{
+    text-align:right;color:var(--text);font-variant-numeric:tabular-nums;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
+  }
+
+  canvas{
+    width:100%;height:190px;display:block;background:var(--canvas);
+    border:1px solid var(--line-soft);border-radius:8px;
+  }
+
+  .legend{display:inline-flex;gap:12px;flex-wrap:wrap;align-items:center;text-transform:none;letter-spacing:0;font-weight:400}
+  .legend .chip{display:inline-flex;align-items:center;gap:5px;color:var(--muted);font-size:11px;white-space:nowrap}
+  .legend .chip i{display:block;width:7px;height:7px;border-radius:2px}
+
+  .pill{
+    display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;
+    font-size:12px;border:1px solid var(--line);background:rgba(140,154,171,.10);color:var(--muted);
+    transition:color .16s ease,background .16s ease,border-color .16s ease;
+  }
+  .pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+  .pill.run{color:var(--ok);border-color:rgba(61,220,151,.35);background:rgba(61,220,151,.10)}
+  .pill.hold{color:var(--warn);border-color:rgba(245,166,35,.38);background:rgba(245,166,35,.12)}
+
+  .alert{
+    display:flex;gap:10px;align-items:flex-start;
+    margin:10px 0 0;padding:9px 12px;border-radius:var(--radius-sm);
+    border-left:3px solid var(--bad);background:rgba(255,93,93,.12);color:#ffc9c9;
+    animation:slidein .2s ease;
+  }
+  .alert.ok{border-left-color:var(--ok);background:rgba(61,220,151,.10);color:#b6f0d6}
+  .alert[hidden]{display:none}
+  .alert strong{color:#fff;font-weight:600}
+  @keyframes slidein{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+
+  .kv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:4px 18px}
+  .kv-grid .row{margin:2px 0}
+
+  kbd{
+    border:1px solid #33404f;border-bottom-width:2px;border-radius:4px;padding:0 5px;
+    color:#cfd8e3;background:#151b23;font-size:11.5px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  .warn{color:var(--warn)}
+  .ok{color:var(--ok)}
+
+  @media (max-width:1100px){
+    main{grid-template-columns:1fr}
+    section.span-all{grid-column:auto}
+  }
+  @media (max-width:680px){
+    header{padding:10px 12px}
+    #chrome{padding:10px 12px 0}
+    main{padding:10px 12px 18px}
+    canvas{height:150px}
+    canvas.tall{height:180px}
+    .row{gap:8px}
+    button{flex:1 1 auto}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.01ms !important;transition-duration:.01ms !important}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="panel-title">Motion31 手动预览面板</h1>
+  <span id="status">连接中…</span>
+  <span class="tools"><button id="zoom-all" type="button">展开全部图表</button></span>
+  <span class="note" id="panel-note">浏览器 WSAD/手柄与 Isaac GUI 键盘同源（单命令通道）；预览不是能力认证</span>
+</header>
+
+<div id="chrome"></div>
+
+<main>
+  <section>
+    <h2>命令</h2>
+    <div id="motion-controls">
+    <div class="row"><span class="label">持续前后速度 vx (m/s)</span><span class="val" id="vx-target-val">0.00</span></div>
+    <input id="vx-target" type="range" min="-2" max="2" step="0.05" value="0">
+    <div class="row"><span class="label">持续转向速度 yaw (rad/s)</span><span class="val" id="yaw-target-val">0.00</span></div>
+    <input id="yaw-target" type="range" min="-1" max="1" step="0.05" value="0">
+    <div class="row"><span class="label">本次会话上限 vx</span><span class="val" id="cap-speed-val">2.00</span></div>
+    <input id="cap-speed" type="number" min="0.05" max="2" step="0.05" value="2">
+    <div class="row"><span class="label">本次会话上限 yaw</span><span class="val" id="cap-yaw-val">1.00</span></div>
+    <input id="cap-yaw" type="number" min="0" max="1" step="0.05" value="1">
+    <div class="row"><span class="label">高度命令 (m)</span><span class="val" id="height-target-val">0.34</span></div>
+    <input id="height-target" type="range" min="0.20" max="0.45" step="0.01" value="0.34">
+    <div class="row"><span class="label">31D 技能 one-hot</span></div>
+    <select id="skill-select">
+      <option value="Motion" selected>Motion（训练任务）</option>
+      <option value="Recovery">Recovery</option>
+      <option value="Jump">Jump</option>
+    </select>
+    <div class="row"><span class="label">31D Jump one-hot</span></div>
+    <select id="jump-select">
+      <option value="NONE" selected>NONE（训练任务）</option>
+      <option value="SMALL">SMALL</option>
+      <option value="BIG">BIG</option>
+    </select>
+    </div>
+    <div class="row" id="model-selection"><span class="label" id="model-label">推理模型（同环境切换）</span></div>
+    <select id="model-select">
+      <option value="main" selected>main</option>
+    </select>
+    <div id="replay-controls" hidden>
+      <div class="row"><span>回放倍率</span><span id="replay-speed-val">0.25×</span></div>
+      <input id="replay-speed" type="range" min="0.1" max="2" step="0.05" value="0.25">
+      <div class="note" id="replay-position"></div>
+    </div>
+    <div class="row" style="gap:8px">
+      <button id="btn-stop" class="danger">停止运动</button>
+      <button id="btn-center">命令归中</button>
+      <button id="btn-reset">重置</button>
+      <button id="btn-csv">下载 CSV</button>
+      <button id="btn-pause" type="button" hidden>暂停</button>
+      <button id="btn-run" type="button" hidden>运行</button>
+      <span class="pill" id="pause-pill" hidden>运行中</span>
+    </div>
+    <div class="note" id="mode-note">高度命令 .20–.45m（训练 .34m）；技能/Jump 改写 Actor 31D 的最后 6 维，只用于诊断，不是能力认证。</div>
+  </section>
+
+  <section>
+    <h2>实时状态</h2>
+    <table>
+      <tr><td>实测 vx (m/s)</td><td id="m-vx">—</td></tr>
+      <tr><td>命令 vx (m/s)</td><td id="m-cmd-vx">—</td></tr>
+      <tr><td>实测 yaw (rad/s)</td><td id="m-yaw">—</td></tr>
+      <tr><td>Pitch / Roll (rad)</td><td id="m-posture">—</td></tr>
+      <tr><td>高度 命令 / 实测 (m)</td><td id="m-height">—</td></tr>
+      <tr><td>垂向速度 vz (m/s)</td><td id="m-vz">—</td></tr>
+      <tr><td>摆角差 / 共同摆角 (rad)</td><td id="m-swing">—</td></tr>
+      <tr><td>腿长差 / 轮心前后差 (m)</td><td id="m-geom">—</td></tr>
+      <tr><td>轮速 左/右 (rad/s)</td><td id="m-wheel">—</td></tr>
+      <tr><td>轮端力矩 左/右 (N·m)</td><td id="m-tau">—</td></tr>
+      <tr><td>步数 / 重置</td><td id="m-steps">—</td></tr>
+      <tr><td>仿真 / 现实时间 (s)</td><td id="m-times">—</td></tr>
+      <tr><td>流速比 仿真÷现实（近期 / 累计）</td><td id="m-rtf">—</td></tr>
+      <tr><td>命令来源</td><td id="m-source">—</td></tr>
+      <tr><td>任务模式</td><td id="m-mode">—</td></tr>
+      <tr><td>技能 / Jump 命令</td><td id="m-skill">—</td></tr>
+      <tr><td>推理模型</td><td id="m-model">—</td></tr>
+      <tr><td>31D 后6D（技能/Jump one-hot）</td><td id="m-tail">—</td></tr>
+      <tr><td>命令高度 (m)</td><td id="m-cmd-height">—</td></tr>
+      <tr><td>轮地接触测量 模型L/R (N)</td><td id="m-contact">—</td></tr>
+      <tr><td>闭链误差 (m)</td><td id="m-closure">—</td></tr>
+      <tr><td>关节位置 q (rad，6D left-first)</td><td id="m-q">—</td></tr>
+      <tr><td>请求目标 (腿rad/轮rad/s)</td><td id="m-requested">—</td></tr>
+      <tr><td>已采用目标 (腿rad/轮rad/s)</td><td id="m-adopted">—</td></tr>
+      <tr><td>PD请求矩 / 限幅前 (Nm)</td><td id="m-preclip">—</td></tr>
+      <tr><td>采样实际矩 (Nm，100Hz held)</td><td id="m-torque">—</td></tr>
+      <tr><td>数据时相</td><td id="m-sample-semantics">—</td></tr>
+      <tr><td>键盘事件数</td><td id="m-keys">—</td></tr>
+      <tr><td>手柄</td><td id="m-pad">—</td></tr>
+    </table>
+  </section>
+
+  <section class="chart" id="sec-command">
+    <h2><span>命令 vs 实际：vx / yaw</span><span class="legend" id="legend-command"></span><button class="zoom" type="button">放大</button></h2>
+    <canvas id="chart-command"></canvas>
+    <div class="hint">实线=实测，虚线=命令；vx 用左轴，yaw 用右轴，右端数字是当前值。</div>
+  </section>
+
+  <section class="chart" id="sec-height">
+    <h2><span>高度 (m)：命令 vs 实际</span><span class="legend" id="legend-height"></span><button class="zoom" type="button">放大</button></h2>
+    <canvas id="chart-height"></canvas>
+  </section>
+
+  <section class="chart" id="sec-posture">
+    <h2><span>姿态：pitch / roll (rad)</span><span class="legend" id="legend-posture"></span><button class="zoom" type="button">放大</button></h2>
+    <canvas id="chart-posture"></canvas>
+  </section>
+
+  <section class="chart" id="sec-geometry">
+    <h2><span>几何对称：剪刀腿 / 摆角差 / 双腿不对称 / 轮心前后差</span><span class="legend" id="legend-geometry"></span><button class="zoom" type="button">放大</button></h2>
+    <canvas id="chart-geometry"></canvas>
+    <div class="hint">左轴=角度(rad)，右轴=长度(m)，全部在机体系计算。摆角差=左右腿摆角夹角差（剪刀程度的直接度量）；两腿共同摆角=两腿同向前后摆；双腿不对称=左右髋到轮心长度差；轮心前后差=左右轮心在前方向上的投影差。髋枢轴固定在机体上，其前后错位恒为0，故不用它表示剪刀腿。</div>
+  </section>
+
+  <section class="chart" id="sec-actuator">
+    <h2><span>轮速 (rad/s) 与轮端力矩 (N·m)</span><span class="legend" id="legend-wheel"></span><button class="zoom" type="button">放大</button></h2>
+    <canvas id="chart-wheel"></canvas>
+  </section>
+
+  <section class="chart" id="sec-legtorque">
+    <h2><span>腿关节力矩 (N·m)</span><span class="legend" id="legend-legtorque"></span><button class="zoom" type="button">放大</button></h2>
+    <canvas id="chart-legtorque"></canvas>
+  </section>
+
+  <section class="chart" id="sec-contact">
+    <h2><span>轮地接触测量 (N，模型侧别)</span><span class="legend" id="legend-contact"></span><button class="zoom" type="button">放大</button></h2>
+    <canvas id="chart-contact"></canvas>
+  </section>
+
+  <section class="chart" id="sec-action">
+    <h2><span>Actor 6D 输出（归一化动作）</span><span class="legend" id="legend-action"></span><button class="zoom" type="button">放大</button></h2>
+    <canvas id="chart-action"></canvas>
+    <div class="hint">顺序：左髋 / 左主动髋 / 左轮 / 右髋 / 右主动髋 / 右轮，范围 ±1。</div>
+  </section>
+
+  <section class="wide" id="sec-input">
+    <h2><span>Actor 31D 输入（热图，行=维度0→30）</span><span class="legend" id="legend-input"></span><button class="zoom" type="button">放大</button></h2>
+    <canvas id="chart-input" class="tall"></canvas>
+    <div class="hint">蓝=正、琥珀=负；每行按本窗口内最大|值|归一，只能看相对变化，不能横向比尺度。</div>
+  </section>
+
+  <section class="wide" id="sec-physics">
+    <h2>仿真物理参数（只读，来自本次启动的 spec/profile）</h2>
+    <div class="kv-grid" id="physics-rows"></div>
+    <div class="hint" id="physics-note"></div>
+  </section>
+
+  <section class="span-all">
+    <h2>操作</h2>
+    <div class="note" id="operation-note">
+      <kbd>W</kbd>/<kbd>S</kbd> 前后（松开平滑回零），<kbd>A</kbd>/<kbd>D</kbd> 转向，
+      <kbd>Space</kbd> 立即归零，<kbd>R</kbd> 重置，<kbd>Esc</kbd> 停止；
+      手柄：左摇杆前后、右摇杆转向，都是模拟量（死区 .20 后重新映射到满量程，杆量越大指令越大，回中后回落到滑块设定）；键盘按下时优先键盘。请先点击网页让其获得键盘焦点；停止后可直接再次按 W/S/A/D。滑块松手、切换窗口均保持设定值；上限可输入数字后回车确认。键盘接管后松开回零。Isaac 窗口内的键盘仍然可用。
+    </div>
+  </section>
+</main>
+
+<script>
+(function(){
+  "use strict";
+  const ACC=0.5, YAW_ACC=1.0, POST_HZ=20, POLL_MS=100;
+  const MAX_POINTS=600;
+  const $=id=>document.getElementById(id);
+  const state={vx:0,yaw:0,maxSpeed:2,maxYaw:1,held:{w:false,s:false,a:false,d:false},
+               sliderVx:0,sliderYaw:0,connected:false,
+               height:0.34,skill:'Motion',jump:'NONE',heightBounds:[0.20,0.45],
+               model:'main',models:['main']};
+  // Fixed-capacity history: no push/shift on a growing array, no re-allocation per sample.
+  function Ring(capacity){
+    const data=new Array(capacity);
+    let head=0,size=0;
+    const index=function(i){return (head-size+i+capacity)%capacity;};
+    return {
+      push:function(v){data[head]=v;head=(head+1)%capacity;if(size<capacity)size+=1;},
+      clear:function(){head=0;size=0;},
+      get length(){return size;},
+      at:function(i){return data[index(i)];},
+      toArray:function(){const out=new Array(size);for(let i=0;i<size;i++)out[i]=data[index(i)];return out;},
+      map:function(fn){const out=new Array(size);for(let i=0;i<size;i++)out[i]=fn(data[index(i)],i);return out;},
+      filter:function(fn){const out=[];for(let i=0;i<size;i++){const v=data[index(i)];if(fn(v,i))out.push(v);}return out;}
+    };
+  }
+  const hist=Ring(MAX_POINTS);
+
+  function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
+  function post(payload){
+    if(state.mode==='Replay'){
+      if(payload.stop)payload={paused:true};
+      else if(payload.reset)payload={reset:true};
+      else if('vx' in payload || 'yaw' in payload || payload.center)return Promise.resolve(null);
+    }
+    if(state.mode==='Recovery'){
+      payload={reset:!!payload.reset,stop:!!payload.stop,center:!!payload.center};
+      if(!payload.reset&&!payload.stop&&!payload.center)return Promise.resolve(null);
+    }
+    return fetch('/command',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)}).then(async function(r){
+        const result=await r.json();if(!r.ok)throw new Error(result.error||r.status);return result;
+      }).catch(function(error){$('status').textContent='命令发送失败：'+error.message;$('status').className='warn';return null;});
+  }
+  function setVx(v){state.vx=clamp(v,-state.maxSpeed,state.maxSpeed);$('vx-target').value=state.vx.toFixed(2);$('vx-target-val').textContent=state.vx.toFixed(2);}
+  function setYaw(v){state.yaw=clamp(v,-state.maxYaw,state.maxYaw);$('yaw-target').value=state.yaw.toFixed(2);$('yaw-target-val').textContent=state.yaw.toFixed(2);}
+  function clampHeight(v){return clamp(v,state.heightBounds[0],state.heightBounds[1]);}
+
+  function clearCommand(payload){
+    state.held={w:false,s:false,a:false,d:false};
+    state.sliderVx=0;state.sliderYaw=0;setVx(0);setYaw(0);
+    post(payload||{center:true});
+  }
+  function keyName(e){
+    const physical={KeyW:'w',KeyS:'s',KeyA:'a',KeyD:'d',KeyR:'r',Space:' ',Escape:'escape'};
+    return physical[e.code]||String(e.key||'').toLowerCase();
+  }
+  // One place that turns keyboard, gamepad and slider state into one ramped target.
+  // Gamepad keeps the documented mapping: left stick forward/back (analog), right
+  // stick yaw (analog), .2 deadzone rescaled so the stick still reaches full scale.
+  function stickAxis(value){
+    const dead=INPUT.deadzone;
+    if(value===undefined||value===null||!isFinite(value)||Math.abs(value)<=dead)return 0;
+    const magnitude=Math.min(1,(Math.abs(value)-dead)/(1-dead));
+    return value<0?-magnitude:magnitude;
+  }
+  const INPUT={
+    deadzone:.2,
+    connected:false,
+    raw:{lx:0,ly:0,rx:0},
+    pad:function(){
+      const pads=navigator.getGamepads?navigator.getGamepads():[];
+      for(let i=0;i<pads.length;i++){
+        const pad=pads[i];if(!pad||!pad.connected)continue;
+        const lx=pad.axes[0]||0,ly=pad.axes[1]||0,rx=pad.axes[2]||0;
+        INPUT.connected=true;INPUT.raw={lx:lx,ly:ly,rx:rx};
+        return {vx:-stickAxis(ly)*state.maxSpeed,yaw:-stickAxis(rx)*state.maxYaw};
+      }
+      INPUT.connected=false;INPUT.raw={lx:0,ly:0,rx:0};
+      return {vx:0,yaw:0};
+    },
+    target:function(){
+      const wantVx=(state.held.w?1:0)-(state.held.s?1:0);
+      const wantYaw=(state.held.a?1:0)-(state.held.d?1:0);
+      const pad=INPUT.pad();
+      // A neutral stick yields the latched slider setpoint; a deflected one wins.
+      return {vx:wantVx?wantVx*state.maxSpeed:(pad.vx||state.sliderVx),
+              yaw:wantYaw?wantYaw*state.maxYaw:(pad.yaw||state.sliderYaw)};
+    }
+  };
+  // Skip no-op DOM writes: identical strings still cost layout work every frame.
+  function setText(id,text){const node=$(id);if(node&&node.textContent!==text)node.textContent=text;}
+  function setValue(id,text){const node=$(id);if(node&&node.value!==text)node.value=text;}
+  function setBounds(id,low,high){
+    const node=$(id);if(!node)return;
+    const lo=String(low),hi=String(high);
+    if(node.min!==lo)node.min=lo;
+    if(node.max!==hi)node.max=hi;
+  }
+  function stepCommand(dt){
+    const target=INPUT.target();
+    state.vx+=clamp(target.vx-state.vx,-ACC*dt,ACC*dt);
+    state.yaw+=clamp(target.yaw-state.yaw,-YAW_ACC*dt,YAW_ACC*dt);
+    // Slider is the latched setpoint, not the ramped command/measurement.
+    setText('vx-target-val',target.vx.toFixed(2));
+    setText('yaw-target-val',target.yaw.toFixed(2));
+    setBounds('vx-target',-state.maxSpeed,state.maxSpeed);
+    setBounds('yaw-target',-state.maxYaw,state.maxYaw);
+    setValue('vx-target',target.vx.toFixed(2));
+    setValue('yaw-target',target.yaw.toFixed(2));
+    setText('m-pad',INPUT.connected
+      ?'已连接 | 左杆前后 '+INPUT.raw.ly.toFixed(2)+' · 右杆转向 '+INPUT.raw.rx.toFixed(2)+'（死区 .20）'
+      :'未连接（左杆前后、右杆转向，死区 .20；有输入时覆盖滑块设定）');
+  }
+
+  let lastPost=0;
+  function tick(now){
+    const dt=Math.min(0.1,(now-(tick.last||now))/1000);tick.last=now;
+    if(state.mode==='Replay'){requestAnimationFrame(tick);return;}
+    stepCommand(dt);
+    if(now-lastPost>=1000/POST_HZ){lastPost=now;post({vx:state.vx,yaw:state.yaw,height:state.height,
+      skill:state.skill,jump:state.jump,model:state.model});}
+    requestAnimationFrame(tick);
+  }
+
+  // ---- charts: nice ticks, time grid, dashed command lines, live value labels ----
+  const rangeCache={};
+  function extent(lists){
+    let lo=Infinity,hi=-Infinity;
+    lists.forEach(function(pts){
+      for(let i=0;i<pts.length;i++){
+        const p=pts[i];
+        if(typeof p!=='number'||!isFinite(p))continue;
+        if(p<lo)lo=p;if(p>hi)hi=p;
+      }
+    });
+    return isFinite(lo)&&isFinite(hi)?[lo,hi]:null;
+  }
+  function niceStep(span,count){
+    const raw=Math.max(Math.abs(span),1e-9)/Math.max(1,count);
+    const magnitude=Math.pow(10,Math.floor(Math.log10(raw)));
+    const norm=raw/magnitude;
+    return (norm<=1?1:norm<=2?2:norm<=5?5:10)*magnitude;
+  }
+  function niceRange(ext,fallback){
+    if(!ext)return [-fallback,fallback];
+    let lo=ext[0],hi=ext[1];
+    if(hi-lo<1e-9){const center=(lo+hi)/2;lo=center-fallback;hi=center+fallback;}
+    const step=niceStep(hi-lo,4);
+    return [Math.floor(lo/step)*step,Math.ceil(hi/step)*step];
+  }
+  // Grow the axis instantly, shrink it only when the data sits well inside the old window.
+  function stableRange(key,ext,fallback){
+    const next=niceRange(ext,fallback),previous=rangeCache[key];
+    if(!previous){rangeCache[key]=next;return next;}
+    const span=previous[1]-previous[0];
+    const inside=ext&&ext[0]>previous[0]+span*.25&&ext[1]<previous[1]-span*.25;
+    const stable=inside?next:[Math.min(previous[0],next[0]),Math.max(previous[1],next[1])];
+    rangeCache[key]=stable;return stable;
+  }
+  function formatTick(value,step){
+    const digits=Math.max(0,Math.min(4,Math.ceil(-Math.log10(step))+0));
+    return value.toFixed(digits);
+  }
+  function legend(id,items){
+    const box=$(id);if(!box)return;
+    if(box.getAttribute&&box.getAttribute('data-built')==='1')return;
+    if(!document.createElement)return;
+    items.forEach(function(item){
+      const chip=document.createElement('span');chip.className='chip';
+      const mark=document.createElement('i');
+      if(item.dash){mark.style.background='none';mark.style.borderTop='2px dashed '+item.color;mark.style.height='0';}
+      else{mark.style.background=item.color;}
+      chip.appendChild(mark);chip.appendChild(document.createTextNode(item.label));
+      box.appendChild(chip);
+    });
+    if(box.setAttribute)box.setAttribute('data-built','1');
+  }
+  // Reassigning canvas.width/height reallocates the backing store; only do it when the
+  // CSS box or DPR really changed, then clear and redraw into the same buffer.
+  function fitCanvas(canvas){
+    const dpr=window.devicePixelRatio||1;
+    const w=Math.max(1,Math.round((canvas.clientWidth||canvas.width||1)*dpr));
+    const h=Math.max(1,Math.round((canvas.clientHeight||canvas.height||1)*dpr));
+    if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
+    const ctx=canvas.getContext('2d');
+    ctx.clearRect(0,0,w,h);
+    return {ctx:ctx,w:w,h:h,dpr:dpr};
+  }
+  function draw(canvas,series,opts){
+    opts=opts||{};
+    if(!canvas)return;
+    const fit=fitCanvas(canvas),ctx=fit.ctx,w=fit.w,h=fit.h,dpr=fit.dpr;
+    const leftSeries=series.filter(function(s){return s.axis!=='right';});
+    const rightSeries=series.filter(function(s){return s.axis==='right';});
+    const left=opts.lo!==undefined?[opts.lo,opts.hi]
+      :stableRange(canvas.id,extent(leftSeries.map(function(s){return s.pts;})),opts.floor||.5);
+    const right=opts.right
+      ?stableRange(canvas.id+'-r',extent(rightSeries.map(function(s){return s.pts;})),opts.rightFloor||.5)
+      :null;
+
+    const padL=42*dpr,padR=(right?46*dpr:10*dpr),padT=16*dpr,padB=18*dpr;
+    const plotW=Math.max(1,w-padL-padR),plotH=Math.max(1,h-padT-padB);
+    const yOf=function(value,range){
+      const clamped=clamp(value,range[0],range[1]);
+      return padT+plotH-((clamped-range[0])/(range[1]-range[0]))*plotH;
+    };
+    const write=function(text,x,y,align,color,size){
+      ctx.fillStyle=color;
+      ctx.font=((size||9.5)*dpr)+'px ui-monospace,SFMono-Regular,Menlo,monospace';
+      ctx.textAlign=align;ctx.fillText(text,x,y);
+    };
+
+    ctx.setLineDash([]);
+    const secondsStep=10;
+    for(let seconds=0;seconds*10<=MAX_POINTS;seconds+=secondsStep){
+      const x=Math.round(padL+plotW-(seconds*10/(MAX_POINTS-1))*plotW)+.5;
+      if(seconds>0){
+        ctx.strokeStyle='#161d28';ctx.lineWidth=1;
+        ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);ctx.stroke();
+      }
+      write(seconds===0?'现在':'-'+seconds+'s',x,padT+plotH+12*dpr,seconds===0?'right':'center','#4e5a6a');
+    }
+    const leftStep=niceStep(left[1]-left[0],4);
+    ctx.strokeStyle='#1b2230';ctx.lineWidth=1;
+    for(let value=Math.ceil(left[0]/leftStep)*leftStep;value<=left[1]+1e-9;value+=leftStep){
+      const y=Math.round(yOf(value,left))+.5;
+      ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+plotW,y);ctx.stroke();
+      write(formatTick(value,leftStep),padL-6*dpr,y+3*dpr,'right','#6b7686');
+    }
+    if(right){
+      const rightStep=niceStep(right[1]-right[0],4);
+      for(let value=Math.ceil(right[0]/rightStep)*rightStep;value<=right[1]+1e-9;value+=rightStep){
+        write(formatTick(value,rightStep),padL+plotW+6*dpr,yOf(value,right)+3*dpr,'left','#7a8393');
+      }
+    }
+    if(left[0]<0&&left[1]>0){
+      ctx.strokeStyle='#33404f';ctx.lineWidth=1.2*dpr;
+      const zero=Math.round(yOf(0,left))+.5;
+      ctx.beginPath();ctx.moveTo(padL,zero);ctx.lineTo(padL+plotW,zero);ctx.stroke();
+    }
+    (opts.refs||[]).forEach(function(ref){
+      if(ref.value<left[0]||ref.value>left[1])return;
+      const y=Math.round(yOf(ref.value,left))+.5;
+      ctx.strokeStyle=ref.color||'#8c9aab';ctx.lineWidth=1*dpr;ctx.setLineDash([4*dpr,3*dpr]);
+      ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+plotW,y);ctx.stroke();ctx.setLineDash([]);
+      if(ref.label)write(ref.label,padL+4*dpr,y-3*dpr,'left',ref.color||'#8c9aab');
+    });
+    if(opts.units)write(opts.units,4,padT-5*dpr,'left','#5d6a7a');
+    if(opts.rightUnits)write(opts.rightUnits,w-4,padT-5*dpr,'right','#6b7686');
+
+    const ends=[];
+    series.forEach(function(item){
+      const pts=item.pts;if(!pts||pts.length<2)return;
+      const range=item.axis==='right'?right:left;if(!range)return;
+      ctx.strokeStyle=item.color;
+      ctx.lineWidth=(item.width||2)*dpr;
+      ctx.lineJoin='round';ctx.lineCap='round';
+      ctx.setLineDash(item.dash?[5*dpr,3*dpr]:[]);
+      ctx.beginPath();
+      for(let i=0;i<pts.length;i++){
+        const value=pts[i];
+        if(typeof value!=='number'||!isFinite(value))continue;
+        const x=padL+(i/(MAX_POINTS-1))*plotW;
+        const y=yOf(value,range);
+        const broken=(i===0)||typeof pts[i-1]!=='number'||!isFinite(pts[i-1]);
+        if(broken)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+      }
+      ctx.stroke();ctx.setLineDash([]);
+      for(let i=pts.length-1;i>=0;i--){
+        const value=pts[i];
+        if(typeof value==='number'&&isFinite(value)){
+          const step=item.axis==='right'?niceStep(right[1]-right[0],4):leftStep;
+          ends.push({text:formatTick(value,step),y:yOf(value,range),color:item.color});
+          break;
+        }
+      }
+    });
+    ends.sort(function(a,b){return a.y-b.y;});
+    let lastY=-Infinity;
+    ends.forEach(function(end){
+      let y=Math.max(padT+8*dpr,Math.min(padT+plotH,end.y));
+      if(y-lastY<11*dpr)y=lastY+11*dpr;
+      lastY=y;
+      ctx.save();
+      ctx.font=(9.5*dpr)+'px ui-monospace,SFMono-Regular,Menlo,monospace';
+      ctx.textAlign='right';
+      ctx.lineWidth=3*dpr;ctx.strokeStyle='#0a0d12';
+      ctx.strokeText(end.text,padL+plotW-3*dpr,y+3*dpr);
+      ctx.fillStyle=end.color;
+      ctx.fillText(end.text,padL+plotW-3*dpr,y+3*dpr);
+      ctx.restore();
+    });
+  }
+
+  // ---- chart registry: every chart hides itself when its fields are absent ----
+  const COL={vx:'#3ddc97',cmdvx:'#1f7a58',yaw:'#f5a623',cmdyaw:'#b3750f',
+    height:'#4c9aff',cmdheight:'#2f68a8',pitch:'#4c9aff',roll:'#f5a623',
+    scissor:'#3ddc97',swing:'#f5a623',asym:'#c471ed',foreaft:'#8ab4ff',
+    wheelL:'#4c9aff',wheelR:'#2f68a8',tauL:'#f5a623',tauR:'#a8711a',
+    leg:['#4c9aff','#3ddc97','#f5a623','#ff8a5b'],
+    act:['#4c9aff','#3ddc97','#f5a623','#ff8a5b','#c471ed','#8ab4ff']};
+  const LEG_NAMES=['左髋','左主动髋','右髋','右主动髋'];
+  const ACT_NAMES=['左髋','左主动髋','左轮','右髋','右主动髋','右轮'];
+  const heatBuf={canvas:null,ctx:null};
+  function col(key){return hist.map(function(r){return r[key];});}
+  function hasKey(key){
+    for(let i=0;i<hist.length;i++){
+      const v=hist.at(i)[key];
+      if(typeof v==='number'&&isFinite(v))return true;
+    }
+    return false;
+  }
+  function plot(secId,chartId,legendId,defs,opts){
+    const sec=$(secId),canvas=$(chartId);
+    const items=defs.filter(function(d){return hasKey(d.key);});
+    if(sec)sec.hidden=!items.length;
+    if(!items.length||!canvas)return;
+    const series=items.map(function(d){
+      return {pts:col(d.key),color:d.color,label:d.label,axis:d.axis,dash:d.dash,width:d.width};
+    });
+    draw(canvas,series,opts||{});
+    legend(legendId,series);
+  }
+  function heat(canvas,rows){
+    const n=rows.length?rows[0].length:0;
+    if(!canvas||!n)return;
+    const fit=fitCanvas(canvas),ctx=fit.ctx,w=fit.w,h=fit.h,dpr=fit.dpr;
+    const padL=26*dpr,plotW=Math.max(1,w-padL-4*dpr),plotH=Math.max(1,h-2*dpr);
+    if(!heatBuf.canvas){
+      heatBuf.canvas=document.createElement('canvas');
+      heatBuf.ctx=heatBuf.canvas.getContext('2d');
+    }
+    const buf=heatBuf.canvas;
+    buf.width=n;buf.height=rows.length;
+    const image=heatBuf.ctx.createImageData(n,rows.length);
+    for(let r=0;r<rows.length;r++){
+      const row=rows[r];let scale=0;
+      for(let i=0;i<n;i++){const v=row[i];if(isFinite(v))scale=Math.max(scale,Math.abs(v));}
+      scale=scale||1;
+      for(let i=0;i<n;i++){
+        const v=row[i];if(!isFinite(v))continue;
+        const alpha=Math.min(1,Math.abs(v)/scale),at=(r*n+i)*4;
+        image.data[at]=v>=0?76:245;
+        image.data[at+1]=v>=0?154:166;
+        image.data[at+2]=v>=0?255:35;
+        image.data[at+3]=Math.round(255*(.12+.88*alpha));
+      }
+    }
+    heatBuf.ctx.putImageData(image,0,0);
+    ctx.imageSmoothingEnabled=false;
+    ctx.drawImage(buf,padL,dpr,plotW,plotH);
+    ctx.font=(9*dpr)+'px ui-monospace,SFMono-Regular,Menlo,monospace';
+    ctx.fillStyle='#5d6a7a';ctx.textAlign='right';
+    const rowH=plotH/rows.length;
+    for(let r=0;r<rows.length;r+=5){
+      ctx.fillText(String(r),padL-4*dpr,dpr+(r+.8)*rowH);
+    }
+    ctx.textAlign='left';
+    ctx.strokeStyle='rgba(10,13,18,.6)';ctx.lineWidth=1;
+    for(let r=5;r<rows.length;r+=5){
+      const y=Math.round(dpr+r*rowH)+.5;
+      ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+plotW,y);ctx.stroke();
+    }
+  }
+  function renderInput(){
+    const sec=$('sec-input');
+    const rowsOf=hist.filter(function(r){return r.actor_input&&r.actor_input.length;});
+    if(rowsOf.length<2){if(sec)sec.hidden=true;return;}
+    if(sec)sec.hidden=false;
+    const dims=rowsOf[0].actor_input.length,rows=[];
+    for(let d=0;d<dims;d++){
+      rows.push(rowsOf.map(function(r){
+        const v=r.actor_input[d];
+        return typeof v==='number'?v:NaN;
+      }));
+    }
+    heat($('chart-input'),rows);
+    legend('legend-input',[{color:COL.vx,label:'正'},{color:COL.yaw,label:'负'}]);
+  }
+  let physicsSignature='';
+  function renderPhysics(items){
+    const box=$('physics-rows');
+    if(!box||!Array.isArray(items)||!items.length)return;
+    const signature=JSON.stringify(items);
+    if(signature===physicsSignature)return;
+    physicsSignature=signature;
+    while(box.firstChild)box.removeChild(box.firstChild);
+    items.forEach(function(pair){
+      const row=document.createElement('div');row.className='row';
+      const label=document.createElement('span');label.className='label';
+      const value=document.createElement('span');value.className='val';
+      label.textContent=String(pair[0]);value.textContent=String(pair[1]);
+      row.appendChild(label);row.appendChild(value);box.appendChild(row);
+    });
+    const note=$('physics-note');
+    if(note&&items.length)note.textContent='这些值来自启动时读取的 spec 与执行器 profile 回读，不是面板自己推算的。';
+  }
+  // Declarative chart registry: a chart hides itself when none of its keys are present.
+  const CHARTS=[
+    {sec:'sec-command',chart:'chart-command',legend:'legend-command',
+     series:[{key:'vx',color:COL.vx,label:'实测 vx'},
+             {key:'cmd_vx',color:COL.cmdvx,label:'命令 vx',dash:true},
+             {key:'yaw',color:COL.yaw,label:'实测 yaw（右轴）',axis:'right'},
+             {key:'cmd_yaw',color:COL.cmdyaw,label:'命令 yaw（右轴）',axis:'right',dash:true}],
+     opts:function(){return {right:true,floor:Math.max(.1,state.maxSpeed*.5),
+       rightFloor:Math.max(.1,state.maxYaw*.5),units:'m/s',rightUnits:'rad/s'};}},
+    {sec:'sec-height',chart:'chart-height',legend:'legend-height',
+     series:[{key:'height',color:COL.height,label:'实测高度'},
+             {key:'cmd_height',color:COL.cmdheight,label:'命令高度',dash:true}],
+     opts:{lo:.24,hi:.44,units:'m',refs:[{value:.34,color:COL.yaw,label:'.34 目标'}]}},
+    {sec:'sec-posture',chart:'chart-posture',legend:'legend-posture',
+     series:[{key:'pitch',color:COL.pitch,label:'pitch'},{key:'roll',color:COL.roll,label:'roll'}],
+     opts:{floor:.02,units:'rad',refs:[{value:0,color:'#33404f'}]}},
+    {sec:'sec-geometry',chart:'chart-geometry',legend:'legend-geometry',
+     series:[{key:'swing_diff_rad',color:COL.scissor,label:'摆角差（剪刀程度）'},
+             {key:'swing_mean_rad',color:COL.swing,label:'两腿共同摆角'},
+             {key:'leg_length_diff_m',color:COL.asym,label:'双腿不对称（右轴）',axis:'right'},
+             {key:'wheel_fore_aft_m',color:COL.foreaft,label:'轮心前后差（右轴）',axis:'right'}],
+     opts:{right:true,floor:.02,rightFloor:.005,units:'rad',rightUnits:'m'}},
+    {sec:'sec-actuator',chart:'chart-wheel',legend:'legend-wheel',
+     series:[{key:'wheel_qdot_l',color:COL.wheelL,label:'轮速 L'},
+             {key:'wheel_qdot_r',color:COL.wheelR,label:'轮速 R'},
+             {key:'wheel_target_l',color:COL.wheelL,label:'已采用轮目标 L',dash:true},
+             {key:'wheel_target_r',color:COL.wheelR,label:'已采用轮目标 R',dash:true},
+             {key:'wheel_tau_l',color:COL.tauL,label:'轮端力矩 L（右轴）',axis:'right'},
+             {key:'wheel_tau_r',color:COL.tauR,label:'轮端力矩 R（右轴）',axis:'right'}],
+     opts:{right:true,floor:2,rightFloor:.5,units:'rad/s',rightUnits:'N·m'}},
+    {sec:'sec-contact',chart:'chart-contact',legend:'legend-contact',
+     series:[{key:'contact_l',color:COL.wheelL,label:'模型L'},
+             {key:'contact_r',color:COL.wheelR,label:'模型R'}],
+     opts:{floor:2,units:'N',refs:[{value:2,color:'#f5a623',label:'2N参考线'}]}},
+    {sec:'sec-legtorque',chart:'chart-legtorque',legend:'legend-legtorque',
+     series:[0,1,2,3].map(function(i){
+       return {key:'leg_tau_'+i,color:COL.leg[i],label:LEG_NAMES[i]+'力矩'};}),
+     opts:{floor:2,units:'N·m',refs:[{value:0,color:'#33404f'}]}},
+    {sec:'sec-action',chart:'chart-action',legend:'legend-action',
+     series:[0,1,2,3,4,5].map(function(i){
+       return {key:'act_'+i,color:COL.act[i],label:ACT_NAMES[i]};}),
+     opts:{lo:-1,hi:1,units:'归一化 ±1',refs:[{value:0,color:'#33404f'}]}}
+  ];
+  function renderCharts(){
+    for(let i=0;i<CHARTS.length;i++){
+      const chart=CHARTS[i];
+      plot(chart.sec,chart.chart,chart.legend,chart.series,
+        typeof chart.opts==='function'?chart.opts():chart.opts);
+    }
+    renderInput();
+  }
+
+  // Declarative metric table: one row per readout, missing telemetry renders as a dash.
+  function num(v,d){return (v===undefined||v===null||Number.isNaN(v))?'—':Number(v).toFixed(d===undefined?3:d);}
+  function vector(v){return Array.isArray(v)?v.map(function(n){return num(n,3);}).join(' / '):'—';}
+  const METRICS=[
+    ['m-contact',function(t){return num(t.contact_l,2)+' / '+num(t.contact_r,2);}],
+    ['m-closure',function(t){return num(t.closure_m,6);}],
+    ['m-q',function(t){return vector(t.q);}],
+    ['m-requested',function(t){return vector(t.requested);}],
+    ['m-adopted',function(t){return vector(t.adopted);}],
+    ['m-preclip',function(t){return vector(t.preclip);}],
+    ['m-torque',function(t){return vector(t.torque);}],
+    ['m-sample-semantics',function(t){return t.sample_semantics||'—';}],
+    ['m-vx',function(t){return num(t.vx);}],
+    ['m-cmd-vx',function(t){return num(t.cmd_vx);}],
+    ['m-yaw',function(t){return num(t.yaw);}],
+    ['m-height',function(t){return num(t.cmd_height,2)+' / '+num(t.height);}],
+    ['m-cmd-height',function(t){return num(t.cmd_height,2);}],
+    ['m-posture',function(t){return num(t.pitch)+' / '+num(t.roll);}],
+    ['m-vz',function(t){return num(t.vz);}],
+    ['m-swing',function(t){return num(t.swing_diff_rad,4)+' / '+num(t.swing_mean_rad,4);}],
+    ['m-geom',function(t){return num(t.leg_length_diff_m,4)+' / '+num(t.wheel_fore_aft_m,4);}],
+    ['m-wheel',function(t){return num(t.wheel_qdot_l,2)+' / '+num(t.wheel_qdot_r,2);}],
+    ['m-tau',function(t){return num(t.wheel_tau_l,2)+' / '+num(t.wheel_tau_r,2);}],
+    ['m-steps',function(t){return num(t.steps,0)+' / '+num(t.resets,0);}],
+    ['m-times',function(t){return num(t.simulation_time_s,2)+' / '+num(t.wall_time_s,2);}],
+    ['m-rtf',function(t){return num(t.realtime_factor,2)+'× / '+num(t.realtime_factor_total,2)+'×';}],
+    ['m-source',function(t){return t.source||'—';}],
+    ['m-mode',function(t){return (t.task_mode===undefined||t.task_mode===null)?'—'
+      :(t.task_mode+(t.actor_valid===false?'（初始化未落定，动作保持为零）':''));}],
+    ['m-skill',function(t){return (t.skill||'—')+' / '+(t.jump||'—');}],
+    ['m-tail',function(t){
+      return Array.isArray(t.actor_task_tail)?t.actor_task_tail.map(function(v){return num(v,2);}).join('  '):'—';}],
+    ['m-keys',function(t){return num(t.key_events,0);}]
+  ];
+  function writeMetrics(t){
+    for(let i=0;i<METRICS.length;i++)setText(METRICS[i][0],METRICS[i][1](t));
+  }
+
+  let lastReplayModel=null,lastReplayTime=null,lastReplaySample=null;
+  function renderTelemetry(payload){
+    state.mode=payload.mode||'Motion';
+    const recovery=state.mode==='Recovery',replay=state.mode==='Replay';
+    $('panel-title').textContent=recovery?'Recovery31 自主起身面板':'Motion31 手动预览面板';
+    $('motion-controls').hidden=recovery||replay;
+    $('replay-controls').hidden=!replay;
+    $('model-selection').hidden=recovery;
+    $('model-select').hidden=recovery;
+    setText('model-label',replay?'回放轨迹':'推理模型（同环境切换）');
+    setText('btn-reset',replay?'从头重播':'重置');
+    $('btn-center').hidden=recovery||replay;
+    $('btn-stop').hidden=replay;
+    $('btn-stop').textContent=recovery?'结束播放':'停止运动';
+    if(recovery){
+      $('panel-note').textContent='同一个Recovery学生自主控制；固定零速度命令，无教师接管';
+      $('mode-note').textContent='Recovery固定零速度、零yaw、高度0.34m；重置从声明的Swing初态重新开始。';
+      $('operation-note').textContent='R重新从Swing播放；Esc结束播放。速度滑块、WASD和手柄不控制Recovery动作。流速比1表示实时，0.5表示仿真速度为现实的一半。';
+    }
+    if(payload.backend==='MuJoCo'){
+      $('panel-title').textContent='Motion31 MuJoCo 控制面板';
+      $('panel-note').textContent='网页控制MuJoCo窗口；vx/yaw会话上限可直接修改';
+      $('operation-note').textContent='浏览器WASD/滑块/手柄控制；R重置，Esc零命令。三维画面在MuJoCo窗口。窗口键盘仅在启动时启用--keyboard后可用。关闭MuJoCo窗口结束服务。';
+    }
+    const t=payload.telemetry||{};
+    if(replay){
+      $('panel-title').textContent='Motion31 MuJoCo 日志回放模式';
+      $('panel-note').textContent='复用实时面板；数据来自已保存的仿真执行轨迹，非实机姿态重建';
+      $('mode-note').textContent='选择轨迹，暂停/继续、重播及调整倍率；回放不修改vx/yaw命令。';
+      $('operation-note').textContent='Space暂停/继续，R重播；切换或循环时清空曲线。输入/mean为动作前，状态/矩为同interval动作后100Hz采样。缺失字段留空。';
+      if(document.activeElement!==$('replay-speed'))$('replay-speed').value=String(payload.playback_speed);
+      setText('replay-speed-val',num(payload.playback_speed,2)+'×');
+      setText('replay-position',num(t.clip_time_s,2)+' / '+num(t.clip_duration_s,2)+' s');
+      if(payload.model!==lastReplayModel || t.simulation_time_s<lastReplayTime){hist.clear();lastReplaySample=null;}
+      lastReplayModel=payload.model;lastReplayTime=t.simulation_time_s;
+    }
+    writeMetrics(t);
+    if(t.vx!==undefined && (!replay || t.sample_id!==lastReplaySample)){
+      if(replay)lastReplaySample=t.sample_id;
+      hist.push(t);
+      renderCharts();
+    }
+    const physics=payload.physics||t.physics;
+    if(physics)renderPhysics(physics);
+    if(replay)setText('physics-note','参数来自回放manifest；力矩/接触取保存数据，未由GUI重新求解。本批接触为MuJoCo法向力之和；几何由完整保存姿态重建。模型left/right不是电控几何左右。');
+    if(payload.limits){
+      state.maxSpeed=payload.limits.max_speed;state.maxYaw=payload.limits.max_yaw_speed;
+      $('vx-target').min=String(-state.maxSpeed);$('vx-target').max=String(state.maxSpeed);
+      $('yaw-target').min=String(-state.maxYaw);$('yaw-target').max=String(state.maxYaw);
+      if(document.activeElement!==$('cap-speed'))$('cap-speed').value=String(state.maxSpeed);
+      if(document.activeElement!==$('cap-yaw'))$('cap-yaw').value=String(state.maxYaw);
+      $('cap-speed').max=payload.editable_limits?'':String(payload.declared_limits.max_speed);
+      $('cap-yaw').max=payload.editable_limits?'':String(payload.declared_limits.max_yaw_speed);
+      $('cap-speed-val').textContent=payload.limits.max_speed.toFixed(2);
+      $('cap-yaw-val').textContent=payload.limits.max_yaw_speed.toFixed(2);
+    }
+    if(payload.height!==undefined){
+      state.heightBounds=payload.height_bounds||state.heightBounds;
+      state.height=Number(payload.height);state.skill=payload.skill||state.skill;state.jump=payload.jump||state.jump;
+      $('height-target').min=String(state.heightBounds[0]);$('height-target').max=String(state.heightBounds[1]);
+      if(document.activeElement!==$('height-target'))$('height-target').value=state.height.toFixed(2);
+      $('height-target-val').textContent=state.height.toFixed(2);
+      if(document.activeElement!==$('skill-select'))$('skill-select').value=state.skill;
+      if(document.activeElement!==$('jump-select'))$('jump-select').value=state.jump;
+    }
+    if(Array.isArray(payload.models)&&payload.models.length){
+      const names=payload.models.join('|');
+      if(state.models.join('|')!==names){
+        state.models=payload.models.slice();
+        const host=$('model-select');
+        if(host&&document.createElement){
+          while(host.firstChild)host.removeChild(host.firstChild);
+          state.models.forEach(function(name){
+            const option=document.createElement('option');
+            option.value=name;option.textContent=name;host.appendChild(option);
+          });
+        }
+      }
+      state.model=payload.model||state.model;
+      if($('model-select')&&document.activeElement!==$('model-select'))$('model-select').value=state.model;
+      setText('m-model',state.model);
+    }
+    const pauseSupported=!!payload.pause_supported;
+    $('btn-pause').hidden=!pauseSupported;
+    $('btn-run').hidden=!pauseSupported;
+    $('pause-pill').hidden=!pauseSupported;
+    if(pauseSupported){
+      const held=!!payload.paused;
+      $('btn-pause').disabled=held;
+      $('btn-run').disabled=!held;
+      $('pause-pill').textContent=held?'已暂停':'运行中';
+      $('pause-pill').className='pill '+(held?'hold':'run');
+      state.paused=held;
+    }
+    if(!state.connected){state.connected=true;$('status').textContent='已连接';$('status').className='ok';}
+    // Optional host hook: extra chrome rendered by a task-local page, never by this file.
+    if(typeof window.panelTelemetryHook==='function')window.panelTelemetryHook(payload);
+  }
+
+  function poll(){
+    return fetch('/telemetry').then(function(r){return r.json();}).then(renderTelemetry).catch(function(){
+      state.connected=false;$('status').textContent='面板连接中断（GUI 是否仍在运行？）';$('status').className='warn';
+    });
+  }
+
+  document.addEventListener('keydown',function(e){
+    if(e.ctrlKey||e.metaKey||e.altKey||e.target.isContentEditable||
+       ['TEXTAREA','SELECT'].includes(e.target.tagName)||
+       (e.target.tagName==='INPUT'&&e.target.type!=='range'))return;
+    const k=keyName(e);
+    if(state.mode==='Replay'){
+      if(k===' '){e.preventDefault();post({paused:!state.paused});}
+      if(k==='r'&&!e.repeat){e.preventDefault();post({reset:true});}
+      if(k==='escape'){e.preventDefault();post({paused:true});}
+      return;
+    }
+    if(['w','s','a','d'].includes(k)){
+      e.preventDefault();state.held[k]=true;
+      // Keyboard takes over from a latched slider; release then ramps to zero.
+      state.sliderVx=0;state.sliderYaw=0;
+    }
+    if(k===' '){e.preventDefault();clearCommand({center:true});}
+    if(k==='r'&&!e.repeat){e.preventDefault();clearCommand({reset:true,center:true});}
+    if(k==='escape'){e.preventDefault();clearCommand({stop:true});}
+  });
+  document.addEventListener('keyup',function(e){
+    const k=keyName(e);if(['w','s','a','d'].includes(k)){state.held[k]=false;e.preventDefault();}
+  });
+  function releaseKeys(){state.held={w:false,s:false,a:false,d:false};}
+  // Window focus changes release momentary keys, but keep the slider setpoint.
+  window.addEventListener('blur',releaseKeys);
+  document.addEventListener('visibilitychange',function(){if(document.hidden)releaseKeys();});
+
+  $('vx-target').addEventListener('input',function(e){state.sliderVx=clamp(parseFloat(e.target.value),-state.maxSpeed,state.maxSpeed);});
+  $('yaw-target').addEventListener('input',function(e){state.sliderYaw=clamp(parseFloat(e.target.value),-state.maxYaw,state.maxYaw);});
+  $('cap-speed').addEventListener('change',function(e){
+    if(!e.target.value.trim()||!e.target.checkValidity())return;
+    state.maxSpeed=parseFloat(e.target.value);$('cap-speed-val').textContent=state.maxSpeed.toFixed(2);
+    state.sliderVx=clamp(state.sliderVx,-state.maxSpeed,state.maxSpeed);
+    setVx(state.vx);post({max_speed:state.maxSpeed});
+  });
+  $('cap-yaw').addEventListener('change',function(e){
+    if(!e.target.value.trim()||!e.target.checkValidity())return;
+    state.maxYaw=parseFloat(e.target.value);$('cap-yaw-val').textContent=state.maxYaw.toFixed(2);
+    state.sliderYaw=clamp(state.sliderYaw,-state.maxYaw,state.maxYaw);
+    setYaw(state.yaw);post({max_yaw_speed:state.maxYaw});
+  });
+  $('height-target').addEventListener('input',function(e){
+    state.height=clampHeight(parseFloat(e.target.value));
+    $('height-target-val').textContent=state.height.toFixed(2);
+    post({height:state.height});
+  });
+  $('skill-select').addEventListener('change',function(e){
+    state.skill=String(e.target.value);post({skill:state.skill});
+  });
+  $('jump-select').addEventListener('change',function(e){
+    state.jump=String(e.target.value);post({jump:state.jump});
+  });
+  $('model-select').addEventListener('change',function(e){
+    state.model=String(e.target.value);post({model:state.model});
+  });
+  $('replay-speed').addEventListener('input',function(e){post({playback_speed:Number(e.target.value)});});
+  $('btn-stop').addEventListener('click',function(){clearCommand({stop:true});});
+  $('btn-center').addEventListener('click',function(){clearCommand({center:true});});
+  $('btn-reset').addEventListener('click',function(){clearCommand({reset:true,center:true});});
+  $('btn-pause').addEventListener('click',function(){post({paused:true});});
+  $('btn-run').addEventListener('click',function(){post({paused:false});});
+  document.addEventListener('click',function(e){
+    const node=e.target;
+    if(!node)return;
+    const zoomButton=node.closest?node.closest('button.zoom'):null;
+    if(zoomButton){
+      const section=zoomButton.closest('section');
+      if(section){
+        section.classList.toggle('zoomed');
+        zoomButton.textContent=section.classList.contains('zoomed')?'还原':'放大';
+      }
+      return;
+    }
+    if(node.id!=='zoom-all')return;
+    const sections=document.querySelectorAll('section.chart,section.wide');
+    let expand=false;
+    for(let i=0;i<sections.length;i++){
+      if(sections[i].querySelector('button.zoom')&&!sections[i].classList.contains('zoomed')){expand=true;break;}
+    }
+    for(let i=0;i<sections.length;i++){
+      const button=sections[i].querySelector('button.zoom');
+      if(!button)continue;
+      sections[i].classList.toggle('zoomed',expand);
+      button.textContent=expand?'还原':'放大';
+    }
+    node.textContent=expand?'收窄全部图表':'展开全部图表';
+  });
+  $('btn-csv').addEventListener('click',function(){
+    const keys=['t','steps','vx','cmd_vx','yaw','cmd_height','height','vz','skill','jump','wheel_qdot_l','wheel_qdot_r','wheel_tau_l','wheel_tau_r','task_mode','initialized','actor_valid','key_events',
+                'simulation_time_s','wall_time_s','realtime_factor','realtime_factor_total'];
+    const rows=[keys.join(',')].concat(hist.map(function(r){return keys.map(function(k){return r[k];}).join(',');}));
+    const blob=new Blob([rows.join('\n')+'\n'],{type:'text/csv'});
+    const url=URL.createObjectURL(blob);const a=document.createElement('a');
+    a.href=url;a.download='motion31_manual_preview.csv';a.click();URL.revokeObjectURL(url);
+  });
+
+  setInterval(poll,POLL_MS);
+  poll();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

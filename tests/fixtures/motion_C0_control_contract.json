@@ -1,0 +1,58 @@
+{
+  "action_version": "motion_multiheight_support_center_015_80_v1",
+  "leg_halfwidth_rad": 0.15,
+  "wheel_halfwidth_rad_s": 80.0,
+  "center_formula": {
+    "version": "flat_two_link_geometry_v1",
+    "hip_above_root_m": 2.4e-05,
+    "wheel_radius_m": 0.06,
+    "equivalent_upper_m": 0.21,
+    "equivalent_lower_m": 0.25,
+    "hip_zero_deg": 47.1033888,
+    "active_zero_deg": 47.1080837,
+    "clearance_m": 0.0
+  },
+  "support_offset_table": {
+    "height_m": [
+      0.3,
+      0.32,
+      0.34,
+      0.36,
+      0.38,
+      0.4
+    ],
+    "offset_rad": [
+      [
+        -0.3487552522000352,
+        -0.37754057053821566
+      ],
+      [
+        -0.3435389986364944,
+        -0.3728135666205402
+      ],
+      [
+        -0.34415705961703547,
+        -0.36427784427970067
+      ],
+      [
+        -0.35197404473890415,
+        -0.35372561665494917
+      ],
+      [
+        -0.3467577911753633,
+        -0.34899861273727373
+      ],
+      [
+        -0.34154153761182243,
+        -0.3442716088195983
+      ]
+    ]
+  },
+  "height_command_range_m": [
+    0.3,
+    0.4
+  ],
+  "input_version": "multiskill_mcu_v2",
+  "input_leg_q_and_previous_scale_rad": 1.5,
+  "input_wheel_previous_scale_rad_s": 100.0
+}

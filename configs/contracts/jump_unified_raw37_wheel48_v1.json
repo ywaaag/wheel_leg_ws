@@ -1,0 +1,233 @@
+{
+  "version": "jump_unified_raw37_wheel48_v1",
+  "input_id": 1245118722,
+  "output_id": 1245119489,
+  "config_id": 1241842689,
+  "actor_dim": 37,
+  "fields": [
+    {
+      "start": 0,
+      "count": 3,
+      "name": "body_gyro",
+      "multiplier": 0.25,
+      "source": "IMU gyro, model mapping"
+    },
+    {
+      "start": 3,
+      "count": 3,
+      "name": "body_gravity",
+      "multiplier": 1.0,
+      "source": "gyro propagated EKF; acceleration magnitude gate v1"
+    },
+    {
+      "start": 6,
+      "count": 4,
+      "name": "leg_q",
+      "multiplier": 0.6666666666666666,
+      "source": "four actual encoder reports minus fixed zero input reference"
+    },
+    {
+      "start": 10,
+      "count": 6,
+      "name": "joint_dq",
+      "multiplier": 0.05,
+      "source": "six actual driver velocity reports"
+    },
+    {
+      "start": 16,
+      "count": 4,
+      "name": "adopted_leg_target",
+      "multiplier": 0.6666666666666666,
+      "source": "C local adoption cache minus fixed zero input reference"
+    },
+    {
+      "start": 20,
+      "count": 2,
+      "name": "adopted_wheel_target",
+      "multiplier": 0.01,
+      "source": "same adopted cache"
+    },
+    {
+      "start": 22,
+      "count": 1,
+      "name": "vx_command",
+      "multiplier": 0.25,
+      "source": "requested vx, never measured velocity"
+    },
+    {
+      "start": 23,
+      "count": 1,
+      "name": "yaw_command",
+      "multiplier": 0.25,
+      "source": "requested yaw"
+    },
+    {
+      "start": 24,
+      "count": 1,
+      "name": "handover_height_command",
+      "multiplier": 2.0,
+      "source": "root height command .34m, not leg length"
+    },
+    {
+      "start": 25,
+      "count": 6,
+      "name": "Jump_BIG",
+      "multiplier": 1.0,
+      "source": "constant [0,0,1,0,0,1]"
+    },
+    {
+      "start": 31,
+      "count": 5,
+      "name": "phase_onehot",
+      "multiplier": 1.0,
+      "source": "C event FSM; BALANCE is the explicit all-zero code"
+    },
+    {
+      "start": 36,
+      "count": 1,
+      "name": "phase_seconds",
+      "multiplier": 1.0,
+      "source": "C phase age seconds; BALANCE has no elapsed-time dependence and encodes0"
+    }
+  ],
+  "stale_ms": 24,
+  "phase_time_scale_s": 1.0,
+  "input_reference_rad": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "actor_network": [
+    37,
+    2048,
+    1024,
+    512,
+    6
+  ],
+  "activation": "ELU",
+  "output": {
+    "kind": "direct_raw_position_legs_velocity_wheels",
+    "Tanh_count": 0,
+    "nominal_trajectory": false,
+    "phase_dependent_scale": false,
+    "center": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "gain": [
+      0.5,
+      0.5,
+      10.0,
+      0.5,
+      0.5,
+      10.0
+    ],
+    "target_guard": [
+      1.5,
+      1.5,
+      80.0,
+      1.5,
+      1.5,
+      80.0
+    ],
+    "raw_action_bound": null,
+    "reference_velocity_D": false,
+    "feedforward_Nm": 0.0,
+    "gain_is_not_range": true,
+    "reachable_configuration_box": false,
+    "fixed_center_basis": "existing model encoder zero; not SCUT robot joint offsets"
+  },
+  "control": {
+    "physics_ms": 1,
+    "INS_ms": 1,
+    "deployed_Chassis_FSM_PD_ms": 5,
+    "Actor_ms": 10,
+    "target_transport_ms": 5,
+    "leg_PD": [
+      40,
+      2
+    ],
+    "wheel_Kv": 0.2,
+    "final_motor_caps": [
+      40,
+      40,
+      4.8,
+      40,
+      40,
+      4.8
+    ],
+    "spring_compensation": "same RLControlCompensateSpring, total motor clamp afterward",
+    "tau_order": "raw PD + existing software spring compensation -> final motor cap40Nm",
+    "non_Jump_tau_order": "preserved inner PD cap40 -> existing compensation -> final cap40",
+    "phase_bridge": false,
+    "action_filter": false,
+    "leg_length_guard_m": [
+      0.126,
+      0.373
+    ],
+    "crouch_exit": {
+      "minimum_ms": 350,
+      "both_leg_length_at_most_m": 0.15
+    },
+    "force_accounting": "original V4 aggregate hypothesis unchanged; independent identification pending",
+    "balance_command_envelope": {
+      "vx_m_s": 2.0,
+      "yaw_rad_s": 1.0,
+      "height_m": [
+        0.3,
+        0.38
+      ]
+    },
+    "active_request": "stationary only; moving jumps require a later explicit extension",
+    "completion": "same Jump actor; own support/posture dwell1s -> BALANCE; no Motion handover"
+  },
+  "phases": [
+    "BALANCE",
+    "CROUCH",
+    "PUSH",
+    "FLIGHT",
+    "LAND",
+    "SETTLE"
+  ],
+  "support": {
+    "kind": "per-side measured-driver residual, not LQR command",
+    "on_N": 20,
+    "off_N": 8,
+    "on_dwell_ms": 5,
+    "off_dwell_ms": 8,
+    "max_age_ms": 20,
+    "unmeasured_internal_load_model": "UNKNOWN; production adapter returns unavailable",
+    "takeoff": "both OFF plus specific-force norm <3m/s2; proxy event, truth scored separately"
+  },
+  "learning": {
+    "action": "raw Normal sample -> C linear gain -> physical target protection",
+    "log_prob": "original raw sample before protection",
+    "full_resume_72D": false,
+    "full_resume_absolute37": false,
+    "full_resume_nominal_residual37": false,
+    "initial_std_raw": 0.12,
+    "successful_teacher_required_for_PPO": false,
+    "old_direct_ABI3_full_resume": false,
+    "Motion_source": "supervision only; physical targets converted to raw, no runtime teacher"
+  },
+  "production_model": null,
+  "hardware_accepted": false,
+  "ABI": 4,
+  "balance_encoding": {
+    "C_phase": 9,
+    "onehot": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "seconds": 0.0,
+    "owner": "Jump"
+  }
+}

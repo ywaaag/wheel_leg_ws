@@ -1,0 +1,91 @@
+{
+  "kind": "CPU_OUTPUT_PROTOTYPE_NOT_TRAINING_SPEC",
+  "action_version": "motion31_kinematic_support_centered_015_40_v1",
+  "input_version": "multiskill_mcu_v2",
+  "actor_dimensions": [
+    31,
+    128,
+    64,
+    32,
+    6
+  ],
+  "hidden_activation": "ELU(alpha=1)",
+  "mean_activation": "Tanh",
+  "leg_halfwidth_rad": 0.15,
+  "wheel_halfwidth_rad_s": 40.0,
+  "output_order_geometric": [
+    "right_hip",
+    "right_active",
+    "right_wheel",
+    "left_hip",
+    "left_active",
+    "left_wheel"
+  ],
+  "center_rule": "commanded height -> geometric joint angle + fixed explicit support-target offset; bind once per episode",
+  "center_formula": {
+    "version": "flat_two_link_geometry_v1",
+    "hip_above_root_m": 2.4e-05,
+    "wheel_radius_m": 0.06,
+    "equivalent_upper_m": 0.21,
+    "equivalent_lower_m": 0.25,
+    "hip_zero_deg": 47.1033888,
+    "active_zero_deg": 47.1080837,
+    "clearance_m": 0.0
+  },
+  "support_target_offset_rad": [
+    -0.24229908821701296,
+    -0.3063761712607683,
+    0.24229908821701296,
+    -0.3063761712607683
+  ],
+  "center_source": "artifacts/2026_11_05__motion_height_kinematic_center_v2/analysis.json",
+  "center_scope": "平地几何公式加按旧9995原MCU支撑目标估计的固定偏移；未验证新范围自主控制或后来完整V4支撑",
+  "height_definition": "水平地面至原模型root原点的竖直高度；髋轴比root高0.000024m，轮半径0.060m",
+  "input_leg_q_and_previous_scale_rad": 1.5,
+  "input_wheel_previous_scale_rad_s": 100.0,
+  "previous_source": "actual adopted physical targets after mechanical protection; never raw action or unadopted prediction",
+  "height_command_range_m": [
+    0.3,
+    0.4
+  ],
+  "height_change_within_episode": false,
+  "encoder_zero_change": false,
+  "hard_symmetry_projection": false,
+  "extra_history_or_estimator": false,
+  "control_reference_only": {
+    "physics_pd_policy_ms": [
+      1,
+      5,
+      10
+    ],
+    "leg_Kp": 40,
+    "leg_Kd": 2,
+    "wheel_Kv": 0.2,
+    "leg_motor_cap_nm": 40,
+    "wheel_driver_cap_nm": 2.44694786377709
+  },
+  "distillation_teacher_recommendation": {
+    "name": "Motion9995_height_pd",
+    "checkpoint": "runs/2026_10_26-18_22__motion4500_parallel_height_pd10000/formal/model_update_9995.pt",
+    "sha256": "d1da9580d064014a74dae79cb7b8fc98c4806c7b6038d019b65aee57645596b9",
+    "parent_spec": "configs/experiments/2026_10_26-18_22__motion4500_parallel_height_pd10000/spec.json",
+    "parent_spec_sha256": "cb106728c4d1535763d3df1421bc14580056a86eba2c2a1a798912d4f51e04f3",
+    "reason": "相同31D、不同固定高度来源；显式支撑偏移后先核对物理目标覆盖，仍不保证启动和新闭环能力"
+  },
+  "source_scope": "该批恒速物理目标表示范围可检查，受扰、启动和实机抗振不由覆盖率保证",
+  "training_plant": "NOT_SELECTED_BY_INTERFACE_DESIGN",
+  "Critic_PPO_Adam_resume": "NOT_SELECTED; 旧教师Critic/Adam不由本动作声明自动导入",
+  "BC_updates": 0,
+  "PPO_updates": 0,
+  "new_decoder_physics": "NOT_RUN",
+  "runtime_recipe_ready": false,
+  "deployment_ready": false,
+  "support_offset_definition": {
+    "version": "constant_symmetric_target_shift_v1",
+    "reference_height_m": 0.34,
+    "source": "artifacts/2026_11_05__motion9995_height_motion_range_r2/range_analysis.json",
+    "derivation": "symmetric zero-command PD-target center at .34m minus contact geometric q at .34m",
+    "meaning": "输出中心偏移，不是编码器标零、实测弹簧矩或新增力矩前馈；所有高度共用这四个常数",
+    "not_perfect_equilibrium": "旧模型有漂移、跟高和姿态误差；只作首个可验证目标参考"
+  }
+}

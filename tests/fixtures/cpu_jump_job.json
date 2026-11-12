@@ -1,0 +1,388 @@
+{
+  "schema_version": 1,
+  "name": "cpu_jump_nominal_fixture",
+  "task": "jump",
+  "algorithm": "ppo",
+  "backend": "mujoco",
+  "model": {
+    "interface": "jump_nominal_latent37_v1",
+    "actor_hidden_dims": [
+      8
+    ],
+    "critic_hidden_dims": [
+      8
+    ],
+    "actor_input": 37,
+    "critic_input": 64,
+    "critic_privileged_version": "jump_nominal_cpu_fixture64_v1",
+    "action_version": "jump_nominal_residual37_totalcap_v1"
+  },
+  "observation": {
+    "frame_dim": 37,
+    "actor_dim": 37,
+    "critic_dim": 64,
+    "leg_input_scale_rad": 1.5,
+    "wheel_input_scale_rad_s": 100.0
+  },
+  "action": {
+    "dim": 6,
+    "order": [
+      "left_hip_pitch",
+      "left_active_link_pitch",
+      "left_wheel_spin",
+      "right_hip_pitch",
+      "right_active_link_pitch",
+      "right_wheel_spin"
+    ],
+    "leg_scale_rad": 0.1,
+    "wheel_scale_rad_s": 10.0,
+    "version": "jump_nominal_residual37_totalcap_v1"
+  },
+  "control": {
+    "physics_dt_s": 0.001,
+    "pd_dt_s": 0.005,
+    "policy_dt_s": 0.01,
+    "leg_kp": 40.0,
+    "leg_kd": 2.0,
+    "wheel_kv": 0.2,
+    "effort_limits_nm": [
+      40.0,
+      40.0,
+      2.44694786377709,
+      40.0,
+      40.0,
+      2.44694786377709
+    ],
+    "height_command_m": 0.34
+  },
+  "reward": {
+    "version": "cpu_fixture_height_tracking_v1",
+    "dt": 0.01,
+    "weights": [
+      1.0,
+      1.0
+    ]
+  },
+  "curriculum": {
+    "version": "cpu_fixture_single_stage_v1",
+    "stage": 0,
+    "stages": [
+      {
+        "name": "L1",
+        "scale": 1.0
+      }
+    ]
+  },
+  "evaluation": {
+    "protocol_version": "cpu_fixture_v1",
+    "envs": 4,
+    "scored_envs": 2,
+    "seconds": 1.0,
+    "seed": 2026110501,
+    "conditions": [
+      {
+        "name": "stand_zero",
+        "command": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    ]
+  },
+  "limits": {
+    "smoke_updates": 2,
+    "formal_updates": 3,
+    "sample_limit": 100000,
+    "chain_wall_s": 120.0,
+    "evaluation_wall_s": 60.0
+  },
+  "storage": {
+    "checkpoint_every_updates": 2,
+    "keep_recent_checkpoints": 2,
+    "metrics_every_updates": 1,
+    "tensorboard": false,
+    "save_traces": false,
+    "max_output_bytes": 536870912,
+    "trace_max_bytes": 16777216,
+    "milestones": []
+  },
+  "runtime": {
+    "envs": 4,
+    "steps_per_env": 2,
+    "seed": 2026110501,
+    "device": "cpu"
+  },
+  "ppo": {
+    "learning_rate": 1e-05,
+    "critic_learning_rate": 9e-05,
+    "epochs": 1,
+    "minibatches": 1,
+    "critic_warmup_updates": 0,
+    "entropy_coef": 0.0
+  },
+  "notifications": {
+    "enabled": false
+  },
+  "assets": {
+    "jump_contract_data": {
+      "version": "jump_nominal_residual37_totalcap_v1",
+      "input_id": 1245118721,
+      "output_id": 1245118977,
+      "config_id": 1241842177,
+      "actor_dim": 37,
+      "fields": [
+        {
+          "start": 0,
+          "count": 3,
+          "name": "body_gyro",
+          "multiplier": 0.25,
+          "source": "IMU gyro, model mapping"
+        },
+        {
+          "start": 3,
+          "count": 3,
+          "name": "body_gravity",
+          "multiplier": 1.0,
+          "source": "gyro propagated EKF; acceleration magnitude gate v1"
+        },
+        {
+          "start": 6,
+          "count": 4,
+          "name": "leg_q",
+          "multiplier": 0.6666666666666666,
+          "source": "four actual encoder reports minus fixed zero input reference"
+        },
+        {
+          "start": 10,
+          "count": 6,
+          "name": "joint_dq",
+          "multiplier": 0.05,
+          "source": "six actual driver velocity reports"
+        },
+        {
+          "start": 16,
+          "count": 4,
+          "name": "adopted_leg_target",
+          "multiplier": 0.6666666666666666,
+          "source": "C local adoption cache minus fixed zero input reference"
+        },
+        {
+          "start": 20,
+          "count": 2,
+          "name": "adopted_wheel_target",
+          "multiplier": 0.01,
+          "source": "same adopted cache"
+        },
+        {
+          "start": 22,
+          "count": 1,
+          "name": "vx_command",
+          "multiplier": 0.25,
+          "source": "requested vx, never measured velocity"
+        },
+        {
+          "start": 23,
+          "count": 1,
+          "name": "yaw_command",
+          "multiplier": 0.25,
+          "source": "requested yaw"
+        },
+        {
+          "start": 24,
+          "count": 1,
+          "name": "handover_height_command",
+          "multiplier": 2.0,
+          "source": "root height command .34m, not leg length"
+        },
+        {
+          "start": 25,
+          "count": 6,
+          "name": "Jump_BIG",
+          "multiplier": 1.0,
+          "source": "constant [0,0,1,0,0,1]"
+        },
+        {
+          "start": 31,
+          "count": 5,
+          "name": "phase_onehot",
+          "multiplier": 1.0,
+          "source": "actual C event FSM"
+        },
+        {
+          "start": 36,
+          "count": 1,
+          "name": "phase_seconds",
+          "multiplier": 1.0,
+          "source": "uint32 monotonic elapsed ms /1000, no modulo/clip"
+        }
+      ],
+      "stale_ms": 24,
+      "phase_time_scale_s": 1.0,
+      "input_reference_rad": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "actor_network": [
+        37,
+        2048,
+        1024,
+        512,
+        6
+      ],
+      "activation": "ELU",
+      "output": {
+        "kind": "nominal_control_target_plus_residual",
+        "residual_scales": [
+          [
+            0.10000000149011612,
+            0.10000000149011612,
+            10.0,
+            0.10000000149011612,
+            0.10000000149011612,
+            10.0
+          ],
+          [
+            0.05000000074505806,
+            0.05000000074505806,
+            10.0,
+            0.05000000074505806,
+            0.05000000074505806,
+            10.0
+          ],
+          [
+            0.10000000149011612,
+            0.10000000149011612,
+            10.0,
+            0.10000000149011612,
+            0.10000000149011612,
+            10.0
+          ],
+          [
+            0.10000000149011612,
+            0.10000000149011612,
+            10.0,
+            0.10000000149011612,
+            0.10000000149011612,
+            10.0
+          ],
+          [
+            0.10000000149011612,
+            0.10000000149011612,
+            10.0,
+            0.10000000149011612,
+            0.10000000149011612,
+            10.0
+          ]
+        ],
+        "Tanh_count": 1,
+        "target_guard": [
+          1.5,
+          1.5,
+          80,
+          1.5,
+          1.5,
+          80
+        ],
+        "reference_bridge_ms": 40,
+        "residual_activation_ms": 40,
+        "nominal_is_geometric_IK": false,
+        "nominal_source": "same-C generated phase/time table, offline inverse PD candidate for grounded stages",
+        "nominal_physical_accepted": false,
+        "PD": [
+          40,
+          2
+        ],
+        "wheel_Kv": 0.2,
+        "feedforward_Nm": 0.0,
+        "reference_velocity_D": false,
+        "tau_order": "raw PD + existing spring software compensation -> final motor cap40Nm; no inner leg PD cap",
+        "hardware_motor_cap_changed": false,
+        "physical_spring_force_added_to_V4": false
+      },
+      "control": {
+        "physics_ms": 1,
+        "INS_ms": 1,
+        "deployed_Chassis_FSM_PD_ms": 5,
+        "Actor_ms": 10,
+        "target_transport_ms": 5,
+        "leg_PD": [
+          40,
+          2
+        ],
+        "wheel_Kv": 0.2,
+        "final_motor_caps": [
+          40,
+          40,
+          2.44694786377709,
+          40,
+          40,
+          2.44694786377709
+        ],
+        "spring_compensation": "existing C same coefficients, one sum-before-final motor cap; versioned change from old double clip",
+        "leg_length_guard_m": [
+          0.126,
+          0.373
+        ],
+        "crouch_exit": {
+          "minimum_ms": 350,
+          "both_leg_length_at_most_m": 0.15
+        },
+        "force_accounting_accepted": false,
+        "non_Jump_tau_order": "preserved inner PD cap40 -> existing software compensation -> final cap40"
+      },
+      "phases": [
+        "CROUCH",
+        "PUSH",
+        "FLIGHT",
+        "LAND",
+        "SETTLE"
+      ],
+      "support": {
+        "kind": "per-side measured-driver residual, not LQR command",
+        "on_N": 20,
+        "off_N": 8,
+        "on_dwell_ms": 5,
+        "off_dwell_ms": 8,
+        "max_age_ms": 20,
+        "unmeasured_internal_load_model": "UNKNOWN; production adapter returns unavailable",
+        "takeoff": "both OFF plus specific-force norm <3m/s2; proxy event, truth scored separately"
+      },
+      "learning": {
+        "action": "latent Normal raw sample -> one tanh -> C decode",
+        "log_prob": "raw latent sample, never protected target",
+        "full_resume_72D": false,
+        "full_resume_absolute37": false
+      },
+      "production_model": null,
+      "hardware_accepted": false,
+      "ABI": 2,
+      "trajectory_id": 2830348563,
+      "trajectory_digest": "a8b3b11361314f59b4f755739cb5784f305f3eaa05104aad71ce4c0e65ff1a7c"
+    },
+    "jump_critic_schema": {
+      "version": "jump_nominal_cpu_fixture64_v1",
+      "width": 64,
+      "fields": [
+        {
+          "name": "actor",
+          "width": 37
+        },
+        {
+          "name": "CPU_engine_boundary_fixture",
+          "width": 27
+        }
+      ]
+    }
+  },
+  "initialization": {
+    "mode": "scratch"
+  },
+  "diagnostics": {
+    "minimum_unique_actor_samples": 4,
+    "minimum_minibatch_samples": 1,
+    "latent_std": 0.12
+  }
+}

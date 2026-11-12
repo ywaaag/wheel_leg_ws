@@ -1,0 +1,45 @@
+{
+  "version": "motion31_distillation_workflow_reference_v1",
+  "kind": "completed_reference_not_training_request",
+  "task_directory": "isolated/2026_11_3-11_25__motion855_small31_antiosc_distill",
+  "bindings": {
+    "terminal": {"file": "terminal.json", "sha256": "612e9ba7242048ae7c96dd23be3914b98d8de08e95329d8065d0b355a2910221"},
+    "source_identity": {"file": "delivered_source_identity.json", "sha256": "2aa5b02ac6966446bd9301ddc439c6b5d0328041c8f1dfc8cd9f23bcf9be4fbc"},
+    "selected_student": {"file": "selected_student.json", "sha256": "275f8166521e4fe08442c0594b1e7050a5d71d47c09353f890647b7f8ddda1fd"},
+    "candidate_frozen": {"file": "candidate_frozen.json", "sha256": "0a5a11c091dd77166f53f313a6c72662914319dd6583cc885a77eea870495ea7"},
+    "response_recipe": {"file": "round_09/response_matching/recipe.json", "sha256": "476e099d60c0fd97135383c13c0ed53257fc14ce2914623583c028aa322cd06d"},
+    "dataset_manifest": {"file": "round_09/dataset/manifest.json", "sha256": "030aae983f48dc1fad72aa63964d9fd81d5e5a87281cd2d3925610289afff61f"},
+    "export": {"file": "export.json", "sha256": "cb1427e73fea43482b382bfb9a12b636a93611fd782cfd5aa728e0a1430be56c"},
+    "package_verification": {"file": "package_verification.json", "sha256": "f7bb9dad1141e0d0a0a02d96cc8050e59db997b60e48b066375bd313332b67ff"},
+    "package_checksums": {"file": "../../deployment_protocol/2026_11_3-16_30__motion855_small31_antiosc_onnx/SHA256SUMS", "sha256": "aaa2b7bc0c9e7f76f9708b9ec339ce6c5c1bca31d52f41fe7ada78b39e40f7b9"}
+  },
+  "tools": [
+    {"file": "src/native_stand/students/motion_distillation_pipeline.py", "entry": "fit / export_onnx", "reuse": "Public BC/export core; public validate_teacher currently supports explicit 512/256/128 Teacher, not arbitrary 2048 Teachers."},
+    {"file": "scripts/motion_distill_pipeline.py", "entry": "plan / prepare / relabel / fit / replay / cycle / export", "reuse": "Existing historical public CLI. Do not dispatch the complete V4/691 Teacher through its old 512 or MCU312 branch."},
+    {"file": "distill_common.py", "entry": "build_teacher / patch_pipeline / engine / profiles", "reuse": "Task-local explicit Teacher/spec/contract loader and same-domain execution adapter. A new Teacher requires a new adapter binding; do not edit this completed task."},
+    {"file": "data_parts.py", "entry": "assemble / build_dataset / part_from_entry", "reuse": "Actual pre-action input, frozen Teacher deterministic labels, whole-episode splits, history aggregation."},
+    {"file": "round.py", "entry": "fit_round / compare_round", "reuse": "One bounded BC round and same-condition validation; no final-test reselection."},
+    {"file": "response_matching.py", "entry": "prepare / response_loss / extension", "reuse": "Optional signed central-difference feedback matching. Process-local temporary bindings must be restored; historical weights/LR are not universal defaults."},
+    {"file": "collect.py", "entry": "run_stage / Driver", "reuse": "Independent Student rollouts, train-only replay, separate validation/holdout/ONNX. Never copy historical fault-recovery exceptions into a new task."},
+    {"file": "fidelity.py", "entry": "compare_condition / hf_stats / support_stats / recovery_stats", "reuse": "Paired same-Plant anti-oscillation/support/recovery scoring; thresholds belong to the declared task protocol."},
+    {"file": "final_matrix.py", "entry": "validation_matrix / holdout_matrix / onnx_matrix / summarize", "reuse": "Complete named matrix and per-condition comparisons, never mix successful rows from different Students."},
+    {"file": "task_probe.py", "entry": "run_dq_probe / additive_analysis", "reuse": "Signed response and scalar-modal additive probes; failed linearity cannot establish stability margin."},
+    {"file": "logged_probe.py", "entry": "main", "reuse": "Common real-log states as a supplementary signed-response diagnostic."},
+    {"file": "diagnostics.py", "entry": "window / main", "reuse": "Physical motion, load-bearing, geometric gap and layered torque diagnostics."},
+    {"file": "export_onnx.py", "entry": "main", "reuse": "Actor mean only, fixed [1,31] to [1,6], actual/reference/boundary/reset golden inputs."},
+    {"file": "package_c.py", "entry": "main", "reuse": "Generated C weights/runtime, host golden comparison and one electrical README; not MCU execution certification."},
+    {"file": "preview.py", "entry": "main", "reuse": "Bounded pauseable same-domain GUI, no-run default; read-only recorded model selection."}
+  ],
+  "manual_stages": [
+    {"id": "01_bind", "action": "Bind one Teacher SHA, explicit architecture/critic metadata, parent spec, full Plant tuple, actual execution scales/timing and finite block limits.", "outputs": ["request.json", "source_identity.json", "block plan/ledger"]},
+    {"id": "02_baseline", "action": "Run or reuse SHA-matched Teacher baselines on the same Plant/initial states and protocol; read back motor/NET/contact components.", "outputs": ["registry.json", "Teacher traces", "physical readback"]},
+    {"id": "03_data", "action": "Split whole episodes into training/validation/final test; label actual pre-action inputs, retain original and all previous train-only Student replays.", "outputs": ["dataset.pt", "manifest.json", "sampling counts"]},
+    {"id": "04_fit", "action": "Run one bounded deterministic-mean BC round; fresh BC Adam, fixed std, optional separately declared signed-response loss.", "outputs": ["best_validation.pt", "latest.pt", "summary.json", "budget.json", "response_gradient_log.json when enabled"]},
+    {"id": "05_closed_loop", "action": "Evaluate independent Student on the same complete validation matrix; compare support, real high-frequency q/dq, recovery and low-speed response.", "outputs": ["unique round traces", "per-condition comparison"]},
+    {"id": "06_aggregate", "action": "If authorized and useful, collect separate train-only Student trajectories, query frozen Teacher and return to stage03. Do not relabel validation/test trajectories as training.", "outputs": ["new replay", "replay manifest", "cumulative accounting"]},
+    {"id": "07_freeze", "action": "Rank same-matrix closed-loop fidelity, retain earlier candidates when appropriate; freeze checkpoint SHA before final holdout.", "outputs": ["selected_student.json", "candidate_frozen.json"]},
+    {"id": "08_holdout", "action": "Run the frozen model on untouched conditions; record any fidelity gap without changing the chosen model or feeding test results into BC.", "outputs": ["holdout matrix", "final_comparison.json"]},
+    {"id": "09_export", "action": "Export deterministic ONNX, compare PyTorch/ONNX/C on fixed goldens, then validate actual ONNX in independent closed loop.", "outputs": ["actor.onnx", "manifest.json", "golden vectors", "C runtime/weights", "ONNX matrix"]},
+    {"id": "10_deliver", "action": "Finalize one electrical README and checksums after all content edits, reconcile all finite blocks and state NOT_RUN/hardware limits.", "outputs": ["REPORT.md", "terminal.json", "SHA256SUMS", "archive"]}
+  ]
+}

@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "name": "motion442_scale_corrected_resume9546",
+  "preset": "motion_supported_v1",
+  "task": "motion",
+  "algorithm": "ppo",
+  "backend": "isaac",
+  "curriculum": {
+    "version": "motion31_supported2048_dqgain_ppo_v1"
+  },
+  "initialization": {
+    "mode": "full",
+    "checkpoint": "/home/kellen/wheel_leg_native_train/runs/2026_11_5-16_51__motion_smoke12_supported015_dqgain_formal9988/formal/model_update_442.pt",
+    "sha256": "b0b29edf4469a60e0d6e96836cac1ebe02f52839d0799436e07cb85450785851"
+  },
+  "runtime": {
+    "envs": 4096,
+    "steps_per_env": 64,
+    "seed": 2026110501,
+    "device": "cuda:0",
+    "headless": true
+  },
+  "limits": {
+    "smoke_updates": 0,
+    "formal_updates": 9546,
+    "sample_limit": 2502426624,
+    "chain_wall_s": null,
+    "evaluation_wall_s": null
+  },
+  "ppo": {
+    "critic_warmup_updates": 0,
+    "kl_limit": 0.015,
+    "max_actor_backtracks": 4,
+    "boundary_coefficient": 0.01,
+    "boundary_clip_probability": 0.1,
+    "dq_gain_coefficient": 0.01,
+    "dq_gain_threshold": 2.5,
+    "auxiliary_states": 128
+  },
+  "reward": {
+    "version": "motion_supported_scale_corrected_v1",
+    "fields": {
+      "scale_corrections": {
+        "version": "motion_supported_physical_scale_corrections_v1",
+        "linear_wide_mps": 0.8,
+        "linear_narrow_mps": 0.1,
+        "linear_weight": 4.0,
+        "linear_tail_scale_mps": 0.3,
+        "linear_tail_weight": -1.0,
+        "yaw_wide_rad_s": 0.5,
+        "yaw_narrow_rad_s": 0.15,
+        "yaw_weight": 2.0,
+        "yaw_tail_scale_rad_s": 0.5,
+        "yaw_tail_weight": -0.5,
+        "narrow_mix": 0.25,
+        "effort_normalization": "per_env_effective_motor_caps",
+        "motor_effort_excludes": [
+          "NET",
+          "passive_friction",
+          "external_pulse"
+        ],
+        "input_scales_unchanged": [
+          1.5,
+          100.0
+        ],
+        "output_scales": [
+          0.15,
+          40.0
+        ],
+        "policy_dt_s": 0.01
+      }
+    }
+  },
+  "storage": {
+    "checkpoint_every_updates": 100,
+    "keep_recent_checkpoints": 2,
+    "metrics_every_updates": 10,
+    "tensorboard": true,
+    "save_traces": false,
+    "milestones": [
+      1
+    ],
+    "max_output_bytes": 2147483648,
+    "terminal_reserve_bytes": 536870912
+  },
+  "notifications": {
+    "enabled": true,
+    "transport": "hapi",
+    "target": "191bacc3-e5c7-4b8f-ae3d-5677eada837b"
+  },
+  "assets": {
+    "center": {
+      "hip_above_root_m": 2.4e-05,
+      "wheel_radius_m": 0.06,
+      "equivalent_upper_m": 0.21,
+      "equivalent_lower_m": 0.25,
+      "hip_zero_deg": 47.1033888,
+      "active_zero_deg": 47.1080837,
+      "support_offset_rad": [
+        -0.24229908821701296,
+        -0.3063761712607683,
+        0.24229908821701296,
+        -0.3063761712607683
+      ],
+      "height_range_m": [
+        0.3,
+        0.4
+      ],
+      "height_command_m": 0.34
+    },
+    "runtime_template": "/home/kellen/wheel_leg_native_train/configs/experiments/2026_11_5-16_51__motion_smoke12_supported015_dqgain_formal9988/spec.json",
+    "runtime_template_sha256": "bce931ba337f694d9d616260d2a4b73bb618447d1337c7fefa65ef7b8316f288",
+    "frozen_source_root": "/home/kellen/wheel_leg_native_train/isolated/2026_11_05__motion_supported2048_dqgain_ppo/runtime_view_r4/src",
+    "frozen_bundle": "/home/kellen/wheel_leg_native_train/isolated/2026_11_05__motion_supported2048_dqgain_ppo",
+    "prefix_onnx": "/home/kellen/wheel_leg_native_train/deployment_protocol/2026_11_3-16_30__motion855_small31_antiosc_onnx/actor.onnx",
+    "prefix_sha256": "9d4175672625592b3c53319f67dc5cc275bd1ce83d1428601457c90e016e8cce",
+    "prefix_identity": "855 deployed SMALL Actor, not missing original855 large",
+    "physical_gpu_uuid": "GPU-e704e7d4-2965-4712-9759-ba6b9910bd72",
+    "historical_online_updates": 454,
+    "original_online_limit": 10000,
+    "parent_run_name": "2026_11_5-16_51__motion_smoke12_supported015_dqgain_formal9988",
+    "resource_mode": "shared"
+  },
+  "diagnostics": {
+    "independent_evaluation": false,
+    "training_statistics_every_updates": 100
+  },
+  "experiment_variables": {
+    "user_instruction": "fix output-scale bugs and restart from latest complete checkpoint",
+    "new_authorized_updates": 0,
+    "reused_budget_remaining": 9546,
+    "physical_reset_on_resume": true
+  }
+}

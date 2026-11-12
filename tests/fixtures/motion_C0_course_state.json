@@ -1,0 +1,58 @@
+{
+  "version": "motion_C0_source_boundary_events50_motion50_v3",
+  "stage": 0,
+  "stage_started_update": 0,
+  "last_training_update": 3302,
+  "standing_passed": true,
+  "general_DR_frontier": 0,
+  "standing_DR_frontier": 0,
+  "standing_DR_level": -1,
+  "DR_streak": 0,
+  "dq_frontier": 0,
+  "dq_level": 0,
+  "DR_levels": {
+    "observation_noise": 0,
+    "sensor_bias": 0,
+    "timing_response": 0,
+    "net_load_capacity": 0,
+    "mass_inertia": 0,
+    "COM": 0,
+    "friction": 0,
+    "initial_push": 0,
+    "ground_slope": 0
+  },
+  "highspeed_paused": false,
+  "levels": {
+    "forward": 3,
+    "backward": 5,
+    "yaw_positive": 0,
+    "yaw_negative": 5
+  },
+  "frontiers": {
+    "forward": 4,
+    "backward": 6,
+    "yaw_positive": 1,
+    "yaw_negative": 6
+  },
+  "pass_streak": {
+    "forward": 0,
+    "backward": 0,
+    "yaw_positive": 0,
+    "yaw_negative": 0
+  },
+  "regression_streak": {
+    "forward": 0,
+    "backward": 0,
+    "yaw_positive": 0,
+    "yaw_negative": 0
+  },
+  "accepted_by_stage": {},
+  "assessment_keys": [],
+  "source_boundary_frontiers": {
+    "forward": 0,
+    "backward": 4,
+    "yaw_positive": 0,
+    "yaw_negative": 0
+  },
+  "source_checkpoint_updates": 3302
+}

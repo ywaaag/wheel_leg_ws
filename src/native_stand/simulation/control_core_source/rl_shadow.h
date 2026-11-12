@@ -1,0 +1,89 @@
+#ifndef RL_SHADOW_H
+#define RL_SHADOW_H
+
+#include "rl_motion31.h"
+
+#include <stdint.h>
+
+typedef struct {
+    uint32_t sequence;
+    uint32_t tick_ms;
+    float lqr_pitch_rad; /* body pitch used by theta_l/theta_r; not an Actor input */
+    uint8_t chassis_ready;
+    uint8_t rl_active;
+    uint8_t controller_owner; /* 0=LQR, 1=RL; rl_active only permits inference */
+    uint8_t previous_source; /* 1=declared q/dq initialization proxy, 2=locally adopted target, 3=previous inference */
+    uint32_t control_epoch;
+    uint32_t adopted_sequence;
+    uint32_t adopted_tick_ms;
+    uint32_t feedback_receive_tick_ms[6]; /* zero with validity mask clear means UNKNOWN */
+    uint32_t feedback_valid_mask;
+    uint32_t imu_update_tick_ms;
+    uint32_t imu_update_sequence;
+    float driver_reported_leg_torque_motor_nm[4]; /* decoded driver estimate, not independent calibration */
+    float driver_reported_wheel_current_raw[2]; /* filtered CAN raw feedback, not A */
+    uint32_t pd_tick_ms;
+    float applied_leg_torque_motor_nm[4]; /* last local commit; not measured motor torque */
+    float applied_wheel_current_raw[2];
+    float leg_length_m[2]; /* left, right; spring compensation input */
+    float leg_spread_rad[2]; /* left, right; spring compensation input */
+    RLMotion31Snapshot motion;
+} RLShadowSnapshot;
+
+typedef struct {
+    uint32_t snapshot_sequence;
+    uint32_t snapshot_tick_ms;
+    uint32_t output_tick_ms;
+    uint8_t valid;
+    uint8_t previous_source;
+    uint32_t control_epoch;
+    uint32_t previous_sequence;
+    float action[RL_MOTION31_ACTION_SIZE];
+    RLMotion31Preview preview;
+} RLShadowCommand;
+
+typedef struct {
+    uint32_t frame_begin; /* odd/in-progress; compare with frame_end before using a snapshot */
+    uint32_t sequence;
+    uint32_t stage; /* 0=no sample, 1=fresh, 2=obs, 3=inference, 4=decode, 5=PD */
+    uint32_t failure; /* 0=none, 1=init, 2=no sample, 3=stale, 4=input, 5=network,
+                         6=decode, 7=target mapping, 8=PD, 9=torque mapping/compensation */
+    uint32_t snapshot_age_ms;
+    uint32_t input_error_mask; /* bits 0..3=nonfinite q0,q1,q3,q4; 4=gyro; 5=gravity;
+                                  6=joint velocities; 7=previous target; 8=commands */
+    uint8_t observation_valid;
+    float input_joint_position_rad[4]; /* model RH, RA, LH, LA before validation */
+    uint8_t previous_target_valid;
+    uint8_t previous_target_is_virtual; /* 1=inference/proxy history rather than an adopted-target cache */
+    uint8_t rl_target_theta_valid; /* both five-bar target poses have a finite solution */
+    uint8_t rl_wheel_target_valid;
+    uint8_t rl_target_valid; /* decoded_target and mapped wheel speed are from a successful output */
+    uint8_t rl_active;
+    uint8_t rl_torque_valid; /* current inference torque calculation succeeded */
+    float observation[RL_MOTION31_OBSERVATION_SIZE];
+    float mean_action[RL_MOTION31_ACTION_SIZE];
+    float decoded_target[RL_MOTION31_ACTION_SIZE];
+    float rl_wheel_target_rad_s[2]; /* left/right, wheel-output rad/s, motor-axis sign */
+    float rl_wheel_current_rad_s[2]; /* measured left/right, same units and motor-axis signs */
+    float rl_target_theta_l_rad; /* physical left, same zero/sign as LQR theta_l */
+    float rl_target_theta_r_rad; /* physical right, same zero/sign as LQR theta_r */
+    float lqr_leg_torque_nm[4]; /* existing motor order: lf, lb, rf, rb */
+    float lqr_wheel_torque_nm[2]; /* forward-positive: left, right */
+    float rl_leg_torque_nm[4]; /* calculated preview, spring-compensated and clamped; lf, lb, rf, rb */
+    float rl_wheel_torque_nm[2]; /* calculated preview after current limit; forward-positive L/R */
+    uint8_t controller_owner;
+    uint8_t previous_source;
+    uint32_t control_epoch;
+    uint32_t adopted_sequence;
+    uint32_t inference_start_tick_ms, inference_end_tick_ms;
+    uint32_t inference_deadline_miss_count;
+    uint32_t frame_end;
+} RLShadowDebug;
+
+extern volatile RLShadowDebug g_rl_shadow_debug;
+void RLShadowQueueInit(void);
+void RLShadowPublish(const RLShadowSnapshot *sample);
+int RLShadowReadCommand(RLShadowCommand *command);
+void RLShadowTask(void const *argument);
+
+#endif

@@ -1,0 +1,32 @@
+{
+  "version": "rl_policy_core_v1",
+  "ABI": 1,
+  "authority_worktree": "/home/kellen/combat-dm-balance-control-integration",
+  "base_commit": "4ba73bc2a194ad8c1ff9ef3d12cde732f03121ef",
+  "files": {
+    "rl_policy_core.c": "7e460257114bf8b006dd613faa9ff8f8632f52ace0b41e157ee050736c266d71",
+    "rl_policy_core.h": "719b3a83ccf9476cf0b8be369c0c14874b514f837a800880ca7aefefde54c71a",
+    "rl_motion31.c": "d0c423426a4620ceddef2bb22ae84fe877eb94dcb6a72d68feaa4e280f4e5a02",
+    "rl_motion31.h": "a3929ec395e17bdff9d6af261a51268f174fe319a75dd0dd9b3082352d5ae5af",
+    "rl_control.c": "2602de49d75c3b92a23ad43c8b826c840bee05b22335f7cc4268fb183b2e0185",
+    "rl_control.h": "9653912796ebab8ba27e6396701212163d7dc9fe63e5c82c0476d9cffc6d5239",
+    "rl_shadow.h": "66af99daedbee4fa4e79641ccf4065c4b5fccc12139ac350f7f7a4ce9422e8a8",
+    "rl_jump_core.c": "9e114eb4642845eb3ab97e3e69815eb1dd8c979aa96cd4758bf6119dc33f88dc",
+    "rl_jump_core.h": "344735272a5620ce234f78650b439d74bbe37bd51e36aa433e95c60fd3ffe7e4",
+    "rl_jump_nominal.c": "b8df11465eca8610296d504c985d1797e5d8f5e7faeb3f65d59fea69dfebb322",
+    "rl_jump_nominal.h": "a8e483435ab7ee988e0bd0b451ad40e940624a4c4a79d4940f71bdd1032409e3",
+    "rl_jump_nominal_table.c": "a0a434b4bff7d4c9eb4ec50f034e0b44631800770b1d1ed1c713a76bce13ba7f",
+    "rl_jump_nominal_table.h": "03110c72415fe5ac5efe4f2dcbea0bcd383a96f38a2f152798b098c149acf9f1",
+    "rl_jump_platform.c": "09b76a0faa7c5238709ab92091f515992a4dba9fdc12b6e10953318c5920c39a",
+    "rl_jump_platform.h": "6eb85c1cf787e6769e5398c7c14ba9025d459dc8f84d56b00a2afbd61e0d0c59"
+  },
+  "center_identities": [
+    "piecewise_table",
+    "firmware_poly5"
+  ],
+  "hardware_execution": false,
+  "physical_NET_in_core": false,
+  "Jump_ABI": 2,
+  "Jump_source_worktree": "/home/kellen/combat-dm-balance-jump-simple-v1",
+  "Jump_trajectory_id": 2830348563
+}

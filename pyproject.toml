@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wheel-leg-native-train"
+version = "0.2.0"
+description = "Native closed-chain wheel-leg motion, recovery and student policy training"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = ["numpy"]
+
+[project.optional-dependencies]
+train = ["torch", "rsl-rl-lib"]
+
+[project.scripts]
+wheel-leg = "native_stand.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+native_stand = ["simulation/*.json", "simulation/control_core_source/*", "simulation/jump_control_source/*", "**/*.html"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests", "src/native_stand/command_v6/tests"]
+
+[tool.ruff]
+src = ["src"]
+target-version = "py312"
+line-length = 100
+# 历史实现按冻结身份只读保留，不参与新代码风格检查。
+extend-exclude = [
+    "isolated",
+    "runs",
+    "artifacts",
+    "configs",
+    "docs",
+    "sim2sim",
+    "scripts",
+    "src/native_stand/command_v6",
+    "src/native_stand/students",
+    "src/native_stand/recovery",
+    "src/native_stand/world_model",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501", "B008"]
+
+[tool.ruff.format]
+indent-style = "space"
+quote-style = "double"

@@ -1,0 +1,540 @@
+"""One authorized detached standing chain; no polling or automatic new chain."""
+import argparse
+import fcntl
+import json
+import os
+from pathlib import Path
+import select
+import subprocess
+import sys
+import time
+import uuid
+
+ROOT=Path(__file__).resolve().parent
+sys.path.insert(0,str(ROOT.parents[1]))
+from native_stand.command_v6.completion import write,read,sha,identity,notify
+from native_stand.command_v6.ledger import Ledger
+from native_stand.command_v6.tools.preflight import check
+from native_stand.command_v6.domain.evidence import resolve_gate
+from native_stand.command_v6.domain.execution_plan import samples_for_updates,smoke_plan
+from native_stand.command_v6.tools.run_state import RunState, record as record_state, state_from_stage, write_handshake
+
+
+def source_engineering_error(row):
+    """Keep source infrastructure failures distinct from behavioral gate failures."""
+    if row.get('progress',{}).get('engineering_valid'):
+        return None
+    terminal=row.get('terminal',{})
+    interruption=terminal.get('budget_interruption') or {}
+    exception=interruption.get('exception') if isinstance(interruption,dict) else str(interruption)
+    if row.get('status')=='STOPPED_BOUNDED' and exception:
+        return 'SOURCE_EVALUATION_BUDGET_EXHAUSTED: '+exception+'; incomplete source evidence; no PPO; not a capability failure'
+    failure=terminal.get('failure')
+    if failure:
+        return 'SOURCE_EVALUATION_RUNTIME_FAILURE: '+str(failure)+'; no PPO'
+    return 'SOURCE_EVALUATION_MISSING_EVIDENCE: engineering validity missing; no PPO'
+
+
+def chain_event(fd, event):
+    """Best-effort startup events; a closed client pipe never stops a child."""
+    if fd is None:return
+    try:os.write(fd,(json.dumps(event)+'\n').encode())
+    except OSError:pass
+
+
+def read_startup_events(fd, *, wait_s, wait_for_formal=False):
+    """Wait only on owned child events; never read or poll training logs."""
+    if not isinstance(wait_s,(int,float)) or not 0<=wait_s<=600:
+        raise ValueError('handshake wait must be within0..600seconds')
+    deadline=time.monotonic()+wait_s
+    message={'status':'SUBMITTED','current_stage':'submission','formal_first_update_verified':False,
+             'started':False,'identity_verified':False,
+             'reason':'owned worker submitted; formal first update not yet verified'}
+    pending=b''
+    while True:
+        ready,_,_=select.select([fd],[],[],max(0.,deadline-time.monotonic()))
+        if not ready:return message
+        chunk=os.read(fd,65536)
+        if not chunk:return message
+        pending+=chunk
+        while b'\n' in pending:
+            encoded,pending=pending.split(b'\n',1)
+            try:event=json.loads(encoded)
+            except (ValueError,UnicodeError):
+                return {'status':'UNKNOWN','started':False,'formal_first_update_verified':False,
+                        'current_stage':message['current_stage'],'reason':'malformed child startup event'}
+            if not isinstance(event,dict):
+                return {'status':'UNKNOWN','started':False,'formal_first_update_verified':False,
+                        'current_stage':message['current_stage'],'reason':'malformed child startup event'}
+            if event.get('event_type') in ('stage_started','stage_finished'):
+                message.update(current_stage=event['phase'],stage_event=event)
+                if event.get('event_type')=='stage_finished' and event.get('exit_code')!=0:
+                    return {**message,'status':'FAILED','reason':'owned phase exited unsuccessfully'}
+                if not wait_for_formal:return message
+            elif event.get('event_type')=='chain_finished':
+                return {**message,'status':event.get('status','UNKNOWN'),'current_stage':'finished',
+                        'reason':'chain ended before formal first-update verification','chain_event':event}
+            else:
+                # Formal trainer's first-update message has no chain event_type.
+                return {**event,'current_stage':'formal','formal_first_update_verified':False,
+                        'started':False,'identity_verified':False}
+        if time.monotonic()>=deadline:return message
+
+
+def run_phase(spec_path,phase,output,handshake_fd=None):
+    spec=read(spec_path)
+    if phase=='smoke' and smoke_plan(spec)['budget_sufficient'] is False:
+        raise ValueError('smoke sampling budget cannot cover the required event')
+    result=check(spec_path,output,phase)
+    if result['status']!='PASS':
+        raise ValueError(f'{phase} preflight: {result}')
+    wall_override=None
+    if spec['budget'].get('chain_wall_s') is not None:
+        submitted=read(output.parent/'manifest.json')['submitted_unix_s']
+        manifest=read(output.parent/'manifest.json')
+        deadline=min(submitted+spec['budget']['chain_wall_s'],manifest.get('global_deadline_unix_s') or float('inf'))
+        remaining=deadline-time.time()-100
+        if remaining<60:raise TimeoutError('declared chain wall budget exhausted')
+        from native_stand.command_v6.domain.execution_limits import ExecutionLimits
+        limits=ExecutionLimits.resolve(spec,phase)
+        wall_override=limits.monitor_bound(min(remaining,limits.wall_s) if limits.wall_s is not None else remaining)
+    if spec.get('motion_posture'):
+        submitted=read(output.parent/'manifest.json')['submitted_unix_s']
+        remaining=submitted+spec['motion_posture']['chain_wall_s']-time.time()-120
+        if remaining<60:raise TimeoutError('motion posture chain wall budget exhausted')
+        from native_stand.command_v6.domain.execution_limits import ExecutionLimits
+        limits=ExecutionLimits.resolve(spec,phase)
+        posture_bound=limits.monitor_bound(min(remaining,limits.wall_s) if limits.wall_s is not None else remaining)
+        wall_override=min(wall_override,posture_bound) if wall_override is not None else posture_bound
+    attempt=uuid.uuid4().hex
+    result.resource_review=read(output.parent/'manifest.json',{}).get('resource_review')
+    Ledger(spec_path.with_name('budget.json')).reserve(attempt,phase,output,approval=result)
+    temporary_pipe=handshake_fd is None
+    if temporary_pipe:
+        reader,writer=os.pipe()
+    else:
+        writer=handshake_fd
+    command=[sys.executable,str(ROOT/'monitor.py'),'--spec',str(spec_path),'--phase',phase,
+        '--output-dir',str(output),'--attempt-id',attempt,'--handshake-fd',str(writer)]
+    if wall_override is not None:command+=['--wall-limit-s',str(wall_override)]
+    with output.with_name(output.name+'.log').open('x') as stream:
+        child=subprocess.Popen(command,stdout=stream,stderr=subprocess.STDOUT,pass_fds=(writer,))
+        write(output.with_name(output.name+'.monitor.json'),{'attempt_id':attempt,'monitor_pid':child.pid,
+            'command':command,'output_dir':str(output),'hapi_session':None,
+            'process_started_unix_s':__import__('native_stand.command_v6.tools.health_check',fromlist=['own_process_start']).own_process_start(child.pid)})
+        code=child.wait()
+    if temporary_pipe:
+        os.close(writer)
+        os.close(reader)
+    terminal=read(output/'terminal_report.json',{})
+    progress=read(output/'progress.json',{})
+    if phase=='smoke' and code==0 and terminal.get('status') in ('COMPLETED','STOPPED_BOUNDED'):
+        from native_stand.command_v6.wiring import smoke_certificate
+        certificate=smoke_certificate(output,spec)
+        # run_phase is the only generation owner; other entry points validate.
+        with (output/'wiring_certificate.json').open('x') as stream:
+            json.dump(certificate,stream,indent=2,allow_nan=False)
+            stream.write('\n')
+    return {'phase':phase,'run':str(output),'exit_code':code,'terminal':terminal,'progress':progress,
+        'analysis':str(output/'analysis.json'),'status':terminal.get('status','UNKNOWN')}
+
+
+
+def reconcile_durability(spec_path,output,code,wall_s):
+    ledger=spec_path.with_name('budget.json')
+    book=read(ledger)
+    matches=[(key,row) for key,row in book['attempts'].items() if row['output_dir']==str(output.resolve())]
+    if len(matches)>1:
+        raise ValueError('duplicate durability attempt')
+    if matches and matches[0][1]['status']=='RUNNING':
+        attempt,row=matches[0]
+        status='TERMINATED' if code in (124,137,-9,-15) else 'FAILED'
+        Ledger(ledger).finalize(attempt,output,status,exit_code=code,wall_s=wall_s,
+            reason='durability process did not finalize itself')
+    result=read(output,{}) or {}
+    from native_stand.command_v6.tools.evaluate_checkpoint import protocol_for_spec
+    spec=read(spec_path)
+    expected=protocol_for_spec(spec,result.get('seconds',spec['evaluation'].get('durability_seconds',100)))
+    gate=resolve_gate(result,'recovery' if result.get('task')=='recovery' else 'standing',
+        expected_envs=spec['evaluation']['scored_envs'],expected_protocol=expected)
+    return {'exit_code':code,'wall_s':wall_s,'result':str(output),
+        'terminal':read(output.with_name(output.stem+'.terminal.json')),
+        'standing_gate':result.get('standing_gate'),'gate_evidence':gate}
+
+
+def chain_report(chain,spec_path,phase_results,status,failure,durability):
+    formal=next((row for row in phase_results if row['phase']=='formal'),None)
+    source=next((row for row in phase_results if row['phase']=='source_eval'),None)
+    selected=read(Path((formal or source)['run'])/'candidate_selection.json',{}) if formal or source else {}
+    book=read(spec_path.with_name('budget.json'))
+    spec=read(spec_path)
+    event=identity({'chain':str(chain),'attempt':read(chain/'manifest.json')['attempt_id']})[:24]
+    from native_stand.command_v6.domain.evidence_summary import ledger_summary
+    book_summary=ledger_summary(book,reference=str(spec_path.with_name('budget.json').resolve()),sha256=sha(spec_path.with_name('budget.json')))
+    analysis={'event_id':event,'status':status,'failure':failure,'phase_results':[
+        {key:value for key,value in row.items() if key!='progress'} for row in phase_results],
+        'budget':book_summary,'formal_updates':book['used']['formal'],'smoke_updates':book['used']['smoke'],
+        'formal_samples':samples_for_updates(spec,book['used']['formal']),
+        'smoke_samples':samples_for_updates(spec,book['used']['smoke']),
+        'remaining_formal_updates':book['limits']['formal']-book['used']['formal'],
+        'candidate_selection':selected,'durability':durability,
+        'training_acceptance_is_not_durability_acceptance':True}
+    analysis['task_curriculum']=(formal or {}).get('terminal',{}).get('task_curriculum')
+    if spec.get('motion_course'):
+        course_evidence=read(chain/'formal/course_progress.json',{})
+        analysis['motion_course']={'configuration':spec['motion_course']['configuration'],'state':course_evidence.get('state'),'last_decision':course_evidence.get('decision'),'progress_path':str(chain/'formal/course_progress.json'),'all_stages_passed':bool(course_evidence.get('decision',{}).get('all_stages_passed'))}
+        analysis['task_curriculum']=analysis['motion_course']
+    analysis['best_motion_candidate']=(formal or {}).get('terminal',{}).get('best_motion_candidate')
+    if spec.get('motion_timing',{}).get('fixed_parent'):
+        h=spec['motion_timing']['fixed_parent']
+        analysis.update(historical_online_updates=h['historical_online_updates'],original_online_limit=h['original_online_limit'],
+            online_updates_including_parent=h['historical_online_updates']+book['used']['smoke']+book['used']['formal'])
+    if spec.get('motion_timing',{}).get('critic_upgrade'):
+        h=spec['motion_timing']['critic_upgrade']
+        analysis.update(historical_online_updates=h['historical_online_updates'],original_online_limit=10000,online_updates_including_parent=h['historical_online_updates']+book['used']['smoke']+book['used']['formal'])
+    analysis['chain_wall_s']=time.time()-read(chain/'manifest.json').get('submitted_unix_s',time.time())
+    if spec.get('motion_differential_retry'):
+        previous=spec['motion_differential_retry']
+        analysis.update(historical_online_updates=previous['historical_online_updates'],historical_wall_s=previous['historical_wall_s'],
+            original_online_limit=previous['original_online_limit'],online_updates_including_parent=book['used']['smoke']+book['used']['formal'],
+            chain_wall_including_parent_s=previous['historical_wall_s']+analysis['chain_wall_s'])
+    prior_retry=spec.get('motion_large_continuation',{}).get('source_evidence_retry')
+    if prior_retry:
+        analysis.update(historical_online_updates=0,historical_wall_s=prior_retry['historical_wall_s'],
+            chain_wall_including_parent_s=prior_retry['historical_wall_s']+analysis['chain_wall_s'])
+    if spec.get('motion_training',{}).get('wiring_reuse'):
+        historical=spec['motion_training']['wiring_reuse']
+        analysis.update(historical_smoke_updates=historical['historical_smoke_updates'],
+            online_updates_including_parent=historical['historical_smoke_updates']+book['used']['formal'],
+            original_online_limit=historical['original_online_limit'],
+            chain_wall_including_parent_s=historical['historical_wall_s']+analysis['chain_wall_s'],
+            historical_ledger_discrepancy=('power-loss parent ledger preserved;8 formal charged plus1 conservative in-flight reserve' if historical.get('version')=='motion_symmetry85_boot_loss_recovery_v1' else 'none; actual5 smoke updates accounted in original ledger' if historical.get('version')=='motion31_spin_preformal_dispatch_recovery_v1' else 'old smoke ledger0; real progress/terminal/metrics50; original files preserved'))
+    if spec.get('motion_training',{}).get('wiring_reuse',{}).get('version')=='motion_symmetry85_boot_loss_recovery_v1':
+        h=spec['motion_training']['wiring_reuse']
+        analysis.update(historical_formal_updates=h['historical_formal_updates'],conservative_uncommitted_update_reserve=h['conservative_uncommitted_update_reserve'],online_updates_including_parent=h['historical_smoke_updates']+h['historical_formal_updates']+book['used']['formal'],budget_consumption_including_reserve=h['historical_smoke_updates']+h['historical_formal_updates']+h['conservative_uncommitted_update_reserve']+book['used']['formal'])
+    if spec.get('motion_training',{}).get('wiring_reuse',{}).get('version') in ('motion_timing_posteval_wiring_resume_v1','motion_sensor_reward_schema_recovery_v1','motion_fixed_height_critic_restart_v1','motion_mcu_measured_posteval_resume_v1'):
+        h=spec['motion_training']['wiring_reuse']
+        analysis.update(historical_online_updates=h['historical_online_updates'],historical_formal_updates=h['historical_formal_updates'],
+            online_updates_including_parent=h['historical_online_updates']+book['used']['formal'],
+            historical_ledger_discrepancy='none; settled parent consumption preserved, source/smoke reused')
+    if spec.get('motion_training',{}).get('wiring_reuse',{}).get('version')=='motion_fixed_height_assessment_keys_resume_v1':
+        h=spec['motion_training']['wiring_reuse']
+        analysis.update(historical_online_updates=h['historical_online_updates'],historical_formal_updates=h['historical_formal_updates'],
+            online_updates_including_parent=h['historical_online_updates']+book['used']['formal'],
+            new_authorized_online_limit=h['new_authorized_online_updates'],current_authorized_online_updates=book['used']['formal'],
+            cumulative_authorized_online_limit=h['historical_online_updates']+h['new_authorized_online_updates'],
+            historical_ledger_discrepancy='none; settled historical use retained separately from explicitly authorized fresh block')
+    if spec.get('motion_training',{}).get('wiring_reuse',{}).get('version')=='motion_fixed_height_persistent_resume_v1':
+        h=spec['motion_training']['wiring_reuse']
+        analysis.update(current_authorized_online_updates=h['current_block_used_updates']+book['used']['formal'],
+            current_authorized_online_limit=h['original_online_limit'],remaining_formal_at_submission=h['remaining_formal_updates'],
+            ancestral_online_updates=h['ancestral_online_updates'],
+            historical_ledger_discrepancy='none; persistent course spends remaining current10000, no refresh')
+    if spec.get('motion_training',{}).get('partial_smoke_recovery'):
+        historical=spec['motion_training']['partial_smoke_recovery']
+        analysis.update(historical_smoke_updates=historical['historical_smoke_updates'],
+            online_updates_including_parent=historical['historical_smoke_updates']+book['used']['smoke']+book['used']['formal'],
+            original_online_limit=historical['original_online_limit'],
+            chain_wall_including_parent_s=historical['historical_wall_s']+analysis['chain_wall_s'],
+            historical_evidence_conflict='parent smoke terminal0; real ledger/metrics1; original files preserved')
+    if spec.get('motion_training',{}).get('prior_consumption'):
+        prior=spec['motion_training']['prior_consumption']
+        analysis.update(historical_online_updates=prior['historical_online_updates'],
+            online_updates_including_parent=prior['historical_online_updates']+book['used']['smoke']+book['used']['formal'],
+            original_online_limit=prior['original_online_limit'],
+            chain_wall_including_parent_s=prior['historical_wall_s']+analysis['chain_wall_s'])
+    if spec.get('student_gpu_resume'):
+        c=spec['student_gpu_resume']
+        analysis.update(historical_online_updates=c['historical_online_updates'],online_updates_including_parent=c['historical_online_updates']+book['used']['formal'],original_online_limit=c['original_online_limit'],uncheckpointed_but_charged_updates=c['uncheckpointed_updates'],checkpoint_start_update=c['parent_checkpoint_update'])
+    if spec.get('student_storage_resume'):
+        recovery=spec['student_storage_resume']
+        analysis['historical_online_updates']=recovery['historical_online_updates']
+        analysis['online_updates_including_parent']=recovery['historical_online_updates']+book['used']['formal']
+        analysis['original_online_limit']=recovery['original_online_limit']
+    from native_stand.command_v6.domain.evidence_summary import compact
+    analysis=compact(analysis);selected=compact(selected)
+    from native_stand.command_v6.domain.evidence_summary import selection_summary
+    write(chain/'candidate_selection.json',selected)
+    analysis['candidate_selection']=selection_summary(selected)
+    analysis['candidate_selection_reference']={'path':str((chain/'candidate_selection.json').resolve()),'sha256':sha(chain/'candidate_selection.json')}
+    write(chain/'chain_terminal_report.json',analysis)
+    write(chain/'analysis.json',analysis)
+    report=['# Native standing long-run completion',f'Event: {event}',f'Chain: {chain}',
+        f'Terminal: {status}; failure={failure}',
+        f"Smoke updates/samples: {analysis['smoke_updates']} / {analysis['smoke_samples']}",
+        f"Formal updates/samples: {analysis['formal_updates']} / {analysis['formal_samples']}; remaining={analysis['remaining_formal_updates']}",
+        f"Best: {selected.get('best_observed_candidate',{}).get('checkpoint') if selected.get('best_observed_candidate') else None}",
+        f"10-second accepted: {bool(selected.get('accepted_candidate'))}; durability gate status={(durability.get('gate_evidence') or {}).get('status',durability.get('status','MISSING_EVIDENCE')) if durability else 'NOT_RUN'}",
+        f"Task curriculum: {analysis['task_curriculum']}",
+        f"Best verified motion: {analysis['best_motion_candidate']}",
+        f"Chain wall seconds: {analysis['chain_wall_s']}",
+        '## Phase quantitative reports']
+    if spec.get('motion_training'):
+        report[0]='# Native Motion bounded training completion'
+        report=[line.replace('10-second accepted:','Repeated complete Motion matrix accepted:') for line in report]
+    if spec.get('student_training',{}).get('selection_scope'):
+        report.insert(6,'Capability scope: '+spec['student_training']['selection_scope'])
+    for row in phase_results:
+        path=Path(row['run'])/'completion_report.md'
+        report.extend([f"{row['phase']}: {row['status']}, exit={row['exit_code']}, report={path}",
+                       f'Quantitative evidence: {path}; raw evaluation JSON remains in {Path(row["run"])}.'
+                       if path.is_file() else 'Report missing; see phase log/terminal.'])
+    from native_stand.command_v6.completion import compact_report_value
+    if (chain/'comparison_report.md').is_file():report+=['A/B comparison: '+str(chain/'comparison_report.md')]
+    if read(chain/'manifest.json',{}).get('authorized_next_arm'):report+=['User authorized a single serial B arm after settlement; see next_arm_submission.json.']
+    report+=['## Final durability',json.dumps(compact_report_value(durability),indent=2),
+        'Ordinary falls are task results. Missing/unfinished evaluation is not standing success. Only an explicitly recorded successor authorization permits another run.']
+    (chain/'completion_report.md').write_text('\n\n'.join(report)+'\n')
+    write(chain/'report_ready.json',{'event_id':event,'status':'report_ready',
+        'report_sha256':sha(chain/'completion_report.md'),'time':time.time()})
+    notify(chain)
+
+
+def worker(args):
+    chain=args.output_dir.resolve()
+    spec=args.spec.resolve()
+    phases=[]
+    failure=None
+    durability=None
+    status='FAILED'
+    try:
+        if not (chain/'run_state.json').exists():
+            # Direct internal workers and old CPU fixtures still get the canonical receipt.
+            record_state(chain,RunState.SUBMITTED.value,phase='submission')
+        declaration=read(spec)
+        reused_student_source=False
+        partial_smoke=bool(declaration.get('motion_training',{}).get('partial_smoke_recovery'))
+        if partial_smoke:
+            from native_stand.students.motion_wiring_recovery import verify_partial
+            certificate=verify_partial(declaration)
+            folder=Path(declaration['motion_training']['partial_smoke_recovery']['parent_run'])/'source_eval'
+            record_state(chain,RunState.SOURCE_EVAL.value,phase='source_eval',reused=True,source_evidence=certificate)
+            phases.append({'phase':'source_eval','run':str(folder),'status':'COMPLETED','exit_code':0,'reused':True,
+                'historical_wall_not_charged_as_new':True,'terminal':read(folder/'terminal_report.json'),'progress':read(folder/'progress.json')})
+            reused_student_source=True
+        if declaration.get('motion_training',{}).get('wiring_reuse'):
+            from native_stand.students.motion_wiring_recovery import verify
+            certificate=verify(declaration)
+            reuse=declaration['motion_training']['wiring_reuse']
+            folder=Path(reuse.get('source_evidence_run',reuse['parent_run']))/'source_eval'
+            record_state(chain,RunState.SOURCE_EVAL.value,phase='source_eval',reused=True,source_evidence=certificate)
+            phases.append({'phase':'source_eval','run':str(folder),'status':'COMPLETED','exit_code':0,'reused':True,
+                'historical_wall_not_charged_as_new':True,'terminal':read(folder/'terminal_report.json'),'progress':read(folder/'progress.json')})
+            reused_student_source=True
+        if declaration.get('student_storage_resume',{}).get('source_eval_dir'):
+            from native_stand.students.storage_resume import verify
+            certificate=verify(declaration)
+            folder=Path(declaration['student_storage_resume']['source_eval_dir'])
+            record_state(chain,RunState.SOURCE_EVAL.value,phase='source_eval',reused=True,source_evidence=certificate)
+            phases.append({'phase':'source_eval','run':str(folder),'status':'COMPLETED','exit_code':0,
+                'reused':True,'historical_wall_not_charged_as_new':True,'terminal':read(folder/'terminal_report.json'),
+                'progress':read(folder/'progress.json')})
+            reused_student_source=True
+        if declaration.get('source_evidence_reference'):
+            from native_stand.command_v6.tools.source_evidence import check as check_source
+            certificate=check_source(declaration,declaration['source_evidence_reference'])
+            if certificate['status']!='REUSABLE':raise ValueError(certificate)
+            phases.append({'phase':'source_eval','run':certificate['folder'],'status':'COMPLETED',
+                'exit_code':0,'reused':True,'certificate':certificate,'historical_wall_not_charged_as_new':True,
+                'terminal':read(Path(certificate['folder'])/'terminal_report.json')})
+        for phase in (('smoke','formal') if partial_smoke else ('formal',) if reused_student_source else ('source_eval','formal') if declaration.get('student_gpu_resume') or declaration.get('student_storage_resume') or declaration.get('recovery_course',{}).get('resume') or (declaration.get('motion_training',{}).get('resume') and not declaration.get('motion_spin_quality')) else ('smoke','formal') if declaration.get('source_evidence_reference') else ('source_eval','smoke','formal')):
+            continuation={}
+            if phase=='formal' and declaration.get('motion_training',{}).get('wiring_reuse'):
+                from native_stand.students.motion_wiring_recovery import verify
+                verify(declaration)
+                continuation={'continuation':{'version':'verified_motion_wiring_recovery_v1','verified':True,'checkpoint_sha256':declaration['source_sha256']}}
+            if phase=='formal' and declaration.get('motion_training',{}).get('resume') and not declaration.get('motion_spin_quality'):
+                from native_stand.students.motion_training_requests import verify_continuation
+                verify_continuation(declaration)
+                continuation={'continuation':{'version':'verified_motion_continuation_v1','verified':True,'checkpoint_sha256':declaration['source_sha256']}}
+            if phase=='formal' and declaration.get('student_gpu_resume'):
+                from native_stand.students.gpu_resume import verify
+                verify(declaration)
+                continuation={'continuation':{'version':'recovery_large_gpu_migration_v1','verified':True,'checkpoint_sha256':declaration['source_sha256']}}
+            if phase=='formal' and declaration.get('student_storage_resume'):
+                from native_stand.students.storage_resume import verify
+                verify(declaration)
+                continuation={'continuation':{'version':'verified_student_storage_continuation_v1','verified':True,'checkpoint_sha256':declaration['source_sha256']}}
+            if phase=='formal' and declaration.get('recovery_course',{}).get('resume'):
+                from native_stand.students.course_requests import verify_continuation
+                if not verify_continuation(declaration):raise ValueError('unverified course continuation lifecycle')
+                continuation={'continuation':{'version':'verified_course_continuation_v1','verified':True,'checkpoint_sha256':declaration['source_sha256']}}
+            record_state(chain,state_from_stage(phase),phase=phase,worker_pid=os.getpid(),
+                active_run=str(chain/phase),finished_phases=[row['phase'] for row in phases],**continuation)
+            chain_event(args.handshake_fd,{'event_type':'stage_started','phase':phase,
+                'worker_pid':os.getpid(),'active_run':str(chain/phase)})
+            row=run_phase(spec,phase,chain/phase,args.handshake_fd if phase=='formal' else None)
+            phases.append(row)
+            chain_event(args.handshake_fd,{'event_type':'stage_finished','phase':phase,
+                'worker_pid':os.getpid(),'exit_code':row['exit_code'],'status':row['status']})
+            if row['terminal'].get('stop_kind')=='user_signal':
+                if row['exit_code']!=0 or row['status']!='STOPPED_BOUNDED':
+                    raise RuntimeError(f'{phase} user-stop terminal/exit conflict')
+                status='STOPPED_BOUNDED'
+                durability={'status':'NOT_RUN','reason':'user stopped chain'}
+                return 0
+            if row['exit_code']!=0 or row['status'] not in ('COMPLETED','STOPPED_BOUNDED'):
+                raise RuntimeError(f'{phase} runtime/infrastructure failure: see {row["run"]}')
+            geometry=read(spec).get('diagnostics',{}).get('wheel_geometry_readback_gate')
+            if phase=='source_eval' and geometry:
+                from native_stand.recovery.asset_poses import verify_wheel_readback
+                config=read(spec)
+                review=verify_wheel_readback(read(chain/'source_eval/evaluation_source.json'),
+                    config['asset_path'],read(Path(config['recovery']['pose_library'])),
+                    tolerance_m=geometry['tolerance_m'],samples_per_env=geometry['samples_per_env'])
+                write(chain/'wheel_geometry_readback.json',review)
+                if not review['passed']:raise RuntimeError('Runtime/USD wheel geometry mismatch; no PPO started')
+            if phase=='source_eval' and declaration.get('student_training'):
+                source_error=source_engineering_error(row)
+                if source_error:raise RuntimeError(source_error)
+            if phase=='smoke' and (row['terminal'].get('actual_updates',0)!=read(spec)['budget']['smoke_updates'] or
+                    not row['progress'].get('actor_parameters_changed')):
+                raise RuntimeError('smoke did not verify a finite actual actor update')
+            if phase=='smoke':
+                from native_stand.command_v6.wiring import validate_persisted_certificate
+                certificate=validate_persisted_certificate(chain/'smoke',read(spec))
+                if certificate['status']!='PASSED':raise RuntimeError(certificate['errors'])
+        selected=read(chain/'formal/candidate_selection.json',{})
+        best=selected.get('accepted_candidate')
+        if best and read(spec).get('evaluation',{}).get('run_final_durability',True):
+            record_state(chain,RunState.FORMAL.value,phase='durability',worker_pid=os.getpid(),
+                checkpoint=best['checkpoint'])
+            output=chain/'durability_100s.json'
+            final_wall=read(spec).get('budget',{}).get('durability_wall_s',600)
+            command=['timeout','--signal=TERM','--kill-after=15s',f'{final_wall-30}s',sys.executable,
+                str(ROOT/'tools/evaluate_checkpoint.py'),'--spec',str(spec),'--checkpoint',best['checkpoint'],
+                '--output',str(output),'--seconds','100','--full-trace','--run']
+            start=time.monotonic()
+            with (chain/'durability.log').open('x') as stream:
+                code=subprocess.run(command,stdout=stream,stderr=subprocess.STDOUT).returncode
+            durability=reconcile_durability(spec,output,code,time.monotonic()-start)
+        else:
+            durability={'status':'NOT_RUN','reason':'durability not included in this controlled test' if best else 'no identity-matched accepted standing candidate'}
+        status='STOPPED_BOUNDED' if any(row.get('status')=='STOPPED_BOUNDED' for row in phases) else 'COMPLETED'
+    except BaseException as exc:
+        failure=repr(exc)
+    finally:
+        record_state(chain,status if status in ('COMPLETED','STOPPED_BOUNDED') else RunState.FAILED.value,
+            phase='finished',worker_pid=os.getpid(),failure=failure)
+        chain_event(args.handshake_fd,{'event_type':'chain_finished','status':status,
+            'worker_pid':os.getpid(),'failure':failure})
+        try:
+            if read(chain/'manifest.json',{}).get('comparison_parent'):
+                from native_stand.command_v6.submission_queue import finish_comparison
+                finish_comparison(chain,status,failure)
+            chain_report(chain,spec,phases,status,failure,durability)
+            if read(chain/'manifest.json',{}).get('authorized_next_arm'):
+                from native_stand.command_v6.submission_queue import launch_successor
+                launch_successor(chain,status,failure)
+            if read(spec).get('recovery_course'):
+                from native_stand.students.course_io import finish_block
+                finish_block(spec,chain,status,failure)
+        except Exception as exc:
+            write(chain/'completion_error.json',{'error':repr(exc),'failure':failure})
+        try:
+            os.close(args.handshake_fd)
+        except OSError:
+            pass
+    return 0 if status=='COMPLETED' else 1
+
+
+def launch(args):
+    spec=args.spec.resolve()
+    chain=args.output_dir.resolve()
+    initial_phase='formal' if read(spec).get('motion_training',{}).get('wiring_reuse') else 'smoke' if read(spec).get('motion_training',{}).get('partial_smoke_recovery') else 'source_eval'
+    preflight=check(spec,chain/initial_phase,initial_phase)
+    if preflight['status']!='PASS':
+        raise ValueError(preflight)
+    if not args.hapi_session:
+        raise ValueError('this chain requires an explicit confirmed HAPI target')
+    from .domain.submission_contract import authorization
+    configured=authorization(read(spec)).get('hapi_session')
+    if configured and args.hapi_session!=configured:
+        raise ValueError('HAPI target differs from the authorized spec')
+    explicit_wait=getattr(args,'handshake_wait_s',None)
+    wait_s=explicit_wait if explicit_wait is not None else read(spec).get('submission',{}).get('handshake_timeout_s',5.)
+    if not isinstance(wait_s,(int,float)) or not 0<=wait_s<=600:
+        raise ValueError('handshake wait must be within0..600seconds')
+    submission=spec.with_name('chain_submission.json')
+    with spec.with_name('chain_submission.lock').open('a') as lock:
+        fcntl.flock(lock,fcntl.LOCK_EX)
+        if submission.exists():
+            raise ValueError('this authorization already has a chain submission; no duplicate/restart')
+        chain.mkdir(parents=True,exist_ok=False)
+        from native_stand.command_v6.tools.source_identity import record_configuration
+        record_configuration(chain,spec)
+        attempt=uuid.uuid4().hex
+        resource={'resource_policy':getattr(args,'resource_policy',None),
+                  'resource_review':getattr(args,'resource_review',None)}
+        write(chain/'manifest.json',{'attempt_id':attempt,'hapi_session':args.hapi_session,
+            'notification_route':{'owner_session':args.hapi_session,'target_session':args.hapi_session,
+                                  'origin':'explicit supervisor --hapi-session'},
+            'spec_path':str(spec),'spec_sha256':sha(spec),'kind':'standing_chain',
+            'declared_execution_source_root':read(spec).get('execution_source_root'),
+            'source_identity_reference':str(chain/'identity.json'),'source_code_copied_bytes':0,
+            'submitted_unix_s':time.time(),
+            'global_deadline_unix_s':getattr(args,'deadline_unix_s',None),
+            'authorized_next_arm':getattr(args,'authorized_next_arm',None),
+            'comparison_parent':({'chain':str(args.comparison_parent.resolve()),'terminal_sha256':sha(args.comparison_parent/'chain_terminal_report.json')} if getattr(args,'comparison_parent',None) else None),**resource})
+        reader,writer=os.pipe()
+        command=[sys.executable,str(ROOT/'stand_chain.py'),'--spec',str(spec),'--output-dir',str(chain),
+            '--hapi-session',args.hapi_session,'--worker','--handshake-fd',str(writer),
+            '--attempt-id',attempt]
+        record_state(chain,RunState.SUBMITTED.value,phase='submission',attempt_id=attempt)
+        with (chain/'chain.log').open('x') as stream:
+            child=subprocess.Popen(command,env={**os.environ,'CUDA_VISIBLE_DEVICES':str(getattr(args,'physical_gpu',0))},start_new_session=True,
+                pass_fds=(writer,),stdin=subprocess.DEVNULL,stdout=stream,stderr=subprocess.STDOUT)
+        os.close(writer)
+        write(submission,{'chain':str(chain),'worker_pid':child.pid,'command':command,
+            'hapi_session':args.hapi_session,'attempt_id':attempt,
+            'process_started_unix_s':__import__('native_stand.command_v6.tools.health_check',fromlist=['own_process_start']).own_process_start(child.pid),
+            **resource})
+    try:
+        handshake=read_startup_events(reader,wait_s=wait_s,wait_for_formal=explicit_wait is not None)
+    finally:os.close(reader)
+    if handshake.get('status')=='RUNNING':
+        from native_stand.command_v6.submission import validate_handshake
+        monitor=read(chain/'formal.monitor.json',{})
+        handshake=validate_handshake(handshake,spec_path=spec,output=chain/'formal',
+            attempt_id=monitor.get('attempt_id'),monitor_pid=monitor.get('monitor_pid'),
+            monitor_started_unix_s=monitor.get('process_started_unix_s'))
+        handshake['formal_first_update_verified']=handshake.get('started',False)
+    from native_stand.command_v6.tools.health_check import process_identity
+    submission_record=read(submission,{})
+    worker_evidence=process_identity(child.pid,output_dir=chain,attempt_id=attempt,
+        command_token='stand_chain.py',started_unix_s=submission_record.get('process_started_unix_s'),
+        spec_path=spec,physical_gpu=getattr(args,'physical_gpu',0),hapi_session=args.hapi_session)
+    if handshake.get('status')=='SUBMITTED' and worker_evidence['status']!='OK':
+        handshake.update(status='UNKNOWN',reason='submission receipt present but worker identity unverified')
+    result={'chain':str(chain),'worker_pid':child.pid,'hapi_session':args.hapi_session,
+        'submitted':True,'submission_verified':worker_evidence['status']=='OK',
+        'worker_evidence':worker_evidence,'handshake_wait_s':wait_s,
+        'run_state':read(chain/'run_state.json',{}).get('state',RunState.SUBMITTED.value),**resource,**handshake}
+    result=write_handshake(chain,result)
+    print(json.dumps(result,indent=2))
+    return result
+
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--spec',type=Path,required=True)
+    parser.add_argument('--output-dir',type=Path,required=True)
+    parser.add_argument('--hapi-session',default=os.environ.get('HAPI_SESSION_ID'))
+    parser.add_argument('--launch',action='store_true')
+    parser.add_argument('--handshake-wait-s',type=float,default=None,
+        help='optional bounded wait for formal first update; default reports the first owned phase event')
+    parser.add_argument('--worker',action='store_true',help=argparse.SUPPRESS)
+    parser.add_argument('--handshake-fd',type=int,help=argparse.SUPPRESS)
+    parser.add_argument('--attempt-id',help=argparse.SUPPRESS)
+    args=parser.parse_args()
+    if args.worker:
+        return worker(args)
+    if args.launch:
+        launch(args)
+    else:
+        print(json.dumps(check(args.spec,args.output_dir/'source_eval','source_eval'),indent=2))
+    return 0
+
+
+if __name__=='__main__':
+    raise SystemExit(main())

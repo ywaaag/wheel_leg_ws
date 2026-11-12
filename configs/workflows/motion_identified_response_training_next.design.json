@@ -1,0 +1,194 @@
+{
+  "version": "motion31_identified_response_training_design_v1",
+  "created_date": "2026-10-30",
+  "status": "SUBMITTED_SMOKE_FORMAL_FIRST_UPDATE_UNVERIFIED",
+  "runtime_recipe_ready": true,
+  "launch_allowed_now": false,
+  "documentation": "docs/MOTION_SIM2REAL_EXECUTION_ALIGNMENT_PLAN_20261024.md#identified-response-isaac-training-authorization",
+  "authority": {
+    "user_scope": "Wait for the other Codex real-response identification and MuJoCo handoff; reproduce execution and observation in Isaac, verify alignment, then train within a new inclusive10000 updates without a training wall limit",
+    "conditional_online_limit": 10000,
+    "training_wall_seconds": null,
+    "reserved_online_updates": 10000,
+    "new_simulation_before_handoff_allowed": false,
+    "new_spec_ledger_claim_or_watcher_created": "spec/ledger/exclusive claim created; no watcher; unique public submission consumed",
+    "prior_consumption": "kept separately; no old balance transfer or refund",
+    "current_training_action": "continue its original frozen scope; no stop or hot edit authorized by this waiting plan"
+  },
+  "current_training_reference": "runs/2026_10_29-18_52__motion3896_standing_sensor20_target5_motor20_10000",
+  "handoff": {
+    "received": true,
+    "notification_reference": "user_event:43335960fc7ed8d04ef3150d",
+    "model_entrypoint": "artifacts/2026_10_30__bilateral_leg_response_handoff/response_reference.py",
+    "model_manifest": "artifacts/2026_10_30__bilateral_leg_response_handoff/contract.json",
+    "minimum_contents": [
+      "executable adaptation code and parameter identity",
+      "adopted-target or final-motor-command input boundary, actual control configuration and time axis",
+      "encoder versus load versus virtual-state outputs, coupled hip-active mapping and units",
+      "sensor sampling, velocity estimation, filtering, quantization, delay and hold semantics",
+      "raw-data identity, fit and heldout experiments, free-evolution error and applicability limits",
+      "initial conditions and reconstruction of queues, filters and hidden execution states"
+    ],
+    "unique_true_mechanical_parameters_required": false,
+    "local_bench_acceptance_is_whole_robot_acceptance": false,
+    "future_measured_state_injection_allowed": false,
+    "contract_sha256": "62ccd184b9ac2a78458d512778d675827db616bc79c8009c515deefaeba3ac2a",
+    "scope": "local equivalent response only; full robot implementation transfers only execution/observation subset with explicit mechanical assumptions"
+  },
+  "alignment": {
+    "status": "CPU_LOCAL_ISAAC_AND_WHOLE_ROBOT_SUBSET_ENGINEERING_COMPLETED",
+    "order": [
+      "check control and observation boundaries and remove duplicated dynamics",
+      "compare causal CPU state updates and clock semantics",
+      "bounded Isaac response replay, vector-env isolation and partial-reset checks",
+      "fixed-Actor old-plant versus identified-plant closed-loop comparison",
+      "freeze the new runtime recipe, source identity, Critic state layout and independent ledger"
+    ],
+    "double_count_checks": [
+      "PD and feedback filtering",
+      "transport and response already contained in an equivalent model",
+      "local fitted load stiffness versus whole-body gravity, closure and spring",
+      "motor capability versus independent passive forces",
+      "rigid inertia versus armature or virtual actuator inertia"
+    ],
+    "signals": [
+      "joint_q",
+      "joint_dq",
+      "leg_length",
+      "leg_swing",
+      "available_IMU",
+      "encoder_and_load_motion",
+      "adopted_targets",
+      "actual_motor_torque",
+      "previous",
+      "packet_age",
+      "oscillation_amplitude_and_frequency"
+    ],
+    "tolerances": "declare from delivered sensor resolution, bandwidth and heldout scope before testing; not selected to pass current errors",
+    "source_behavior_failure_blocks_learning": false,
+    "physics_steps_and_storage": "freeze bounded engineering allocations after handoff; no unbounded parameter scan",
+    "engineering_directory": "artifacts/2026_10_30__bilateral_response_isaac_engineering",
+    "isolated_code": "isolated/2026_10_30__identified_response_isaac",
+    "local_max_q_error_rad": 0.0005378190980280806,
+    "local_max_dq_error_rad_s": 0.011917522542260528,
+    "local_env_physics_steps_used": 129120,
+    "full_response_alignment": false,
+    "report": "artifacts/2026_10_30__bilateral_response_isaac_engineering/REPORT.md"
+  },
+  "training_proposal": {
+    "source_checkpoint": "artifacts/2026_10_30__bilateral_response_isaac_engineering/identified403_initial.pt",
+    "source_selection": "same identified-plant evaluation; latest is not automatically best",
+    "online_updates": 10000,
+    "smoke_updates": 5,
+    "formal_updates": 9995,
+    "critic_only_updates_counted_in_formal": true,
+    "training_wall_seconds": null,
+    "actor_input": 31,
+    "actor_interface_changed": false,
+    "critic_input": 403,
+    "critic_requirement": "current true state, all causal hidden execution and observation states, queues and effective randomized parameters; freeze explicit layout after model delivery",
+    "restore": [
+      "Actor",
+      "Actor Adam",
+      "fixed_std",
+      "RNG",
+      "fresh explicitly declared Critic403"
+    ],
+    "height_m": 0.34,
+    "command_endpoints": {
+      "forward_mps": 4.0,
+      "backward_mps": -4.0,
+      "yaw_positive_rad_s": 4.0,
+      "yaw_negative_rad_s": -4.0
+    },
+    "motion_modes": [
+      "straight",
+      "in_place_spin"
+    ],
+    "not_implicitly_added": [
+      "height_transitions",
+      "banked_turning",
+      "jumping",
+      "terrain_course"
+    ],
+    "nominal_execution": "use delivered effective model; existing20/5/20/tau2 is a historical comparison, not an identified center",
+    "device": {
+      "physical_gpu": 0,
+      "mode": "shared",
+      "gpu_uuid": "GPU-e704e7d4-2965-4712-9759-ba6b9910bd72"
+    },
+    "checkpoint_every_updates": 100,
+    "performance": "inherit enabled student_performance_v2 optimizations",
+    "tensorboard_url": "http://127.0.0.1:6006/",
+    "notification_scope": "current owning HAPI session",
+    "storage_max_bytes": 8589934592,
+    "storage_requirement": "estimate real artifact volume, atomic-save peak and terminal reserve against current free space before preparation",
+    "spec": "configs/experiments/2026_10_30-02_30__motion1500_identified403_fulldr10000/spec.json"
+  },
+  "progressive_DR": {
+    "amplitudes": "freeze from delivered uncertainty and heldout residuals; unsupported ranges remain labeled engineering hypotheses",
+    "families": [
+      "sensor_white_noise",
+      "small_episode_fixed_sensor_bias",
+      "feedback_processing_and_timing",
+      "actuator_and_transmission_response",
+      "compensation_residual_and_output_capability",
+      "mass_inertia_and_COM",
+      "effective_wheel_ground_friction",
+      "legal_initial_state_and_bounded_push"
+    ],
+    "unlock": "clean identified baseline, small individual families, combinations, then wider ranges; retain clean anchors and assess DR at learned motion endpoints",
+    "course_axes": [
+      "forward",
+      "backward",
+      "yaw_positive",
+      "yaw_negative",
+      "DR_family_levels"
+    ],
+    "failed_frontier_remains_sampled": true,
+    "static_parameter_resampling": "startup or reset with physically consistent parameters",
+    "sensor_noise_sampling": "at sensor sample generation; repeated packet reads keep the same noise sample",
+    "gravity_noise": "small physical rotation preserving unit norm",
+    "never_corrupt_as_sensor_noise": [
+      "adopted_target_previous",
+      "command",
+      "task_encoding"
+    ],
+    "randomized_actual_values_in_critic": true
+  },
+  "learning_signal": {
+    "same_command_source": [
+      "sampler",
+      "Actor",
+      "reward",
+      "evaluator"
+    ],
+    "audit": [
+      "sign_and_units",
+      "wide_kernel_and_continuous_error_tails",
+      "no_reward_clip_plateaus",
+      "separate_posture_and_geometry_costs",
+      "independent_in_place_yaw_and_translation_metrics",
+      "deterministic_mean_versus_exploration_versus_actual_joint_oscillation"
+    ],
+    "narrowing": "only after complete persisted evidence; retain a wide contribution",
+    "required_logging": [
+      "raw",
+      "weighted_density",
+      "dt_contribution",
+      "cohort_EV",
+      "return_variance",
+      "value_MSE",
+      "PPO_KL",
+      "clip_fraction",
+      "gradient_norms",
+      "contact",
+      "motor_saturation",
+      "posture",
+      "symmetry",
+      "oscillation_amplitude_and_frequency"
+    ],
+    "formula_snapshot_required": true,
+    "mathematical_discrimination_guarantees_PPO_convergence": false
+  }
+}

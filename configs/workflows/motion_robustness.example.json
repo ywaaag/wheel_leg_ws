@@ -1,0 +1,157 @@
+{
+  "schema_version": "motion31_robustness_workflow_design_v1",
+  "status": "AUTHORIZED_DEFERRED_IMPLEMENTATION",
+  "runnable_spec": false,
+  "event_plan": "artifacts/2026_10_23-00_11__motion_alternating_standing_dr_handoff/plan.json",
+  "configuration": {
+    "version": "motion31_alternating_standing_robustness_v1",
+    "levels": [
+      [
+        0.5,
+        0,
+        0,
+        0.5,
+        0.5,
+        0.5
+      ],
+      [
+        1,
+        0,
+        0,
+        0.5,
+        0.5,
+        0.5
+      ],
+      [
+        1,
+        0.5,
+        0,
+        1,
+        0.5,
+        0.5
+      ],
+      [
+        1,
+        1,
+        0,
+        1,
+        1,
+        0.5
+      ],
+      [
+        1,
+        1,
+        0.5,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    ],
+    "families": [
+      "Actor_packet_age",
+      "target_transport",
+      "PD_feedback_age",
+      "standing_root_mass",
+      "standing_wheel_friction",
+      "standing_push"
+    ],
+    "seed": 20261023,
+    "groups": [
+      "nominal",
+      "previous",
+      "current"
+    ],
+    "group_fractions": [
+      0.25,
+      0.25,
+      0.5
+    ],
+    "confirmations": 1,
+    "every_updates": 250,
+    "standing_only": [
+      "root_mass_and_inertia",
+      "wheel_friction",
+      "push"
+    ],
+    "mass_full_scale": [
+      0.9,
+      1.1
+    ],
+    "wheel_shape_friction_full": [
+      0.4,
+      0.6
+    ],
+    "ground_friction": 0.5,
+    "friction_combine": "average",
+    "push": {
+      "version": "standing_velocity_impulse_v1",
+      "full_delta_v_mps": 0.1,
+      "controlled_times_s": [
+        12.0,
+        22.0
+      ],
+      "axes": "world XY, second impulse opposite first",
+      "not_a_measured_hardware_force": true
+    },
+    "actor_age_ms": [
+      8,
+      12
+    ],
+    "target_common_offset_ms": [
+      -2,
+      2
+    ],
+    "PD_feedback_age_ms": [
+      8,
+      12
+    ],
+    "sampling": "reset-only independent counter stream; exact command x DR quotas; no policy RNG",
+    "rollback": "one known mastered-command failure -> one command level down; retain model/Adam/DR; new task failure stays",
+    "DR_retreat": false,
+    "simultaneous_difficulty_increases": false
+  },
+  "level_names": [
+    "R1a",
+    "R1b",
+    "R2a",
+    "R2b",
+    "R3a",
+    "R3b"
+  ],
+  "first_level_note": "standing half-amplitude mass/friction/push starts with the first temporal DR half-step; combined DR curriculum, not a single-factor causal experiment",
+  "budget": {
+    "online_PPO": 10000,
+    "smoke": 5,
+    "formal": 9995,
+    "training_wall_s": null,
+    "storage_max_bytes": 8589934592
+  },
+  "source": "latest full checkpoint after exact parent next-stage promotion and normal stop; source latest is not automatically accepted",
+  "preserve": [
+    "Actor31",
+    "Critic140",
+    "full Adam/std/RNG",
+    "reward/weights",
+    "4096x128",
+    "v2/hotpath/runtime-reduction",
+    "leg.012/Kp40/Kd2",
+    "wheelKv.2/Jcandidate",
+    "GPU0shared"
+  ],
+  "artifact_policy": {
+    "scored_envs": 8,
+    "per_env_results": "all8 full gates and metrics",
+    "raw_diagnostic_trace": "one scored env100Hz chosen failed-first",
+    "all8_raw_replay": false
+  },
+  "notification": "current HAPI session; at-most-once terminal/error delivery; engineering fault recovery explicitly authorized within cumulative10000",
+  "runtime_state": "candidate bundle only; active training unchanged; install after parent normal settlement and before CPU/preflight/physical readback"
+}

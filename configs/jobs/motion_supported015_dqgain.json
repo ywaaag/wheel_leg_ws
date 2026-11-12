@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "name": "motion_supported015_dqgain",
+  "preset": "motion_supported_v1",
+  "task": "motion",
+  "algorithm": "ppo",
+  "backend": "cpu",
+  "runtime": {
+    "envs": 8,
+    "steps_per_env": 4,
+    "seed": 2026110501
+  },
+  "limits": {
+    "smoke_updates": 12,
+    "formal_updates": 48
+  },
+  "storage": {
+    "checkpoint_every_updates": 10,
+    "keep_recent_checkpoints": 2,
+    "metrics_every_updates": 2,
+    "tensorboard": false
+  },
+  "assets": {
+    "center": {
+      "hip_above_root_m": 2.4e-05,
+      "wheel_radius_m": 0.06,
+      "equivalent_upper_m": 0.21,
+      "equivalent_lower_m": 0.25,
+      "hip_zero_deg": 47.1033888,
+      "active_zero_deg": 47.1080837,
+      "support_offset_rad": [-0.24229908821701296, -0.3063761712607683, 0.24229908821701296, -0.3063761712607683],
+      "height_range_m": [0.30, 0.40],
+      "height_command_m": 0.34
+    }
+  }
+}

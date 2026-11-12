@@ -1,0 +1,137 @@
+{
+  "version": "motion31_highspeed_standing_actor2048_design_v1",
+  "status": "DESIGN_ONLY_NOT_RUNTIME_RECIPE",
+  "authorization_online_updates": 0,
+  "runtime_recipe_ready": false,
+  "source_selection": {
+    "status": "USER_PREFERRED_9995_FOR_NEXT_PREPARATION",
+    "source": {
+      "name": "u9995",
+      "checkpoint": "/home/kellen/wheel_leg_native_train/runs/2026_10_26-18_22__motion4500_parallel_height_pd10000/formal/model_update_9995.pt",
+      "sha256": "d1da9580d064014a74dae79cb7b8fc98c4806c7b6038d019b65aee57645596b9",
+      "spec": "/home/kellen/wheel_leg_native_train/configs/experiments/2026_10_26-18_22__motion4500_parallel_height_pd10000/spec.json",
+      "spec_sha256": "cb106728c4d1535763d3df1421bc14580056a86eba2c2a1a798912d4f51e04f3"
+    },
+    "previous_engineering_reference": {
+      "name": "u9000",
+      "checkpoint": "/home/kellen/wheel_leg_native_train/runs/2026_10_26-18_22__motion4500_parallel_height_pd10000/formal/model_update_9000.pt",
+      "sha256": "0ff0590bec4426dc78b6472efa5a8c421072dffdebd10dab606ee7b3e57eb3a8",
+      "spec": "/home/kellen/wheel_leg_native_train/configs/experiments/2026_10_26-18_22__motion4500_parallel_height_pd10000/spec.json",
+      "spec_sha256": "cb106728c4d1535763d3df1421bc14580056a86eba2c2a1a798912d4f51e04f3"
+    },
+    "reasons": [
+      "user prefers9995 standing coverage12/12",
+      "4500 retained as high-speed backward comparison",
+      "source preference does not imply all capabilities accepted or authorize onlinePPO"
+    ],
+    "selection_evidence": "/home/kellen/wheel_leg_native_train/artifacts/2026_10_28-15_46_17__motion9995_baseline_keep/source_selection.json"
+  },
+  "candidate": {
+    "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_10_28-15_46_17__motion9995_baseline_keep/initialization/actor2048_initial.pt",
+    "sha256": "7603a7a5a456e18e2c29b6f74fd382b0b555213e2b6a7bb0fcdee960d5afe8ca",
+    "architecture": {
+      "version": "motion31_mcu_actor2048_critic312_v1",
+      "actor_hidden_dims": [
+        2048,
+        1024,
+        512
+      ],
+      "critic_hidden_dims": [
+        512,
+        512,
+        256
+      ],
+      "actor_input": 31,
+      "critic_input": 312,
+      "hidden_activation": "ELU(alpha=1)",
+      "mean_output": "Tanh"
+    },
+    "PPO_updates": 0
+  },
+  "priority": {
+    "primary": [
+      "high-speed straight forward/backward",
+      "in-place positive/negative yaw",
+      "stable standing and stress standing"
+    ],
+    "highspeed_mps": [
+      2,
+      3,
+      4
+    ],
+    "highspeed_yaw_rad_s": [
+      2,
+      3,
+      4
+    ],
+    "low_speed_precision": "diagnostic; do not gate high-speed promotion",
+    "physical_safety_and_posture": "unchanged for all commands; zero standing is separate from low-speed tracking",
+    "standing_design_goal": {
+      "mean_horizontal_mps": 0.1,
+      "p95_horizontal_mps": 0.15,
+      "mean_abs_yaw_rad_s": 0.1,
+      "height_MAE_m": 0.01,
+      "height_p95_m": 0.02
+    }
+  },
+  "sampling_proposal": {
+    "envs": 4096,
+    "nominal_standing_slots": 819,
+    "stress_standing_slots": 819,
+    "highspeed_slots": 2048,
+    "highspeed_slots_per_direction": 512,
+    "low_speed_transition_slots": 410,
+    "nominal_height": "034 main plus previously learned boundary standing rehearsal; exact distribution frozen in future recipe",
+    "unpassed_endpoints": "learning goals, never mislabeled source-retained success"
+  },
+  "runtime_proposal": {
+    "actor_input": 31,
+    "critic_input": 312,
+    "action_dim": 6,
+    "critic_hidden_dims": [
+      512,
+      512,
+      256
+    ],
+    "physics_pd_policy_ms": [
+      1,
+      5,
+      10
+    ],
+    "leg_armature": 0.012,
+    "leg_kp": 40,
+    "leg_kd": 2,
+    "wheel_kv": 0.2,
+    "source_physics": "same currently verified MCU post-PD chain; no unsourced new plant parameters",
+    "LR": 3e-05,
+    "std": "retain source physical0.05rad/2rad_s; no simultaneous change",
+    "reward": "retain actual weights for first capacity experiment; change low-speed promotion scope explicitly",
+    "gradient_signal": "snapshot wide/continuous drift and geometry costs; per-cohort reward/EV/KL/clip/retention KL",
+    "registration": "new explicit recipe/spec/run/ledger required; none created"
+  },
+  "limits": {
+    "online_PPO_authorized": 0,
+    "physics_authorized_this_task": 0,
+    "GPU_test": "finite model tensors only; no optimizer or simulation"
+  },
+  "validation": {
+    "action_max_error": 7.152557373046875e-07,
+    "local_Jacobian_max_error": 1.1137457056609179e-07,
+    "targeted_passed": 40,
+    "portable_passed": 1238,
+    "portable_skipped": 8,
+    "portable_failed": 1,
+    "portable_failure": "existing u1000 fixture expects PASS while real storage guard returns INSUFFICIENT_STORAGE; guard not bypassed",
+    "gpu_tensor_benchmark": "/home/kellen/wheel_leg_native_train/artifacts/2026_10_28-15_19__motion_highspeed_standing_actor2048/gpu_tensor_benchmark.json",
+    "source_states_audited": 1759,
+    "current_cpu_preparation": "/home/kellen/wheel_leg_native_train/artifacts/2026_10_28-15_46_17__motion9995_baseline_keep/initialization/actor2048_review.json",
+    "portable_result_scope": "historical previous-turn full PORTABLE result; current focused40 tests passed"
+  },
+  "implementation": {
+    "status": "EXPLICIT_RUNTIME_RECIPE_REGISTERED",
+    "authorized_cumulative_online_updates": 10000,
+    "spec": "/home/kellen/wheel_leg_native_train/configs/experiments/2026_10_28-16_23__motion9995_actor2048_highspeed_standing10000/spec.json",
+    "run": "/home/kellen/wheel_leg_native_train/runs/2026_10_28-16_23__motion9995_actor2048_highspeed_standing10000",
+    "old_design_not_a_submission": "use referenced spec/ledger; do not rerun plan or old claim"
+  }
+}

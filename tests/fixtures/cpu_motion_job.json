@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "name": "cpu_motion_fixture",
+  "task": "motion",
+  "algorithm": "ppo",
+  "backend": "cpu",
+  "model": {
+    "interface": "multiskill_mcu_v2",
+    "actor_hidden_dims": [
+      64,
+      32
+    ],
+    "critic_hidden_dims": [
+      64,
+      32
+    ],
+    "actor_input": 31,
+    "critic_input": 64,
+    "critic_privileged_version": "cpu_fixture_privileged64_v1",
+    "action_version": "motion31_kinematic_support_centered_015_40_v1"
+  },
+  "observation": {
+    "frame_dim": 22,
+    "actor_dim": 31,
+    "critic_dim": 64,
+    "leg_input_scale_rad": 1.5,
+    "wheel_input_scale_rad_s": 100.0
+  },
+  "action": {
+    "dim": 6,
+    "order": [
+      "left_hip_pitch",
+      "left_active_link_pitch",
+      "left_wheel_spin",
+      "right_hip_pitch",
+      "right_active_link_pitch",
+      "right_wheel_spin"
+    ],
+    "leg_scale_rad": 0.15,
+    "wheel_scale_rad_s": 40.0,
+    "version": "motion31_kinematic_support_centered_015_40_v1"
+  },
+  "control": {
+    "physics_dt_s": 0.001,
+    "pd_dt_s": 0.005,
+    "policy_dt_s": 0.01,
+    "leg_kp": 40.0,
+    "leg_kd": 2.0,
+    "wheel_kv": 0.2,
+    "effort_limits_nm": [
+      40.0,
+      40.0,
+      2.44694786377709,
+      40.0,
+      40.0,
+      2.44694786377709
+    ],
+    "height_command_m": 0.34
+  },
+  "reward": {
+    "version": "cpu_fixture_height_tracking_v1",
+    "dt": 0.01,
+    "weights": [
+      1.0,
+      1.0
+    ]
+  },
+  "curriculum": {
+    "version": "cpu_fixture_single_stage_v1",
+    "stage": 0,
+    "stages": [
+      {
+        "name": "L1",
+        "scale": 1.0
+      }
+    ]
+  },
+  "evaluation": {
+    "protocol_version": "cpu_fixture_v1",
+    "envs": 4,
+    "scored_envs": 2,
+    "seconds": 1.0,
+    "seed": 2026110501,
+    "conditions": [
+      {
+        "name": "stand_zero",
+        "command": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    ]
+  },
+  "limits": {
+    "smoke_updates": 2,
+    "formal_updates": 3,
+    "sample_limit": 100000,
+    "chain_wall_s": 120.0,
+    "evaluation_wall_s": 60.0
+  },
+  "storage": {
+    "checkpoint_every_updates": 2,
+    "keep_recent_checkpoints": 2,
+    "metrics_every_updates": 1,
+    "tensorboard": false,
+    "save_traces": false,
+    "max_output_bytes": 536870912,
+    "trace_max_bytes": 16777216,
+    "milestones": []
+  },
+  "runtime": {
+    "envs": 4,
+    "steps_per_env": 2,
+    "seed": 2026110501,
+    "device": "cpu"
+  },
+  "ppo": {
+    "learning_rate": 1e-05,
+    "critic_learning_rate": 9e-05,
+    "epochs": 2,
+    "minibatches": 2,
+    "critic_warmup_updates": 1
+  },
+  "notifications": {
+    "enabled": false
+  },
+  "assets": {
+    "center": {
+      "hip_above_root_m": 2.4e-05,
+      "wheel_radius_m": 0.06,
+      "equivalent_upper_m": 0.21,
+      "equivalent_lower_m": 0.25,
+      "hip_zero_deg": 47.1033888,
+      "active_zero_deg": 47.1080837,
+      "support_offset_rad": [
+        -0.24229908821701296,
+        -0.3063761712607683,
+        0.24229908821701296,
+        -0.3063761712607683
+      ],
+      "height_range_m": [
+        0.3,
+        0.4
+      ]
+    }
+  }
+}

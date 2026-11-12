@@ -1,0 +1,30 @@
+{
+  "version": "motion31_distillation_cycle_v1",
+  "authorization": "UNAUTHORIZED",
+  "teacher": "/home/kellen/wheel_leg_native_train/runs/2026_10_17-18_18__motion810_spin61_formal_recovery/formal/model_update_750.pt",
+  "parent_spec": "/home/kellen/wheel_leg_native_train/configs/experiments/2026_10_17-18_18__motion810_spin61_formal_recovery/spec.json",
+  "dataset": "/home/kellen/wheel_leg_native_train/isolated/2026_10_18-21_30__motion750_small31_dataset/dataset.pt",
+  "initial_student": "/home/kellen/wheel_leg_native_train/isolated/2026_10_18-23_29__motion750_small31_dagger2_bc/best_validation.pt",
+  "initial_student_mujoco": "/home/kellen/wheel_leg_native_train/sim2sim/2026_10_18-23_29__motion750_small31_dagger2_mujoco",
+  "teacher_mujoco": "/home/kellen/wheel_leg_native_train/sim2sim/2026_10_18-14_39__motion750_seven_commands_mujoco",
+  "prior_replays": [
+    "/home/kellen/wheel_leg_native_train/isolated/2026_10_18-23_29__motion750_small31_dagger2_aggregate/replay.pt"
+  ],
+  "output": "/home/kellen/wheel_leg_native_train/isolated/2026_10_19-09_40__motion750_distillation_cycle_example",
+  "limits": {
+    "max_rounds": 2,
+    "max_offline_updates": 10000,
+    "updates_per_round": 5000,
+    "fit_wall_s": 1200,
+    "sim_wall_s": 600,
+    "total_wall_s": 7200,
+    "storage_max_bytes": 1073741824
+  },
+  "criteria": {
+    "linear_gap_mps": 0.05,
+    "yaw_gap_rad_s": 0.05,
+    "posture_excess_rad": 0.01,
+    "minimum_score_improvement": 0.02,
+    "per_command_regression_margin": 0.1
+  }
+}

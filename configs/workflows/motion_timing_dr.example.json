@@ -1,0 +1,475 @@
+{
+  "schema_version": "motion31_timing_dr_design_v2",
+  "status": "DESIGN_ONLY",
+  "runtime_implemented": false,
+  "submit_ready": false,
+  "authorization": {
+    "scope": "CPU design and documentation only",
+    "simulation": false,
+    "PPO": false,
+    "automatic_transition": false
+  },
+  "parent_spec": "configs/experiments/2026_10_22-13_12__motion_posture_reacquisition140_10000/spec.json",
+  "handoff": {
+    "trigger": "one fully completed qualifying parent nominal matrix bound to a checkpoint; no prediction of update number or rewrite of parent course state",
+    "source_checkpoint": null,
+    "source_sha256": null,
+    "required_confirmations": 1,
+    "confirmation_interval_updates": null,
+    "source_selection": "one complete original-protocol matrix passing every command of the entry stage; bind raw/checkpoint SHA explicitly before future handoff",
+    "pending_next_speed_stage": "record but do not sample during initial DR acquisition",
+    "parent_stop": "normal settlement before source changes or new submission; no watcher installed by this design",
+    "restore": [
+      "Actor",
+      "same-semantic Critic140",
+      "Adam",
+      "fixed std",
+      "policy RNG",
+      "reward mixtures"
+    ],
+    "new_DR_stream": true,
+    "physical_state_restored": false,
+    "parent_consumption": "preserve actual charged updates and wall time; no implicit balance transfer or reset",
+    "active_parent_policy": "frozen v1 still requires two confirmations; new design does not hot-edit it"
+  },
+  "budget": {
+    "online_updates": null,
+    "training_wall_s": null,
+    "storage_max_bytes": null,
+    "meaning_of_null": "pending explicit allocation, not unlimited authorization",
+    "proposed_smoke_updates": 5,
+    "formal_critic_warmup_updates": 5,
+    "warmup_counts_toward_online_budget": true,
+    "reuse_old_smoke_for_new_timing_path": false
+  },
+  "preserved": {
+    "Actor": [
+      31,
+      512,
+      256,
+      128,
+      6
+    ],
+    "Critic": [
+      140,
+      512,
+      512,
+      256,
+      1
+    ],
+    "critic_privileged_version": "motion_antiosc_privileged140_v1",
+    "reward": "source actual reward, weights, formulas, dt and evidence-driven mixtures",
+    "ppo_envs": 4096,
+    "steps_per_env": 128,
+    "learning_rate_actor_and_critic": 3e-05,
+    "physical_std_leg_rad": 0.05,
+    "physical_std_wheel_rad_s": 2.0,
+    "BC_coefficient": 0.0,
+    "physics_PD_policy_ms": [
+      1,
+      5,
+      10
+    ],
+    "torque_limits_Nm_ch0_ch5": [
+      40,
+      40,
+      5.5,
+      40,
+      40,
+      5.5
+    ],
+    "leg_armature_kg_m2": 0.012,
+    "leg_kp": 40.0,
+    "leg_kd": 2.0,
+    "wheel_kv": 0.2,
+    "wheel_total_J_candidate_ch2_ch5_kg_m2": [
+      0.004204,
+      0.0042075
+    ],
+    "plane_and_asset": "parent identity; no new contact/solver/material settings in first DR phase",
+    "Actor_previous": "last PD-adopted physical target; not sensor-delayed, measured-wheel substituted or shadow-fed",
+    "command_and_task_inputs": "current declared command; original Motion/NONE encoding"
+  },
+  "motion_domain_randomization": {
+    "version": "motion31_timing_dr_v1",
+    "enabled": false,
+    "seed": 20261022,
+    "enabled_families_when_implemented": [
+      "actor_packet_age",
+      "target_transport",
+      "PD_feedback_age"
+    ],
+    "groups": [
+      "nominal",
+      "previous",
+      "current"
+    ],
+    "slots": [
+      1024,
+      1024,
+      2048
+    ],
+    "cross_command_allocation": "exact integer command-by-DR quotas; preserve +/- pairs and rotate rounding ties",
+    "sampling": "reset-only; fixed parameters within each episode; new level affects future resets only",
+    "independent_stream_key": [
+      "seed",
+      "stable_env_id",
+      "episode_counter",
+      "family_id",
+      "component_id",
+      "train_or_eval_stream"
+    ],
+    "zero_strength": "exact parent nominal; do not draw or advance policy RNG",
+    "integer_interpolation": "integer center +/- floor(full_half_width_ms * strength), inclusive uniform; no fractional-age interpolation",
+    "nominal": {
+      "actor_imu_age_ms": 10,
+      "actor_joint_age_ms": 10,
+      "target_transport_ms_ch0_ch5": [
+        10,
+        10,
+        7,
+        10,
+        10,
+        11
+      ],
+      "PD_feedback_age_ms": 10,
+      "torque_tau_ms_ch0_ch5": [
+        5,
+        5,
+        0,
+        5,
+        5,
+        0
+      ]
+    },
+    "families": {
+      "actor_packet_age": {
+        "nominal_ms": 10,
+        "full_ms": [
+          8,
+          12
+        ],
+        "half_width_ms": 2,
+        "imu_and_joint_age": "same draw in first version; synchronous first16 physical fields",
+        "updated_fields": "gyro/gravity/q/dq only; preserve units, axes and scales",
+        "query": "at each 100Hz policy query, encode a real stored state acquired at query_time-age",
+        "acquisition_phase": "episode-constant phase implied by age modulo 10ms; not extra random transport",
+        "implementation_required": "timestamped 1ms raw physical history; current SensorPackets alone cannot represent 8/12ms",
+        "reset": "fill with actual initialized state and expose history_ready/actual_age; no prior-episode data or zero gravity",
+        "packet_jitter_or_drops": false
+      },
+      "target_transport": {
+        "nominal_ms_ch0_ch5": [
+          10,
+          10,
+          7,
+          10,
+          10,
+          11
+        ],
+        "common_bus_offset_full_ms": [
+          -2,
+          2
+        ],
+        "half_width_ms": 2,
+        "correlation": "one common offset across six channels; preserve measured side ordering",
+        "effective_full_ms_ch0_ch5": [
+          [
+            8,
+            12
+          ],
+          [
+            8,
+            12
+          ],
+          [
+            5,
+            9
+          ],
+          [
+            8,
+            12
+          ],
+          [
+            8,
+            12
+          ],
+          [
+            9,
+            13
+          ]
+        ],
+        "electrical_geometric_left": "model right/ch5, nominal11ms",
+        "electrical_geometric_right": "model left/ch2, nominal7ms",
+        "quantization": "FIFO arrival on 1ms clock; target first adopted on a 5ms PD tick",
+        "required_readback": [
+          "request_tick",
+          "arrival_tick",
+          "first_PD_adoption_tick",
+          "adopted_target"
+        ],
+        "no_double_count": "7/11ms remain transport hypotheses, wheel torque tau stays0; do not add another7/11ms response"
+      },
+      "PD_feedback_age": {
+        "nominal_ms": 10,
+        "full_ms": [
+          8,
+          12
+        ],
+        "half_width_ms": 2,
+        "correlation": "one age for synchronous six-channel q/dq feedback",
+        "query": "actual 1ms history at each5ms PD tick; not Actor observation age",
+        "out_of_scope": "20ms whole-body failure cases remain separate stress tests, not first training range"
+      }
+    },
+    "levels": [
+      {
+        "id": "R1a",
+        "strength": [
+          0.5,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "id": "R1b",
+        "strength": [
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "id": "R2a",
+        "strength": [
+          1.0,
+          0.5,
+          0.0
+        ]
+      },
+      {
+        "id": "R2b",
+        "strength": [
+          1.0,
+          1.0,
+          0.0
+        ]
+      },
+      {
+        "id": "R3a",
+        "strength": [
+          1.0,
+          1.0,
+          0.5
+        ]
+      },
+      {
+        "id": "R3b",
+        "strength": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    ],
+    "previous_at_first_level": "nominal; deduplicate equal evaluation conditions by identity and retain group references",
+    "provenance": "engineering prior around current successful simulation, not identified real hardware bounds"
+  },
+  "curriculum": {
+    "controller_version": "motion31_alternating_monotone_dr_v1",
+    "state": [
+      "skill_stage",
+      "skill_high_water_mark",
+      "DR_level",
+      "certified_DR_level",
+      "mode",
+      "pending_skill_stage",
+      "accepted_by_skill_DR",
+      "last_passed_anchor",
+      "last_evaluation_id",
+      "last_evaluation_update",
+      "last_checkpoint_sha256",
+      "phase_started_update"
+    ],
+    "initial_mode": "DR_ACQUIRE",
+    "initial_skill_stage": "the entry stage passed by the source at nominal; use exact evidence rather than assume future promotion",
+    "initial_DR_level": 0,
+    "initial_certified_DR_level": -1,
+    "nominal_DR_level": -1,
+    "DR_ACQUIRE": "hold C_k and attempt exactly the next R level; one complete passing matrix certifies it, then add exactly the next command amplitude at unchanged DR",
+    "COMMAND_ACQUIRE": "freeze current certified DR; learn C_k including all lower endpoints; one complete passing matrix then attempts exactly one next R level at unchanged C_k",
+    "COMMAND_REPAIR": "after measured mastered-command regression, reduce active command ceiling by one; keep current parameters and DR; one full recovery pass restores one command level toward the interrupted target, without increasing DR",
+    "FINAL_CONSOLIDATE": "maximum command and final DR jointly passed; maintain final motion ability within budget; measured mastered-command regression repairs one command level lower without lowering DR",
+    "command_amplitudes": [
+      0.5,
+      1.0,
+      1.5,
+      2.0,
+      3.0,
+      4.0
+    ],
+    "retain": "zero plus every endpoint within the active command ceiling; archived evidence and mixtures for temporarily excluded higher commands remain intact",
+    "alternation": "C0 source -> R1a(C0) -> C1(R1a) -> R1b(C1) -> C2(R1b) -> R2a(C2) -> C3(R2a) -> R2b(C3) -> C4(R2b) -> R3a(C4) -> C5(R3a) -> R3b(C5)",
+    "tail_rule": "if one axis reaches its maximum, hold it fixed while completing remaining levels of the other axis",
+    "simultaneous_difficulty_increases": false,
+    "promotion_confirmations": 1,
+    "command_rollback": {
+      "enabled_modes": [
+        "COMMAND_ACQUIRE",
+        "COMMAND_REPAIR",
+        "FINAL_CONSOLIDATE"
+      ],
+      "threshold_complete_evaluations": 1,
+      "reference": "mastered commands with complete passing evidence at the same certified DR/scoring; in COMMAND_ACQUIRE these are C_(k-1), not the new four endpoints",
+      "groups": [
+        "nominal",
+        "previous",
+        "current"
+      ],
+      "measured_regression": "any original required gate explicitly fails for a mastered command with valid physical evidence; behavior-caused early termination is a known failure, never a shortened passing window",
+      "new_endpoint_failure": "hold current command level and continue learning; it is not loss of an already mastered ability",
+      "target": "max(skill_stage-1,0)",
+      "stage0_failure": "remain at C0 and continue repair under the same DR; never invent a negative command stage",
+      "model_restore": false,
+      "preserve": [
+        "current Actor",
+        "current Critic",
+        "Adam",
+        "std",
+        "policy RNG",
+        "reward mixtures",
+        "charged updates",
+        "DR random stream"
+      ],
+      "checkpoint_anchor": "keep last passing checkpoint as an evidence/recovery anchor, not an automatic parameter rewind",
+      "pending_target": "preserve the interrupted command target; recover one command level at a time before resuming it",
+      "duplicate_or_stale_evaluation": "do not repeat a rollback for the same evaluation; conflicting identity is an engineering error",
+      "stop_chain": false
+    },
+    "DR_rollback": {
+      "enabled": false,
+      "failure_in_DR_ACQUIRE": "hold skill and attempted DR level, continue learning",
+      "failure_in_COMMAND_modes": "DR level, family ranges, DR-group quotas and random streams stay fixed while command level retreats",
+      "certified_DR_level": "monotone high-water mark; historical confirmation does not claim the current model still passes",
+      "nominal_and_previous_groups": "always retained; 25/25/50 sampling is not a DR-level retreat"
+    },
+    "evaluation_priority": [
+      "engineering or physical fault uses original protection",
+      "incomplete/mismatched evidence or UNKNOWN holds state without promotion or rollback",
+      "one known mastered-command regression in command learning, repair or final motion maintenance rolls back exactly one command level",
+      "a complete passing matrix advances only one difficulty axis",
+      "new-command-only failure or DR-stage behavior failure keeps learning at the same level"
+    ],
+    "certificate_scope": "each passing checkpoint is bound to exact skill ceiling, DR level, parameter table and scoring; one seed is a stage result, not robust real-hardware certification",
+    "hard_stops": [
+      "user stop",
+      "nonfinite",
+      "physical/closure fault",
+      "identity failure",
+      "budget",
+      "storage"
+    ],
+    "episode_quality_termination": "unchanged; failed transitions retained with original bootstrap semantics"
+  },
+  "evaluation": {
+    "every_formal_updates": 250,
+    "checkpoint_every_updates": 100,
+    "scored_envs_per_command_per_group": 8,
+    "groups": [
+      "nominal",
+      "previous",
+      "current"
+    ],
+    "current_table": "full-range low/high corners plus six independent counter draws; record actual distinct parameter count",
+    "table_seed": "different declared evaluation stream at every checkpoint; never training RNG",
+    "requirement": "8/8 per command per group; all original physical/tracking/posture/symmetry gates",
+    "confirmations": 1,
+    "confirmation_spacing_updates": null,
+    "confirmations_require": [
+      "one checkpoint SHA",
+      "matching evaluated skill/DR/mode snapshot",
+      "unique complete evaluation identity",
+      "all required cases with valid original30s window evidence or explicit behavior termination failure"
+    ],
+    "UNKNOWN": "not passed, no promotion; do not label as measured behavior failure",
+    "scoring_version": "parent motion31_posture_reacquisition_assessment_v1 checks, extended with explicit DR identity",
+    "controlled_seconds": 30.0,
+    "holding_window_s": [
+      10,
+      18
+    ],
+    "max_command_conditions": 25,
+    "max_scored_episodes_per_matrix": 600,
+    "grouping": "reuse existing4-case/64-env layout only after per-env parameter and reset readback; preserve8 scored per case",
+    "source_evaluation": "strictly reference matching parent nominal raw evidence; new DR skill failure does not block learning; new timing path still requires wiring readback",
+    "behavior_regression_scope": "old mastered commands only; do not equate missing data or unlearned new endpoints with regression",
+    "promotion_note": "one complete matrix replaces two confirmations for this future recipe only; 8env and physical/quality thresholds unchanged"
+  },
+  "critic": {
+    "preserve_140D_semantics": true,
+    "existing_timing_features": "6 transport ages,1 PD feedback age,6 torque response times,actual torque,adopted-requested targets",
+    "additional_true_state": "current first16 physical frame and actual armature remain available",
+    "actor_packet_age_and_full_pending_queue": "not explicitly observed by current140D Critic; record as known partial-observability limitation",
+    "no_hidden_repurpose_or_shape_inference": true,
+    "next_revision_if_needed": "only after persistent per-group EV/MSE failure, design a separate explicit privileged interface"
+  },
+  "diagnostics": {
+    "every_checkpoint": [
+      "tracking by command and DR group",
+      "Critic EV/MSE/return variance by command and DR group",
+      "PPO KL/clip fraction",
+      "actual LR",
+      "quality terminations",
+      "sample counts and actual parameter/age distribution"
+    ],
+    "evidence": [
+      "requested/effective/readback parameters",
+      "source/checkpoint/spec/parameter table SHA",
+      "arrival and adoption ages",
+      "reset history readiness"
+    ],
+    "performance": "retain v2/hotpath/GPU statistics; cache raw state on GPU, transform delayed frame at100Hz; no physics-step CPU material or history copies",
+    "new_root_history": "reuse joint12 ring; add root quaternion4 plus world angular velocity3; initial planning32 slots at1ms",
+    "full_trace_policy": "reuse compact scored-only raw NPZ; JSON references once, no embedded arrays or whole-source copies",
+    "storage_limit": "must recompute for up to3x original scoring cases; old13GiB is not automatically sufficient"
+  },
+  "deferred_disabled": {
+    "leg_torque_tau_ms": {
+      "nominal": 5,
+      "candidate_full": [
+        4,
+        6
+      ]
+    },
+    "pd_gains": {
+      "nominal": [
+        40,
+        2,
+        0.2
+      ],
+      "candidate_full_scale": [
+        0.95,
+        1.05
+      ],
+      "left_right": "common first"
+    },
+    "wheel_inertia": "pending output-shaft convention and backend identification; do not randomize leg.012..35 blindly",
+    "friction": {
+      "wheel_shape_nominal": 0.5,
+      "candidate_wheel_shape_full": [
+        0.4,
+        0.6
+      ],
+      "ground": 0.5,
+      "candidate_combine": "average on both surfaces",
+      "candidate_pair_full": [
+        0.45,
+        0.55
+      ]
+    },
+    "mass_COM": "pending measurement and correct inertia-frame mapping",
+    "events_push_terrain": "later separate versions after flat timing robustness",
+    "packet_jitter_drops_noise": "pending measured statistics; not added to first version"
+  },
+  "revision_note": "2026-10-22 user: alternate one skill level and one DR level; one complete matrix for promotion; one measured old-skill regression rolls command scope back one level; DR never retreats"
+}

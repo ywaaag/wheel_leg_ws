@@ -1,0 +1,182 @@
+"""Single locked attempt ledger; all mutations address one exact attempt ID."""
+import fcntl
+import json
+import os
+from pathlib import Path
+import time
+
+PHASE_COUNTER = {"smoke":"smoke", "formal":"formal"}
+
+
+class Ledger:
+    def __init__(self, path):
+        self.path = Path(path)
+        self.lock_path = self.path.with_suffix(".lock")
+
+    def _change(self, operation):
+        with self.lock_path.open("a+") as handle:
+            fcntl.flock(handle, fcntl.LOCK_EX)
+            data = json.loads(self.path.read_text())
+            result = operation(data)
+            temporary = self.path.with_name(self.path.name+f".{os.getpid()}.tmp")
+            temporary.write_text(json.dumps(data,indent=2)+"\n")
+            os.replace(temporary,self.path)
+            return result
+
+    def reserve(self, attempt_id, phase, output_dir, *, approval=None):
+        declaration=json.loads(self.path.with_name('spec.json').read_text())
+        if declaration.get('recipe_version')=='motion31_compliance_low_speed_ppo_v1':
+            from native_stand.students.motion_compliance_requests import reserve
+            return reserve(self,attempt_id,phase,output_dir)
+        output = str(Path(output_dir).resolve())
+        def change(book):
+            if book.get("authorization")!="AUTHORIZED":
+                raise ValueError("new simulation/PPO budget has not been authorized")
+            if phase not in book["limits"] or attempt_id in book["attempts"]:
+                raise ValueError("unknown phase or duplicate attempt ID")
+            if any(row["output_dir"]==output for row in book["attempts"].values()):
+                raise ValueError("output path already reserved")
+            if any(row["status"]=="RUNNING" for row in book["attempts"].values()):
+                raise ValueError("another attempt is running")
+            if book["used"][phase] >= book["limits"][phase]:
+                raise ValueError("phase budget exhausted")
+            completed = {name for name in book["limits"] if any(
+                row["phase"]==name and row["status"]=="COMPLETED"
+                for row in book["attempts"].values())}
+            spec=json.loads(self.path.with_name('spec.json').read_text())
+            envelope=None
+            if approval is not None:
+                from .tools.submission_receipt import from_approval
+                envelope=from_approval(approval,self.path.with_name('spec.json'),self.path,output,phase,attempt_id)
+            from .tools.storage_budget import check as storage_check
+            storage=storage_check(spec,output,phase)
+            if storage['status']!='PASS':raise ValueError('insufficient output storage before reserve')
+            if spec.get('engineering_recovery') and envelope is None:
+                if phase!='formal' or book['attempts']:raise ValueError('Single-use recovery allows one formal attempt only')
+                from .tools.motion_recovery_certificate import validate as validate_recovery
+                certificate=validate_recovery(spec,book)
+                if spec.get('authorization',{}).get('status')!='AUTHORIZED':
+                    raise ValueError('Recovery spec and ledger both require explicit authorization')
+                from .tools.experiment_preparation import verify_publication
+                verify_publication(self.path.with_name('spec.json'),authorized=True)
+                completed.add('source_eval')
+            if envelope is None and spec.get('source_evidence_reference') and not spec.get('engineering_recovery'):
+                from .tools.source_evidence import check as check_source
+                if check_source(spec,spec['source_evidence_reference'])['status']!='REUSABLE':raise ValueError('source certificate not reusable')
+                completed.add('source_eval')
+            if envelope is not None:
+                completed.update({'source_eval','smoke'})
+            if phase=='formal' and envelope is None:
+                from native_stand.command_v6.wiring import completed_smoke
+                completed.discard('smoke')
+                if completed_smoke(book,spec):completed.add('smoke')
+            initialization=json.loads(self.path.with_name('spec.json').read_text()).get('initialization','warmstart') if self.path.with_name('spec.json').is_file() else 'warmstart'
+            recovery_ready=bool(json.loads(self.path.with_name('spec.json').read_text()).get('recovery',{}).get('runtime_initialization_validated')) if self.path.with_name('spec.json').is_file() else False
+            # Checkpoint evaluation is an independent read-only phase; it does
+            # not require a fresh source-eval attempt in the same ledger.
+            retention=bool(json.loads(self.path.with_name('spec.json').read_text()).get('retention',{}).get('enabled')) if self.path.with_name('spec.json').is_file() else False
+            prerequisites={"smoke":set() if initialization=='random' or recovery_ready or retention else {"source_eval"},"formal":{"smoke"},
+                           "evaluate":set(),"play":{"source_eval"}}
+            if not prerequisites.get(phase,set()) <= completed:
+                raise ValueError("required preceding phase has not completed")
+            book["attempts"][attempt_id] = {"phase":phase,"output_dir":output,
+                "status":"RUNNING","updates":0,"started_unix_s":time.time(),
+                **({"submission_receipt":envelope} if envelope is not None else {})}
+        spec_path=self.path.with_name('spec.json')
+        recovery=json.loads(spec_path.read_text()).get('engineering_recovery') if spec_path.exists() else None
+        if recovery:
+            project=Path(__file__).resolve().parents[3]
+            claims=project/'configs/experiments'/'.engineering_recovery_submissions';claims.mkdir(exist_ok=True)
+            claim=claims/(recovery['single_use_id']+'.json')
+            with (claims/'.lock').open('a') as handle:
+                fcntl.flock(handle,fcntl.LOCK_EX)
+                if claim.exists():raise ValueError('Recovery certificate already reserved; no duplicate submission')
+                # Claim first: a process death cannot leave an unclaimed running
+                # attempt. Unexpected I/O failures fail closed until audited.
+                with claim.open('x') as stream:
+                    json.dump({'attempt_id':attempt_id,'ledger':str(self.path.resolve()),'output':output},stream)
+                    stream.flush();os.fsync(stream.fileno())
+                try:self._change(change)
+                except ValueError:
+                    claim.unlink();raise
+        else:self._change(change)
+
+
+    def charge(self, attempt_id, output_dir):
+        output = str(Path(output_dir).resolve())
+        def change(book):
+            row = book["attempts"].get(attempt_id)
+            if row is None or row["output_dir"] != output or row["status"] != "RUNNING":
+                raise ValueError("attempt identity, path or running state differs")
+            phase = row["phase"]
+            if phase in ("source_eval","evaluate","play"):
+                raise ValueError("source-only evaluation or playback has no PPO updates")
+            if book["used"][phase] >= book["limits"][phase]:
+                raise ValueError("phase budget exhausted")
+            row["updates"] += 1
+            book["used"][phase] += 1
+            return row["updates"]
+        return self._change(change)
+
+    def finalize(self, attempt_id, output_dir, status, *, exit_code=None, reason=None, wall_s=None):
+        output = str(Path(output_dir).resolve())
+        if status not in ("COMPLETED","FAILED","STOPPED_BOUNDED","TERMINATED","UNKNOWN"):
+            raise ValueError("invalid terminal status")
+        def change(book):
+            row = book["attempts"].get(attempt_id)
+            if row is None or row["output_dir"] != output or row["status"] != "RUNNING":
+                raise ValueError("attempt already ended or identity differs")
+            row.update(status=status, exit_code=exit_code, reason=reason,
+                       finished_unix_s=time.time(),wall_s=wall_s)
+            if row["phase"] in ("source_eval","evaluate","play"):
+                book["used"][row["phase"]] += 1
+            if row["phase"] == "source_eval":
+                if wall_s is not None:
+                    # Older valid ledgers omitted this optional accumulator. Rebuild
+                    # prior settled source time rather than dropping historical cost.
+                    previous=book.get("source_eval_wall_used_s")
+                    if previous is None:
+                        previous=sum((a.get('wall_s') or 0.) for key,a in book['attempts'].items()
+                                     if key!=attempt_id and a.get('phase')=='source_eval' and a.get('status')!='RUNNING')
+                    book["source_eval_wall_used_s"] = previous + wall_s
+        self._change(change)
+
+def transfer_unused_updates(old_path, new_path, new_book, *, transfer_id, requested, smoke_updates=5):
+    """Locked quota transfer; preserve ended attempts and provide crash recovery."""
+    old_path,new_path=Path(old_path).resolve(),Path(new_path).resolve()
+    new_path.parent.mkdir(parents=True,exist_ok=True)
+    with old_path.with_suffix('.lock').open('a+') as lock:
+        fcntl.flock(lock,fcntl.LOCK_EX)
+        old=json.loads(old_path.read_text())
+        transfers=old.setdefault('quota_transfers',{})
+        if transfer_id in transfers:
+            record=transfers[transfer_id]
+            if record['destination']!=str(new_path):
+                raise ValueError('transfer identity destination differs')
+            if not new_path.exists():
+                temporary=new_path.with_suffix('.recover.tmp')
+                temporary.write_text(json.dumps(record['initial_destination_ledger'],indent=2)+'\n')
+                os.replace(temporary,new_path)
+            return record['updates']
+        if new_path.exists() or any(x['status']=='RUNNING' for x in old['attempts'].values()):
+            raise ValueError('destination exists or source budget occupied')
+        available=old['limits']['formal']-old['used']['formal']
+        amount=min(available,requested)
+        if not isinstance(smoke_updates,int) or smoke_updates<1 or amount<smoke_updates+1:
+            raise ValueError('insufficient unused updates for smoke and formal')
+        new_book['limits']['smoke']=smoke_updates
+        new_book['limits']['formal']=amount-new_book['limits']['smoke']
+        new_book['quota_origin']={'ledger':str(old_path),'transfer_id':transfer_id,
+                                  'updates':amount,'no_additional_updates':True}
+        old['limits']['formal']-=amount
+        transfers[transfer_id]={'destination':str(new_path),'updates':amount,
+            'time_unix_s':time.time(),'initial_destination_ledger':new_book}
+        # Source debit precedes destination publication. The recorded immutable initial
+        # ledger is sufficient to recover publication without charging a second time.
+        temporary=old_path.with_suffix('.transfer.tmp')
+        temporary.write_text(json.dumps(old,indent=2)+'\n')
+        os.replace(temporary,old_path)
+        temporary=new_path.with_suffix('.transfer.tmp')
+        temporary.write_text(json.dumps(new_book,indent=2)+'\n')
+        os.replace(temporary,new_path)
+        return amount

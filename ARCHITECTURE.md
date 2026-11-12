@@ -1,0 +1,141 @@
+# 工程结构与依赖方向
+
+## 主调用链
+
+```text
+wheel-leg / python -m native_stand          cli.py：参数、展示、退出码
+  → experiments/config.py                  一次解析，形成不可变JobConfig
+  → experiments/plan.py                    --dry-run 共用同一份计划
+  → simulation/dispatch.py                 操作×任务×算法×后端；execution_service()是唯一判定点
+  → experiments/owner.py                   建run、写run.json/state、一次握手、停止、续训
+  → experiments/worker.py                  阶段循环、计费、指标、checkpoint、终态、报告
+  → simulation/driver.py                   公共阶段驱动器：调度、计费、保存、边界、资源关闭
+  → simulation/engine.py                   通用PPO适配者（GenericPPOAdapter）
+  → simulation/isaac/motion_backend.py     生产Motion适配者（_Adapter：V4环境+受控PPO）
+  → learning/ppo/networks.py               显式输入/隐层，state_dict与既有Student一致
+  → learning/ppo/assembly.py               观测列、两路学习率、完整恢复状态
+  → learning/ppo/evaluate.py               完整评估（逐条件逐环境）
+  → learning/distillation/loop.py          BC蒸馏与选模
+  → simulation/<backend>/                  引擎适配；纯控制与时序在 simulation/timing.py
+  → artifacts/                             IO、checkpoint、指标、评估、保存策略、模型引用、报告
+  → integrations/hapi.py                   可选通知
+```
+
+## 模块职责
+
+| 模块 | 职责 | 不做什么 |
+|---|---|---|
+| `cli.py` | 参数、帮助、展示、退出码 | 不实现训练、不写状态文件 |
+| `experiments/config.py` | preset 加显式覆盖、严格校验、路径解析 | 不读运行状态 |
+| `experiments/plan.py` | 只读估算与计划 | 不创建文件 |
+| `experiments/owner.py` | run 生命周期、进程身份、停止请求 | 不训练 |
+| `experiments/worker.py` | 阶段执行、计费、终态、报告 | 不解析CLI |
+| `experiments/budget.py` | 单文件预算账本，attempt 级记账 | 不存配置副本 |
+| `experiments/state.py` | `state.json` 单写入者协议 | 不从曲线反推消耗 |
+| `tasks/motion` | 31D 输入编码、6D 解码、支撑中心、语义记录 | 不做项目健康检查 |
+| `tasks/recovery` | 起身门槛、保持时间、进入条件 | 不复用 Motion 动作版本 |
+| `learning/ppo` | 显式隐层构造、受控PPO装配、warmup 语义 | 不读状态文件 |
+| `learning/distillation` | Teacher路由、单位转换、确定性BC数学循环 | 不创建worker、不消费holdout补教 |
+| `simulation` | 时相纯函数、后端适配、公共阶段驱动器、分派表 | 不依赖 HAPI 或文档 |
+| `learning/ppo/evaluate.py` | 完整评估执行 | 不授予能力结论 |
+| `learning/distillation/loop.py` | BC蒸馏与选模 | 不用留出集补教 |
+| `artifacts` | IO、checkpoint、指标、评估、保存策略、模型引用、报告 | 不知道日期配方 |
+| `integrations/hapi.py` | 可选通知，异常不外抛 | 决定能否训练 |
+
+## 依赖方向
+
+- `tasks` 不导入 `cli`、`owner`、`report`。
+- `learning` 不导入脚本或 CLI。
+- `simulation` 不依赖 `integrations` 与文档。
+- `artifacts` 不导入任务模块。
+- `simulation/dispatch.py` 是唯一的组合判定点；后端可用性由后端 `available(job)` 决定。
+- `artifacts/io.py` 是文件SHA、规范化JSON摘要、原子写入、NPZ 的唯一实现；新代码不要再写本地 helper。
+- 函数内延迟导入只用于 Isaac、torch 等重依赖，不用来隐藏模块循环。
+
+## 关键不变量
+
+- `action` 与 `observation` 的尺度分别校验：输入 1.5 rad / 100 rad/s；输出按显式动作版本为0.15 rad / 40或80 rad/s，当前Motion／Spin配方为80，不能随输出改输入。
+- `previous` 只由实际采用目标换算（`tasks/motion/encoding.py::previous_from_adopted`）。
+- 完整恢复状态必须包含 Actor、Critic、optimizer、std、RNG、计数与课程状态；Actor-only 导出不能替代。
+- Critic-only warmup 次数来自配置；完整恢复的 formal 不重复 warmup。
+- 保存策略只清理本run中未选中、未引用的中间 checkpoint。
+
+## 历史实现与保护
+
+`command_v6/`、`students/`、`recovery/`、`world_model/` 是冻结的历史实现，按原身份只读复用。新支撑中心Motion通过 `simulation/isaac/motion_backend.py` 使用统一worker、账本和checkpoint；物理环境只读借用r4视图，修正奖励与更新后KL位于 `tasks/motion/scale_corrections.py`、`learning/ppo/supported.py`。不启动旧supervisor。
+
+祖先 `isolated/` 视图中以下四个文件仍软链接到仓库源码，继续作为冻结依赖保护：
+
+- `src/native_stand/students/motion_supported_output.py`
+- `src/native_stand/students/motion_centered_output.py`
+- `src/native_stand/students/motion_kinematic_output.py`
+- `src/native_stand/command_v6/tools/validate_cpu.py`
+
+这些文件可能被新作业复用的环境直接读取，不能在运行时修改。
+
+## 新增配方
+
+1. 在 `configs/jobs/` 写配置：`preset` 加需要覆盖的节。
+2. 只声明与本配方相关的字段；未知字段会在入口报错。
+3. `wheel-leg train --config ... --dry-run` 核对计划与预计保存量。
+4. 不复制旧 spec，不新增日期型 trainer，不新增包装层。
+
+## 生产路径与公共驱动器
+
+`motion_backend.run()` 用 `_Adapter` 把生产步骤函数接进 `driver.run_stage`：
+
+- `run()` 负责构造 V4 环境与受控PPO、按 `_resolve_source()` 恢复；
+- `_Adapter.update_once()` 执行一次 rollout + 受控PPO 更新并返回指标；
+- 阶段额度、计费、停止/样本/墙钟/空间边界、周期与终态保存、`close()` 全部由驱动器执行；
+- 生产算法（KL 约束、辅助损失、控制 mask、奖励修正、课程）保持原样，未被替换为通用PPO。
+
+`worker._execute_stage()` 按 `dispatch.execution_service()` 选适配器；评估用
+`dispatch.backend_for_evaluation()` 走同一个服务选择，因此生产配置不会落到要求
+`legacy_spec_path` 的通用Isaac适配器。
+
+## 恢复来源
+
+`motion_backend._resolve_source()` 与 `engine.initialization_payload()` 遵循同一优先级：
+显式 resume → 阶段接续 → 配置声明的初始化。三种来源都只解析一次，后续适配器消费该结果。
+
+
+## 架构约束（2026-11-08 起，由 scripts/check_architecture.py 执行）
+
+| 模块 | 职责 | 不得依赖 |
+|---|---|---|
+| cli.py | 唯一正式入口（train/distill/resume/inspect/stop/evaluate） | — |
+| experiments | owner/worker/状态/停止/预算/结算，唯一的训练进程创建点 | scripts |
+| learning | PPO/BC 数学循环、蒸馏、网络与优化 | cli |
+| tasks | 观测/动作/奖励/终止的任务语义与单位契约 | cli、owner、report |
+| simulation | 后端、驱动器、环境交互；执行判定收敛于 dispatch.execution_service | integrations |
+| artifacts | checkpoint/评估/保留的身份与原子写入 | tasks |
+
+新增能力接入：配置可表达→只加配置；新组件→落在所属模块并由配置选择；显式 factory 参数注入，禁止跨模块改写模块全局对象。模型形状变化用配置表达；物理语义变化（列序/归一化/单位/包络/时序）必须有来源与目标契约。检查：`python scripts/check_architecture.py`（违规退出1，参数错误退出2）。
+
+## Motion／Spin领域组合
+
+两者保持task=motion，由不同配置选择`CourseStrategy`中的`SplitCourse`、统计目标与独立候选比较域；同用生产adapter、环境工厂、受控PPO和公共保存/引用。分支初始化在LoadedSource边界显式消费公共选中模型契约，领域层只重建目标/窗口/确认，不重建Actor、Critic、Adam、std、RNG或已完成warmup，也不放宽同run恢复。
+
+课程确认绑定实际方向/目标/高度/DR和执行合同，不能跨条件累计，不因无关revision丢失其他方向确认。Spin只生成有限且可表示的机体yaw端点；轮±80rad/s包络是独立动作合同。候选资格、任务成绩与独立认证分开，输出交给公共ModelIndex；领域模块不删除产物。
+
+## 公共监督与推理消费者（2026-11-12）
+
+`experiments/supervision.py`只声明本轮使用的类型和顺序约束；`supervision_flow.py`由现有distillation_job/worker执行有序流程。流程位置phase_cursor与领域课程revision分开。一个BC循环负责优化，公共Budget分别记录round、优化步和物理子步；已发生但无法安全恢复的消耗不回滚。
+
+`artifacts/dataset.py`保存collection及物理episode身份、持久split和数据视图。label阶段组合累计collection与受信rehearsal，按sample_id去重。Teacher路由及各自动作合同在`learning/distillation/routing.py`，不能平均不同raw空间。Recovery physical Actor的forward即物理标签空间；BC、播放器与导出都使用它，不能再次cubic解码。
+
+`learning/inference.py`构造无Critic/Adam的显式Actor；Teacher、标签、播放器、sim2sim与部署导出复用。模型加载绑定同一打开文件的SHA/权重。语义身份仅忽略有内容SHA的存储引用路径，不递归删除任意path键。RuntimePaths在读取边界映射，旧记录只读。
+
+`simulation/collection.py`按实际环境行数分配、设备端有界缓存与分块落盘，要求真实owner/路由条件和实际子步。采样工厂与评估工厂分开。partial reset不拼接其他环境，fresh-reset不拼旧未完成episode。正常资源/停止边界仍由公共worker管理。
+
+`simulation/scenes.py`显式提供平地高度、摩擦、合法初态；Recovery环境和MuJoCo播放器消费，未知/不支持场景拒绝。Motion／Spin非默认场景需领域factory支持，不宣称rough已实现。
+
+`artifacts/deployment.py`临时目录构造、校验后原子发布；一致的既有包可恢复提交，身份冲突拒绝覆盖。sim2sim复用collection factory及create_player，以显式live协议顺序采集后调用同一recorded诊断；后端必须提供实际条件和信号，未实现即拒绝。共享C保留各ABI身份，电控仓库不写入。
+
+监督跨目录导入使用现有handoff边界，保留BC Adam、RNG、数据/Teacher身份、轮数和原预算；目标阶段状态也必须是SHA核验依赖。活动run不得导入并行消费。云端依赖闭包只打包显式消费者和当前源码，不打包整个Conda或历史runs。
+
+## 故障保存边界与诊断编排
+
+driver只对优化、计费、任务后处理全部完成的边界补存。优化完成收据只证明应计费，不证明当前课程/执行现场可恢复；半完成rollout不得用旧update号发布新物理现场。保存失败保留上一有效引用，cleanup错误附注在primary异常上供worker结算。普通resume不放宽计数一致校验。
+
+sim2sim不是训练课程或另一套worker：显式协议经CLI直接顺序拥有两个后端会话，不创建子进程。collection adapter复用make_environment和公共推理factory；MuJoCo adapter复用playback.create_player、同一控制循环与模型合同。实际条件/积分接触定义、原始信号及真实子步形成统一trace后调用已有diagnose。故障保留partial数据与原因；不更改评分口径，不做隐式独立能力评估。
