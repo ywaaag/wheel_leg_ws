@@ -1,6 +1,7 @@
 """Real ABI4 and script physical I/O; fail on any real integration or CUDA."""
 
 import ctypes as C
+import os
 import subprocess
 from dataclasses import replace
 from pathlib import Path
@@ -20,7 +21,7 @@ from native_stand.simulation.jump_shared_c import array
 
 FROZEN_TEST_SCOPE = "HOST"
 ROOT = Path(__file__).resolve().parents[1]
-DATA = Path("/home/kellen/wheel_leg_training_data")
+DATA = Path(os.environ.get("WHEEL_LEG_DATA_ROOT", "/home/kellen/wheel_leg_training_data"))
 
 
 @pytest.fixture(autouse=True)
@@ -392,3 +393,24 @@ def test_pending_candidate_publication_is_idempotent_and_protects_checkpoint(tmp
     adapter.pending = copy.deepcopy(pending)
     adapter.after_save(context, reference)
     equal(first, index.candidate_index(tmp_path.name))
+
+
+def test_MuJoCo_mass_matrix_old_and_new_API_with_actual_native_readback(monkeypatch):
+    from native_stand.simulation.jump_support_model import full_mass
+
+    model = mujoco.MjModel.from_xml_string(
+        '<mujoco><worldbody><body><joint type="hinge"/><geom type="sphere" size=".1" mass="1"/></body></worldbody></mujoco>'
+    )
+    data = mujoco.MjData(model)
+    mujoco.mj_forward(model, data)
+    out = np.empty((1, 1))
+    full_mass(model, data, out)
+    assert out[0, 0] == pytest.approx(0.004)
+    calls = []
+    monkeypatch.setattr(mujoco, "mj_fullM", lambda *args: calls.append(args))
+    old = SimpleNamespace(qM=np.array([0.004]))
+    new = SimpleNamespace(M=np.array([0.004]))
+    full_mass(model, old, out)
+    full_mass(model, new, out)
+    assert calls[0][1] is out and calls[0][2] is old.qM
+    assert calls[1][1] is new and calls[1][2] is out

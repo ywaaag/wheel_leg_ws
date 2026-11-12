@@ -10,6 +10,14 @@ import numpy as np
 from native_stand.tasks.jump.geometry import CHANNELS, LEGS
 
 
+def full_mass(model, data, output):
+    """MuJoCo3.12 takes MjData; older wheels take its sparse qM buffer."""
+    if hasattr(data, "qM"):
+        mujoco.mj_fullM(model, output, data.qM)
+    else:
+        mujoco.mj_fullM(model, data, output)
+
+
 def estimate(plant):
     m, d = plant.model, plant.data
     active = plant.vids[list(LEGS)]
@@ -32,7 +40,7 @@ def estimate(plant):
     tangent[active, np.arange(4)] = 1.0
     tangent[passive] = -np.linalg.pinv(closure[:, passive], rcond=1e-9) @ closure[:, active]
     mass = np.zeros((m.nv, m.nv))
-    mujoco.mj_fullM(m, mass, d.qM)
+    full_mass(m, d, mass)
     load = mass @ d.qacc + d.qfrc_bias - d.qfrc_passive
     external = np.zeros(m.nv)
     external[plant.vids] = plant.actual_NET
