@@ -104,8 +104,8 @@ def test_public_worker_update_save_publish_and_restore(tmp_path, monkeypatch):
     real_factory = jump_backend.make_env
     seen = []
 
-    def scripted_physics(job):
-        env = real_factory(job, output=tmp_path / "execution")
+    def scripted_physics(job, *, measurement=None):
+        env = real_factory(job, output=tmp_path / "execution", measurement=measurement)
         for element in env.envs:
             p = element.plant
 
