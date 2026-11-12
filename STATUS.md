@@ -1,5 +1,10 @@
 # 当前任务
 
+## Recovery本地接稳续训（2026-11-13，本会话唯一owner）
+
+用户授权新10000次PPO、墙钟null；旧1800完整状态来源SHA578f22a8…c6ea2，历史已耗3466/旧余6534只读。源码工作树`/home/kellen/wheel_leg_recovery_ws`，分支`recovery/continuation-reset`，新配置`configs/jobs/recovery_settle48_full1800_10000.json`。reset批量与缓存等价优化已完成；v9先做小幅接稳成本，HF成本/新接稳状态池/新DR均NOT_RUN，原课程/BC/prior/控制/探索不变。新前5次Critic适应计入10000，不重复来源warmup，不清双Adam。终态通知绑定a26d4a18-e889-4736-9a3b-5873b7ca5740，真实CLI投递测试成功。实际run及启动回执在提交后补本卡；不以本准备卡声称训练已开始。旧生产与远端Motion不操作，不轮询日志。
+
+
 ## 主仓基线与依赖归档（2026-11-12，当前收尾）
 
 公共性能集成在独立worktree `/home/kellen/wheel_leg_public_ws` / `integration/performance-observability`推进。driver、GenericPPO、ControlledPPO与环境共享Measurement，关闭时不访问CUDA；嵌套子项默认CPU墙钟，父项inclusive不能重复相加。after_save总包已独立命名，候选与环境重建由领域分别计时；小型计数随update落盘，启动构造另列。当前公共针对性35项、生命周期联合91项、metrics补充23项通过，均为各自明确测试范围，不拼接为全套结果；最终领域集成与统一快照回归尚待收齐。Motion窗口/累计与候选原因由运动2负责；Recovery/Jump在各自worktree交付，不热改活动远端。
