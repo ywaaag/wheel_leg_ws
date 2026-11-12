@@ -1,6 +1,6 @@
 # 工程架构重构迁移报告
 
-公共性能观测增量（独立worktree）：复用Measurement，在公共driver→GenericPPO→ControlledPPO→环境显式传同一对象；不新增计时系统。`after_save_total`不再冒充候选耗时，领域子项标明close/构造/reset/readback/编译。启动与update窗口分开，计数只消费主机已知值，MetricsWriter保留小摘要。嵌套CPU墙钟与CUDA同步阶段墙钟分别标记，未测GPU kernel时间；父子inclusive不能累加。保存/计费/引用/重建/轮换顺序不变。公共针对性与故障边界已验收，最终合并测试身份待本轮收尾填写。CPU对象创建微基准一万轮3→1对象：median6.98→2.56ms/P957.10→2.61ms，不是整轮提速；原始收据`artifacts/integration_final/public_measurement_benchmark.json`。
+公共性能观测增量（独立worktree）：复用Measurement，在公共driver→GenericPPO→ControlledPPO→环境显式传同一对象；不新增计时系统。`after_save_total`不再冒充候选耗时，领域子项标明close/构造/reset/readback/编译。启动与update窗口分开，计数只消费主机已知值，MetricsWriter保留小摘要。嵌套CPU墙钟与CUDA同步阶段墙钟分别标记，未测GPU kernel时间；父子inclusive不能累加。保存/计费/引用/重建/轮换顺序不变。公共针对性与故障边界已验收，最终合并测试身份待本轮收尾填写。CPU组件微基准一万轮：原每update两个临时对象median4.97ms/P955.04ms，改为复用run对象并reset为0.479ms/P950.491ms，不是整轮提速；原始收据`artifacts/integration_final/public_measurement_benchmark.json`。
 
 ## 主仓基线与依赖归档（2026-11-12，当前收尾）
 
