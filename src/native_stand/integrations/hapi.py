@@ -1,12 +1,15 @@
 """HAPI是可选集成：只消费标准运行状态，不参与训练判定。
 
 没有HAPI_SESSION_ID时核心功能全部可用；通知失败不改变训练与能力结果。
-本次重构不发送任何消息。
+只在enabled和显式target同时配置时，经现有HAPI CLI投递一次。
 """
 
 from __future__ import annotations
 
+import json
 import os
+import shutil
+import subprocess
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -45,6 +48,28 @@ def notification_payload(run_dir: str | Path) -> dict[str, Any]:
     }
 
 
+def cli_sender(payload: dict[str, Any], target: str) -> None:
+    """Explicit configured terminal notice, no shell/daemon/watch process."""
+    executable = os.environ.get("HAPI_CLI_EXECUTABLE") or shutil.which("hapi")
+    if not executable:
+        raise NotificationError("HAPI CLI unavailable")
+    message = "训练终态通知（运行结果，不等于能力通过）：\n" + json.dumps(
+        payload, ensure_ascii=False, sort_keys=True
+    )
+    # The existing CLI owns authentication and routing. Never print tokens or
+    # reproduce JWT handling; stdin keeps arbitrary status text out of argv.
+    result = subprocess.run(
+        [executable, "ping-peer", target, "--message-file", "-"],
+        input=message,
+        text=True,
+        capture_output=True,
+        timeout=90,
+        check=False,
+    )
+    if result.returncode:
+        raise NotificationError(f"HAPI CLI exit={result.returncode}")
+
+
 def notify(
     run_dir: str | Path,
     *,
@@ -63,7 +88,7 @@ def notify(
         return {"status": "disabled", "sent": False, "reason": "没有通知目标"}
     payload = notification_payload(run_dir)
     if sender is None:
-        return {"status": "skipped", "sent": False, "reason": "未配置通知传输实现；不发送消息"}
+        sender = cli_sender
     try:
         sender(payload, target)
     except Exception as exc:  # 通知失败不改变训练结果
