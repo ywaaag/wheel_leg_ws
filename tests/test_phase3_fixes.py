@@ -697,6 +697,7 @@ def _course_adapter(tmp_path, *, revision=False):
     adapter.course_update_base = 100
     adapter.restore_point_updates = 100
     adapter.config = {}
+    adapter.spec = {"student_training": {}, "curriculum": {"stages": [adapter.env.stage_spec]}}
     adapter.fixed_std = torch.zeros(6)
     adapter.algorithm = types.SimpleNamespace(
         actor=types.SimpleNamespace(state_dict=lambda: {}, log_std=torch.zeros(6)),
@@ -708,7 +709,9 @@ def _course_adapter(tmp_path, *, revision=False):
         "restore_rng": __import__(
             "native_stand.students.resume", fromlist=["restore_rng"]
         ).restore_rng,
-        "build_environment_spec": lambda *a, **k: {"student_training": {}},
+        "build_environment_spec": lambda *a, **k: {
+            "student_training": {}, "curriculum": {"stages": [adapter.env.stage_spec]}
+        },
         "course": types.SimpleNamespace(stage_config=lambda *a, **k: {}),
     }
     from native_stand.tasks.motion.course_strategy import CourseStrategy
