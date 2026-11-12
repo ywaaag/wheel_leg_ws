@@ -17,6 +17,7 @@ from native_stand.artifacts.checkpoint import load_source, save_full
 from native_stand.artifacts.handoff import import_checkpoint
 from native_stand.artifacts.io import file_sha256, write_json
 from native_stand.artifacts.model_refs import ModelIndex
+from native_stand.artifacts.runtime_paths import execution_job
 from native_stand.experiments.config import load_job_config, with_initialization
 from native_stand.learning.policies.factory import build_policy
 from native_stand.simulation.driver import Backend
@@ -146,7 +147,7 @@ def auxiliary_gradients(job, source, observations):
     return result
 
 
-def rehearse(config, checkpoint, sha256, output):
+def rehearse(config, checkpoint, sha256, output, path_mapping=None):
     output = Path(output).resolve()
     if not output.is_relative_to(Path("/tmp")) or output.exists():
         raise ValueError("CPU演练只写不存在的/tmp目录；不接受正式run")
@@ -156,6 +157,11 @@ def rehearse(config, checkpoint, sha256, output):
     if source.sha256 != sha256:
         raise ValueError("演练来源SHA不同")
     job = with_initialization(load_job_config(config), source.path, source.sha256)
+    original_root = Path(job.assets["recovery_isaac_runtime"]["path"]).parents[2]
+    if path_mapping is not None:
+        assets = copy.deepcopy(job.assets)
+        assets["path_mapping"] = dict(path=str(path_mapping), sha256=file_sha256(path_mapping))
+        job = execution_job(dataclasses.replace(job, assets=assets))
     origin = output / "before"
     dependencies = origin / "dependencies"
     dependencies.mkdir(parents=True)
@@ -245,7 +251,6 @@ def rehearse(config, checkpoint, sha256, output):
     transported.payload["run_identity"] = str(moved)
     save_full(cp, transported.payload)
     transported = load_source(cp)
-    original_root = Path(job.assets["recovery_isaac_runtime"]["path"]).parents[2]
     with block_reads(original_root):
         second.build(context(job, moved, used), "formal", transported)
         restored = second.capture(context(job, moved, used), source.payload["counters"])
@@ -310,8 +315,9 @@ def main():
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--sha256", required=True)
     parser.add_argument("--output", required=True)
+    parser.add_argument("--path-mapping", type=Path)
     args = parser.parse_args()
-    result = rehearse(args.config, args.checkpoint, args.sha256, args.output)
+    result = rehearse(args.config, args.checkpoint, args.sha256, args.output, args.path_mapping)
     print(result["status"])
 
 
