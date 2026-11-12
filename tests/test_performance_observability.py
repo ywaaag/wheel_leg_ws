@@ -229,3 +229,17 @@ def test_metrics_writer_persists_small_opt_in_summary_without_unknown_payload(tm
     assert actual["performance_counters"] == {"reset_rows": 2}
     assert actual["performance_clocks"] == {"rollout": "cpu_wall"}
     assert actual["saved_this_update"] is True
+
+
+def test_dispatch_preserves_explicit_measured_environment_factory(tmp_path, monkeypatch):
+    from test_phase3_fixes import _cpu_job
+
+    from native_stand.simulation import cpu, dispatch
+
+    def measured(job, measurement):
+        raise AssertionError("dispatch must not construct the environment")
+
+    monkeypatch.setattr(cpu, "make_measured_env", measured, raising=False)
+    backend = dispatch.backend_for(_cpu_job(tmp_path))
+    assert backend.make_measured_env is measured
+    assert backend.make_env is cpu.make_env

@@ -85,7 +85,10 @@ def backend_for(job: JobConfig) -> Backend:
     if hasattr(module, "validate_job"):
         module.validate_job(job)
     return Backend(
-        name=job.backend, make_env=module.make_env, semantics=getattr(module, "SEMANTICS", {})
+        name=job.backend,
+        make_env=module.make_env,
+        semantics=getattr(module, "SEMANTICS", {}),
+        make_measured_env=getattr(module, "make_measured_env", None),
     )
 
 
