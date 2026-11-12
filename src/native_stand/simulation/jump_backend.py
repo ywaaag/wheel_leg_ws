@@ -8,6 +8,16 @@ from native_stand.tasks.jump.unified import VERSION
 
 
 def validate_job(job):
+    from native_stand.tasks.jump.isaac_contract import TRAINING
+
+    if job.action.version == TRAINING:
+        from .jump_isaac import validate_job as isaac_validate
+
+        isaac_validate(job)
+        for ref in job.assets["jump_bindings"].values():
+            if file_sha256(ref["path"]) != ref["sha256"]:
+                raise ValueError("Jump Isaac dependency identity: " + ref["path"])
+        return
     build_task(job)
     if job.action.version != VERSION or job.backend != "mujoco" or job.runtime.device != "cpu":
         raise ValueError("ABI4 Jump仅开放当前MuJoCo CPU执行链；Isaac未实现")
@@ -72,6 +82,12 @@ def make_plant(job, *, output, charge_step, binding=None, inputs=None):
 
 
 def make_env(job, *, output=None, measurement=None):
+    from native_stand.tasks.jump.isaac_contract import TRAINING
+
+    if job.action.version == TRAINING:
+        from .jump_isaac import IsaacJump
+
+        return IsaacJump(job, measurement=measurement, output=output)
     import tempfile
 
     from native_stand.learning.ppo.performance import Measurement
@@ -118,6 +134,10 @@ def make_measured_env(job, measurement, *, factory=None):
 
 
 def available(job):
+    from native_stand.tasks.jump.isaac_contract import TRAINING
+
+    if job.task == "jump" and job.action.version == TRAINING and job.backend == "isaac":
+        return True, ""
     if job.task != "jump" or job.action.version != VERSION or job.backend != "mujoco":
         return False, "只开放ABI4 Jump MuJoCo组合"
     return True, ""

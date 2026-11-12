@@ -20,6 +20,32 @@ class JumpTask:
 
 
 def build_task(job):
+    from .isaac_contract import CRITIC, TRAINING
+
+    if job.action.version == TRAINING:
+        import math
+
+        from .unified import contract as unified_contract
+
+        contract = job.assets["jump_contract_data"]
+        schema = job.assets["jump_critic_schema"]
+        if (
+            contract != unified_contract()
+            or job.model.interface != TRAINING
+            or job.model.action_version != TRAINING
+        ):
+            raise ValueError("Jump Isaac shares the exact ABI4 physical Actor contract")
+        if (job.model.actor_input, job.observation.actor_dim) != (37, 37):
+            raise ValueError("Jump Isaac DirectActor37 required")
+        if (
+            schema["version"] != CRITIC
+            or schema["width"] != job.model.critic_input
+            or sum(math.prod(f["shape"]) for f in schema["fields"]) != schema["width"]
+        ):
+            raise ValueError("Explicit actual Isaac Critic schema required")
+        if list(job.control.effort_limits_nm) != contract["control"]["final_motor_caps"]:
+            raise ValueError("Jump Isaac motor caps")
+        return JumpTask(job, contract)
     if job.action.version == "jump_unified_raw37_wheel48_v1":
         import math
 

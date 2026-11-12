@@ -57,14 +57,14 @@ class DirectPPO(NominalPPO):
         return result
 
 
-def build_policy(job, observations, *, device="cpu", source=None):
+def build_policy(job, observations, *, device="cpu", source=None, version=VERSION):
     handle = assemble_policy(
         job,
         observations,
         device=device,
         actor_class=DirectActor,
         ppo_class=DirectPPO,
-        version=VERSION,
+        version=version,
         action_semantics="raw_Normal_direct_linear_no_Tanh",
     )
     payload = getattr(source, "payload", source)

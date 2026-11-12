@@ -33,6 +33,7 @@ class SharedV4Execution:
         library_sha=None,
         control_class=SharedJump,
         capture_frames=False,
+        row_faults=False,
     ):
         self.c = control_class(library, n, config=config, library_sha=library_sha)
         self.v4 = Execution(V4, response_class, n, device=device, dtype=dtype)
@@ -40,6 +41,7 @@ class SharedV4Execution:
         self.tick = 0
         self.last_frames = None
         self.capture_frames = capture_frames
+        self.row_faults = row_faults
         self.C_PD_calls = 0
         self.timing_version = "jump_same_C_target5_V4_sensor_postPD_v1"
         self.input_rows = None
@@ -147,9 +149,11 @@ class SharedV4Execution:
         # supplied only with their actually adopted target. Actor is external.
         for k, code in enumerate(rc):
             if code < 0:
-                raise RuntimeError(
-                    f"Jump C safety owner {self.c.states[k].fault}; no Motion fallback"
-                )
+                if not self.row_faults:
+                    raise RuntimeError(
+                        f"Jump C safety owner {self.c.states[k].fault}; no Motion fallback"
+                    )
+                frames[k] = self.c.FrameType()
             if code == 1:
                 i = self.c.inputs[k]
                 f = self.c.FrameType()

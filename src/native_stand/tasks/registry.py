@@ -46,14 +46,23 @@ TASKS: dict[str, dict] = {
         "evaluator_module": "native_stand.learning.ppo.evaluate",
         "evaluator_symbol": "evaluate_checkpoint",
         "supported_algorithms": ("ppo",),
-        "supported_backends": ("mujoco",),
+        "supported_backends": ("mujoco", "isaac"),
         "execution_contracts": {
+            "jump_isaac_ABI4_raw37_wheel48_v1": {
+                "module": "native_stand.simulation.jump_backend",
+                "backends": ("isaac",),
+            },
             "jump_unified_raw37_wheel48_v1": {
                 "module": "native_stand.simulation.jump_backend",
                 "backends": ("mujoco",),
-            }
+            },
         },
         "policy_contracts": {
+            "jump_isaac_ABI4_raw37_wheel48_v1": {
+                "module": "native_stand.learning.ppo.jump_isaac",
+                "symbol": "build_policy",
+                "interface": "jump_isaac_ABI4_raw37_wheel48_v1",
+            },
             "jump_unified_raw37_wheel48_v1": {
                 "module": "native_stand.learning.ppo.jump_unified",
                 "symbol": "build_policy",

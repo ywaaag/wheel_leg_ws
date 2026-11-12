@@ -24,7 +24,7 @@ class FullCritic(NormalizedCritic):
         }
 
 
-def pack(env, actor, *, wheel_cap=4.8, phase_count=10, schema_class=FullCritic):
+def pack(env, actor, *, wheel_cap=4.8, phase_count=10, schema_class=FullCritic, engine_fields=None):
     p = env.plant
     e = p.execution
     v = e.v4
@@ -53,16 +53,20 @@ def pack(env, actor, *, wheel_cap=4.8, phase_count=10, schema_class=FullCritic):
             values[name] = np.asarray(value)
 
     add("Actor.delayed37", actor, 1.0, "deployed normalized fields")
-    for name in [
-        "qpos",
-        "qvel",
-        "qacc",
-        "qacc_warmstart",
-        "ctrl",
-        "qfrc_applied",
-        "xfrc_applied",
-        "qfrc_actuator",
-    ]:
+    for name in (
+        []
+        if engine_fields is not None
+        else [
+            "qpos",
+            "qvel",
+            "qacc",
+            "qacc_warmstart",
+            "ctrl",
+            "qfrc_applied",
+            "xfrc_applied",
+            "qfrc_actuator",
+        ]
+    ):
         a = np.asarray(getattr(p.data, name))
         scale = (
             10.0
@@ -85,11 +89,13 @@ def pack(env, actor, *, wheel_cap=4.8, phase_count=10, schema_class=FullCritic):
         ("eq_solimp", 1.0, "solver impedance"),
     ]
     model_epoch = getattr(p, "_parameter_epoch", 0)
-    if getattr(env, "_model_fields_epoch", None) != model_epoch:
+    if engine_fields is None and getattr(env, "_model_fields_epoch", None) != model_epoch:
         env._model_fields = {name: getattr(p.model, name).copy() for name, _, _ in model_fields}
         env._model_fields_epoch = model_epoch
-    for name, scale, unit in model_fields:
+    for name, scale, unit in [] if engine_fields is not None else model_fields:
         add("model." + name, env._model_fields[name], scale, unit)
+    for name, (value, scale, unit) in (engine_fields or {}).items():
+        add("Isaac." + name, value, scale, unit)
     add("execution.subcycle", [e.tick % 5, e.tick % 10], [5, 10], "ms within PD/Actor cycle")
     # Include all serialized tensor state. Known static lookup indices are
     # excluded; no hidden response/queue value is replaced by zero padding.

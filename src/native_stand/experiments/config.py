@@ -648,6 +648,7 @@ MOTION48_PRESET = _preset_copy.deepcopy(MOTION_PRESET)
 MOTION48_PRESET["control"]["effort_limits_nm"] = list(_MotionMotorLimits().caps)
 MOTION48_PRESET["assets"] = {"motor_limits": _MotionMotorLimits().as_dict()}
 PRESETS: dict[str, dict[str, Any]] = {
+    "jump_isaac_v1": {"task": "jump", "algorithm": "ppo", "backend": "isaac"},
     "motion48_supported_v1": MOTION48_PRESET,
     "motion_supported_v1": MOTION_PRESET,
     "recovery_cubic_v2": RECOVERY_CUBIC_PRESET,
@@ -949,11 +950,15 @@ def _validate_cross_section(job: JobConfig) -> None:
     if job.initialization.mode == "actor_only" and not (
         recovery_cubic
         or motion_c0
-        or (job.task == "jump" and job.action.version == "jump_unified_raw37_wheel48_v1")
+        or (
+            job.task == "jump"
+            and job.action.version
+            in ("jump_unified_raw37_wheel48_v1", "jump_isaac_ABI4_raw37_wheel48_v1")
+        )
     ):
         raise ConfigError(
             "actor_only只接入：Recovery物理Gaussian（isaac_recovery/mujoco，含训练合同）"
-            "、显式C0协议的Isaac Motion 015/80，或ABI4 Jump MuJoCo作业"
+            "、显式C0协议的Isaac Motion 015/80，或显式ABI4 Jump作业"
         )
     if job.storage.save_traces and job.storage.trace_max_bytes == 0:
         raise ConfigError("storage.save_traces=true 需要正的trace_max_bytes")
