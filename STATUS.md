@@ -2,7 +2,7 @@
 
 ## Recovery本地接稳续训（2026-11-13，本会话唯一owner）
 
-用户授权新10000次PPO、墙钟null；旧1800完整状态来源SHA578f22a8…c6ea2，历史已耗3466/旧余6534只读。源码工作树`/home/kellen/wheel_leg_recovery_ws`，分支`recovery/continuation-reset`，新配置`configs/jobs/recovery_settle48_full1800_10000.json`。reset批量与缓存等价优化已完成；v9先做小幅接稳成本，HF成本/新接稳状态池/新DR均NOT_RUN，原课程/BC/prior/控制/探索不变。新前5次Critic适应计入10000，不重复来源warmup，不清双Adam。终态通知绑定a26d4a18-e889-4736-9a3b-5873b7ca5740，真实CLI投递测试成功。首三次初始化失败均已结算保留，累计PPO/物理0。修复Kit提前exit及映射资产包根后，实际接续run：`/home/kellen/wheel_leg_training_data/2026_11_13__recovery_settle48_full1800_10000_attempt4`，初始握手worker2917966/身份OK/RUNNING；真实优化启动快照另记。对应配置同名JSON；前三run不得恢复或再并行提交。旧生产与远端Motion不操作，不轮询日志。
+用户授权新10000次PPO、墙钟null；旧1800完整状态来源SHA578f22a8…c6ea2，历史已耗3466/旧余6534只读。源码工作树`/home/kellen/wheel_leg_recovery_ws`，分支`recovery/continuation-reset`，新配置`configs/jobs/recovery_settle48_full1800_10000.json`。reset批量与缓存等价优化已完成；v9先做小幅接稳成本，HF成本/新接稳状态池/新DR均NOT_RUN，原课程/BC/prior/控制/探索不变。新前5次Critic适应计入10000，不重复来源warmup，不清双Adam。终态通知绑定a26d4a18-e889-4736-9a3b-5873b7ca5740，真实CLI投递测试成功。首三次初始化失败均已结算保留，累计PPO/物理0。修复Kit提前exit及映射资产包根后，实际接续run：`/home/kellen/wheel_leg_training_data/2026_11_13__recovery_settle48_full1800_10000_attempt4`，单次真实启动核对worker2917966/start_ticks150380220存活，RUNNING且7次更新/917504样本；首完整checkpoint u1已保存（08656ad8…01d12）。启动证据`artifacts/recovery_continuation/attempt4_startup_check.json`，这是快照，不是后续最终进度或能力通过。对应配置同名JSON；前三run不得恢复或再并行提交。旧生产与远端Motion不操作，不轮询日志。
 
 
 ## 主仓基线与依赖归档（2026-11-12，当前收尾）
