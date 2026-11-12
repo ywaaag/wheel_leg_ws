@@ -105,7 +105,9 @@ class ControlledPPO(PPO):
         if valid is None or valid.shape != st.advantages.shape:
             raise ValueError("Storage mask missing/misaligned")
         telemetry = torch.zeros(6, dtype=torch.float64, device=st.values.device)
-        timer = Measurement(getattr(self, "performance_measurement", False), st.values.device)
+        timer = getattr(self, "measurement", None)
+        if timer is None:
+            timer = Measurement(getattr(self, "performance_measurement", False), st.values.device)
         count = 0
         actor_steps = 0
         critic_steps = 0

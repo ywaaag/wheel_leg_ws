@@ -43,6 +43,7 @@ class Backend:
     semantics: dict[str, Any] = field(default_factory=dict)
     condition_hook: Callable[[Any, dict[str, Any]], None] | None = None
     session_factory: Callable[..., Any] | None = None
+    make_measured_env: Callable[[Any, Any], Any] | None = None
 
 
 @dataclass
@@ -100,6 +101,7 @@ def run_stage(
     timer = Measurement(
         context.job.diagnostics.get("performance_measurement", False), context.job.runtime.device
     )
+    context.measurement = adapter.measurement = timer
     last_metrics_write = None
     consistent_update = False
     save_failed = False
@@ -131,7 +133,7 @@ def run_stage(
         last_saved_update = update
         published = getattr(adapter, "after_save", None)
         if callable(published):
-            with timer.section("candidate_references_views"):
+            with timer.section("after_save_total"):
                 published(context, reference)
         prune = getattr(context, "prune_checkpoints", None)
         if callable(prune):
@@ -139,7 +141,9 @@ def run_stage(
                 prune()
 
     try:
-        adapter.build(context, stage, resume_from)
+        with timer.section("adapter_build", synchronize=False):
+            adapter.build(context, stage, resume_from)
+        initialization_measurement = timer.summary()
         for index in range(1, stage_limit + 1):
             if context.stop_requested():
                 # A resumed attempt stopped before its first update must retain
@@ -159,7 +163,7 @@ def run_stage(
 
             consistent_update = False
             update_baseline = context.updates_used
-            timer.seconds.clear()
+            timer.reset()
             update_started = time.monotonic()
             outcome = adapter.update_once(context, index)
             if outcome.get("incomplete"):
@@ -190,7 +194,7 @@ def run_stage(
             # 任务后处理（生产：课程推进）在计费之后、写指标与保存之前执行。
             after = getattr(adapter, "after_update", None)
             if callable(after):
-                with timer.section("task_post_update"):
+                with timer.section("task_post_update_total"):
                     after(context, index, outcome)
 
             # Only a complete optimization, charged budget and successful task
@@ -223,6 +227,11 @@ def run_stage(
                     **record.get("performance_seconds", {}),
                     **timer.seconds,
                 }
+                record["performance_counters"] = dict(timer.counters)
+                record["performance_parents"] = dict(timer.parents)
+                record["performance_clocks"] = dict(timer.clocks)
+                if index == 1:
+                    record["initialization_measurement"] = initialization_measurement
                 record["saved_this_update"] = last_saved_update == update
                 record["whole_update_wall_seconds_before_metrics"] = (
                     time.monotonic() - update_started
@@ -243,6 +252,13 @@ def run_stage(
                             update=update,
                             saved_this_update=last_saved_update == update,
                             phase_seconds=record["performance_seconds"],
+                            counters=record["performance_counters"],
+                            parents=record["performance_parents"],
+                            clocks=record["performance_clocks"],
+                            aggregation="inclusive; do not add child sections to their parents",
+                            initialization_measurement=initialization_measurement
+                            if index == 1
+                            else None,
                             metrics_write_seconds=last_metrics_write,
                             whole_update_wall_seconds=time.monotonic() - update_started,
                             stage_mean_wall_seconds=(time.monotonic() - started) / completed,

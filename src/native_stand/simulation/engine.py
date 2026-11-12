@@ -76,8 +76,23 @@ class GenericPPOAdapter:
         job = context.job
         self.job = job
         self.stage = stage
-        self.env = self.backend.make_env(job)
-        observations = self.env.observations()
+        from native_stand.learning.ppo.performance import Measurement
+
+        self.measurement = getattr(context, "measurement", None) or Measurement(
+            job.diagnostics.get("performance_measurement", False), job.runtime.device
+        )
+        with self.measurement.section("environment_construction"):
+            measured_factory = self.backend.make_measured_env
+            self.env = (
+                measured_factory(job, self.measurement)
+                if measured_factory is not None
+                else self.backend.make_env(job)
+            )
+        bind = getattr(self.env, "set_measurement", None)
+        if callable(bind):
+            bind(self.measurement)
+        with self.measurement.section("first_observation_readback"):
+            observations = self.env.observations()
         self._policy_handle = None
         # 任务声明的policy factory经registry进入；选择依据是动作/分布契约声明，
         # 不是task名称或输入维数。
@@ -106,6 +121,7 @@ class GenericPPOAdapter:
             payload = source
         handle = build_policy(job, observations, device=job.runtime.device, source=payload)
         self.ppo = handle["ppo"]
+        self.ppo.measurement = self.measurement
         self._policy_handle = handle if "capture" in handle else None
         restored_payload = getattr(payload, "payload", payload)
         if restored_payload and "optimizer" in restored_payload:
@@ -181,9 +197,11 @@ class GenericPPOAdapter:
 
         from native_stand.learning.ppo.performance import Measurement
 
-        timer = Measurement(
-            job.diagnostics.get("performance_measurement", False), job.runtime.device
-        )
+        timer = getattr(self, "measurement", None)
+        if timer is None:
+            timer = Measurement(
+                job.diagnostics.get("performance_measurement", False), job.runtime.device
+            )
         ppo.performance_measurement = timer.enabled
         # Storage is allocated in build, outside inference_mode. Training targets
         # must also be ordinary tensors, not inference tensors needed by backward.
@@ -233,7 +251,7 @@ class GenericPPOAdapter:
             **(
                 {
                     "performance_seconds": self.performance_timings,
-                    "performance_clock": "synchronized_boundary_wall",
+                    "performance_clock": "see performance_clocks; inclusive wall sections",
                 }
                 if timer.enabled
                 else {}
