@@ -10,7 +10,9 @@ Motion统计现区分当前完整review窗口的Student有效样本、全部tran
 
 ## 主仓基线与依赖归档（2026-11-12，当前收尾）
 
-公共性能集成在独立worktree `/home/kellen/wheel_leg_public_ws` / `integration/performance-observability`推进。driver、GenericPPO、ControlledPPO与环境共享Measurement，关闭时不访问CUDA；嵌套子项默认CPU墙钟，父项inclusive不能重复相加。after_save总包已独立命名，候选与环境重建由领域分别计时；小型计数随update落盘，启动构造另列。当前公共针对性35项、生命周期联合91项、metrics补充23项通过，均为各自明确测试范围，不拼接为全套结果；最终领域集成与统一快照回归尚待收齐。Motion窗口/累计与候选原因由运动2负责；Recovery/Jump在各自worktree交付，不热改活动远端。
+公共性能集成完成（2026-11-13）：独立worktree `/home/kellen/wheel_leg_public_ws` / `integration/performance-observability`实现，合入main前先冻结`b60f0d7`做干净clone验收。公共driver/GenericPPO/ControlledPPO/环境共享Measurement，默认无CUDA同步；嵌套子项是CPU墙钟，父项inclusive不能重复相加。启动、rollout/GAE/学习、capture/写盘SHA、课程、候选/引用、旧环境close/构造/reset-readback/编译、retention/metrics/整轮分别记录；计数只读主机已知元数据。MetricsWriter不再丢性能摘要。Recovery批量结束读回/合法初态缓存/partial profile与V4 reset行选择、Jump单job C构建/输入复用/有失效条件的缓存已集成；Motion窗口/累计计数、候选多原因与重建输入归因由运动2交付，未改资格、排名或重建决策。
+
+同一源码快照核心636 passed/10历史skip/3既有ONNX warning（122.43s），portable1920 passed/32历史skip/10warning（125.69s），架构209/0，CI Ruff0.8.4 check与208文件format通过。精确命令、61项改动SHA、失败尝试及最终收据在`artifacts/integration_final/performance_*`，归档到数据根`integration/performance_observability/b60f0d7`；最终文档提交只改摘要，执行源码与已测SHA相同。干净clone禁止旧根读取的四配方dry-run、Recovery真实完整u1800/双Adam/std/RNG/warmup、Jump真实Actor/ABI4/6370D/235字段静态恢复通过，无新物理。Recovery本侧不再有公共迁移代码阻塞；目标资源/来源/授权由其owner绑定，新v9配方不属于本冻结的v8验收。结束单次只读核对Recovery owner独立worker PID2917966/start_ticks150380220，源码`/home/kellen/wheel_leg_recovery_ws/src`；未干预。Motion远端不连接、不热更。Jump现有MuJoCo CPU链已完整集成，无Isaac GPU后端。真实GPU A/B与新源码PhysX运行由各owner后续核验；本公共轮真实训练/物理/GUI/GPU/远端/真实删除0，不包括其他owner自然消耗。
 
 主源码仓固定为`/home/kellen/wheel_leg_refactor_ws`，独立Git/main；旧仓及其.git保留，不交换目录、不转发软链接、不配置remote或push。源码/测试/CI/两套共享C源码及小型契约纳入基线；run、预算、模型、机器映射和原始证据留文件存储。精确提交与干净clone收据保存在本地`artifacts/repository_baseline`，不提交运行数据。
 

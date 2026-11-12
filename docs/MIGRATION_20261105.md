@@ -1,6 +1,12 @@
 # 工程架构重构迁移报告
 
-公共性能观测增量（独立worktree）：复用Measurement，在公共driver→GenericPPO→ControlledPPO→环境显式传同一对象；不新增计时系统。`after_save_total`不再冒充候选耗时，领域子项标明close/构造/reset/readback/编译。启动与update窗口分开，计数只消费主机已知值，MetricsWriter保留小摘要。嵌套CPU墙钟与CUDA同步阶段墙钟分别标记，未测GPU kernel时间；父子inclusive不能累加。保存/计费/引用/重建/轮换顺序不变。公共针对性与故障边界已验收，最终合并测试身份待本轮收尾填写。CPU组件微基准一万轮：原每update两个临时对象median4.97ms/P955.04ms，改为复用run对象并reset为0.479ms/P950.491ms，不是整轮提速；原始收据`artifacts/integration_final/public_measurement_benchmark.json`。
+公共性能观测与Recovery/Jump增量已集成，冻结`b60f0d7`在干净clone验收：核心636通过/10历史skip/3既有ONNX warning（122.43s），portable1920通过/32历史skip/10warning（125.69s），架构209/0，CI Ruff0.8.4 check及208文件format通过。61项准确文件与SHA、完整命令、前两次fixture失败和最终通过结果绑定`artifacts/integration_final/performance_delivery.json`及`performance_final_checks.json`，数据根归档`integration/performance_observability/b60f0d7`。后续文档提交不改已测执行文件。旧结果保留各自身份，不拼接。
+
+公共Measurement只保留一份：driver→GenericPPO→ControlledPPO→环境显式共享，关闭时不访问CUDA；嵌套子项默认CPU墙钟、父项inclusive不可重复相加。`after_save_total`与候选/引用、旧环境close、新建、首次reset-readback、编译分开；启动单列，计数在update边界集中落盘。MetricsWriter修复性能摘要被白名单丢弃。保存/计费/引用/重建/轮换顺序与原异常保留不变。Recovery只对reset行处理V4、合并结束读回、缓存合法模板和partial profile，保留真实物理读回/909D/BC/prior/双Adam；Jump复用ABI4 C构建及输入，避免重复V4/观测/terminal/临时分配，保留6370D/235字段和C/FSM。运动2交付窗口/累计与候选多原因、重建输入归因，不改变资格或是否重建。
+
+CPU组件微基准（非整轮GPU结论）：一万轮原每update两临时测量对象median4.97ms/P955.04ms，复用run对象reset为0.479/0.491ms。Recovery 1024环境脚本I/O，3预热/21重复，单行reset median8.396→1.895ms/P958.938→1.997ms，16行9.501→2.346/P959.770→2.395，全量102.589→39.839/P95106.232→43.114；原始分配/调用数在`recovery_reset_benchmark_warmed.json`。Jump组件收据保留所有结果，包括缓存使retained内存上升，不外推整轮吞吐。真实GPU事件、PhysX/reset及新源码真实训练NOT_RUN；不改变网络、采样量、奖励、时序、DR或预算。
+
+干净clone禁止旧仓/原工作树读取的四配置dry-run、Recovery真实完整u1800状态（Actor/Critic/双Adam/std/CPU与CUDA RNG字节/warmup5）及部署golden通过；Jump真实Actor、ABI4固定源码/库、6370/235、静态恢复通过。CPU恢复不声明PhysX隐藏现场恢复。旧142缺失数据与失效候选继续UNAVAILABLE。Recovery owner独立新v9任务不混入本轮v8回归；其活动源码位于独立worktree，未被公共合并热改。本公共轮新真实PPO/监督/物理/GUI/GPU/远端/真实删除均0。
 
 ## 主仓基线与依赖归档（2026-11-12，当前收尾）
 
