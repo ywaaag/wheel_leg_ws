@@ -88,13 +88,25 @@ def validate_job(job):
         else REWARD_VERSION
     )
     if (
-        job.reward.version == "recovery_preentry_runaway48_physical_v8"
+        job.reward.version
+        in ("recovery_preentry_runaway48_physical_v8", "recovery_early_settle48_physical_v9")
         and standalone
         and standalone.get("version") == "recovery_Swing_priority_own_hold_v2"
     ):
         expected_reward = job.reward.version
     if job.reward.version != expected_reward:
         raise ValueError("Explicit Isaac reward revision required")
+    if job.reward.version == "recovery_early_settle48_physical_v9":
+        from .settle_lifecycle import PARAMETERS, VERSION
+
+        if job.assets.get("reward_critic_adaptation") != {"version": VERSION, "updates": 5}:
+            raise ValueError("v9 requires separate five-update Critic adaptation")
+        ref = job.assets.get("recovery_settle_reward")
+        if not ref or file_sha256(ref["path"]) != ref["sha256"]:
+            raise ValueError("v9 reward recipe identity")
+        recipe = read_json(ref["path"])
+        if recipe["version"] != VERSION or recipe["parameters"] != PARAMETERS:
+            raise ValueError("v9 actual reward parameters differ from recipe")
     if job.runtime.envs < 1 or job.runtime.device != "cuda:0":
         raise ValueError("Explicit GPU0 only, no auto device fallback")
     if job.initialization.mode not in ["actor_only", "full"]:
@@ -112,7 +124,8 @@ def validate_job(job):
         raise ValueError("Frozen physical timing/PD")
     expected_caps = (
         [40.0, 40.0, 4.8, 40.0, 40.0, 4.8]
-        if job.reward.version == "recovery_preentry_runaway48_physical_v8"
+        if job.reward.version
+        in ("recovery_preentry_runaway48_physical_v8", "recovery_early_settle48_physical_v9")
         else [40.0, 40.0, 2.44694786377709, 40.0, 40.0, 2.44694786377709]
     )
     if list(c.effort_limits_nm) != expected_caps:
@@ -439,9 +452,11 @@ class IsaacRecovery:
             job.assets.get("recovery_standalone_course", {}).get("version")
             == "recovery_Swing_priority_own_hold_v2"
         )
-        cfg.recovery_preentry_reward = (
-            job.reward.version == "recovery_preentry_runaway48_physical_v8"
+        cfg.recovery_preentry_reward = job.reward.version in (
+            "recovery_preentry_runaway48_physical_v8",
+            "recovery_early_settle48_physical_v9",
         )
+        cfg.recovery_settle_reward = job.reward.version == "recovery_early_settle48_physical_v9"
         probe = job.assets.get("recovery_probe_controls")
         if probe:
             if len(probe["cases"]) != job.runtime.envs:

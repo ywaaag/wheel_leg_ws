@@ -1,0 +1,15 @@
+{
+  "version": "recovery_local_settle_stage_authorization_v1",
+  "session_id": "a26d4a18-e889-4736-9a3b-5873b7ca5740",
+  "user_authorized_new_PPO_updates": 10000,
+  "wall_limit_s": null,
+  "notify_this_session": true,
+  "bug_repair_and_restart_authorized": true,
+  "no_log_polling": true,
+  "original_chain_used": 3466,
+  "original_chain_remaining": 6534,
+  "new_stage_separate_from_original_allowance": true,
+  "source_update": 1800,
+  "source_sha256": "578f22a8a03a39235c4b7bbed9985efbf226ffe2ebd3d692d9176080261c6ea2",
+  "request": "\u5b8c\u6210\u4f18\u5316\u540e\u672c\u573010000\u6b21\u4e0d\u9650\u65f6\uff1b\u9996\u5148\u63a5\u7a33\u5956\u52b1\uff0cHF\u5355\u72ec\u589e\u52a0"
+}

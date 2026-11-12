@@ -1356,3 +1356,13 @@ CPU搬迁复用`scripts/recovery_resume_rehearsal.py --path-mapping /home/kellen
 脚本`benchmark_recovery_reset_cpu.py`通过公共Measurement测量1024环境scripted-I/O，5轮中位数：单行8.756→1.904ms，16行9.525→2.265ms，全量82.805→30.052ms。单行标量提取21→7，tolist13→1；全量14343→7、4105→1。实际物理getter每reset5→4，setter顺序/次数不变；新空集合无操作，旧基线空集合IndexError单列。是CPU fixture结果，GPU时间、PCIe传输和整轮收益均未测。原始计数及源SHA见`artifacts/recovery_continuation/reset_cpu_benchmark.json`。
 
 相关总回归273通过（61.13s，3条原ONNX warning）；随后真实BC/prior/正式adapter及紧凑Execution reset增量49通过（7.10s）。覆盖全/partial/空/连续reset、未reset状态和RNG、实际909终态、动作/reward/GAE/梯度/双Adam/RNG严格一致，以及32后续PD/队列tick。架构与Ruff通过。剩余base reset默认姿态写入和再合法姿态写入因尚无PhysX实证不删除；执行历史、材质/COM/惯量核验均保留。
+
+### 本会话后续授权：本地1800完整来源、接稳v9、10000次
+
+用户随后明确授权本地10000次、墙钟null、通知本会话，允许修复bug后重启；这替代此前“只准备不执行”的阶段边界，旧链3466/余6534仍只读，不退款。新配置`configs/jobs/recovery_settle48_full1800_10000.json`由原preset覆盖，来源仍完整u1800，不退回Actor-only。保留909 Critic、两个Adam、std、RNG、课程及BC/prior。PhysX隐藏现场不可恢复，新世界fresh reset丢弃未完成回合，旧结束证据仍在来源完整点；不回灌旧final/MuJoCo测试。
+
+v9只增加连续的接稳早期成本：目标高度下8cm开始、6cm smoothstep渐变，pitch/roll宽0.20rad核；角速度Huber系数0.025/s、接触缺额0.10/s、横向速度Huber0.025/s。近站高即生效，不等待entry、不因失接触取消惩罚。原v8正奖励/10s保持/有限23s终点保持，dt仅一次。HF系数0且探索.02rad/2rad/s不改。新奖励另做5次Critic-only适应，计入新10000；原5次warmup仍已完成，不清Adam或重复旧warmup。适应状态独立保存，resume不重新执行已完成适应。
+
+25%接稳状态池、HF/额外动作平滑、40/40/20 DR和额外Swing姿态本阶段NOT_RUN；没有新合格连续执行快照，不能用旧测试或reset-only姿态伪装。先保持原Swing70%课程和名义/.25DR，便于判断是否因接稳成本“不敢起身”。本次不增加独立能力评估；normal PPO ended统计的Swing/standing候选、收腿/转腿/抬升/入口/10s保持及HF分别保留，不颁能力证书。
+
+CPU新增221项回归通过46.58s，另5项v9实际Lifecycle/正式adapter保存恢复及六次合成优化通过1.57s，证明新前5次Actor和其Adam完全不变，第6次Actor真实更新。`train --config configs/jobs/recovery_settle48_full1800_10000.json --dry-run`及正式backend CPU preflight通过。旧4env PPO0接线证据仅作为原控制/时序来源；新reset和v9的真实GPU验证不由CPU结果推断，启动后以实际工程smoke读回为准。

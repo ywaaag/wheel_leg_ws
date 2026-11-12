@@ -84,6 +84,8 @@ def environment_class(
                 )
             if getattr(cfg, "recovery_preentry_reward", False):
                 from .preentry_lifecycle import Lifecycle as life_class
+            if getattr(cfg, "recovery_settle_reward", False):
+                from .settle_lifecycle import Lifecycle as life_class
             self.life = life_class(n, self.device)
             self.phase_readback = None
             if getattr(cfg, "recovery_preentry_reward", False):

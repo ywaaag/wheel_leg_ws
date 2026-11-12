@@ -12,6 +12,25 @@ from native_stand.simulation.engine import GenericPPOAdapter
 class RecoveryAdapter(GenericPPOAdapter):
     def build(self, context, stage, resume_from):
         super().build(context, stage, resume_from)
+        adaptation = context.job.assets.get("reward_critic_adaptation")
+        self._adaptation_done = 0
+        self._adaptation_start = context.updates_used
+        if adaptation:
+            from .recovery_isaac.settle_lifecycle import VERSION
+
+            if context.job.reward.version != VERSION or adaptation != {
+                "version": VERSION,
+                "updates": 5,
+            }:
+                raise ValueError("Explicit v9 five-update reward Critic adaptation")
+            prior = resume_from.payload.get("reward_critic_adaptation") if resume_from else None
+            if resume_from is not None and prior is None:
+                raise ValueError("v9 resume missing reward Critic adaptation state")
+            if prior is not None:
+                if prior["version"] != VERSION or not 0 <= prior["completed"] <= 5:
+                    raise ValueError("Reward Critic adaptation identity/progress")
+                self._adaptation_done = prior["completed"]
+            self._warmup = max(self._warmup, context.updates_used + 5 - self._adaptation_done)
         self.selection = context.job.diagnostics["training_candidate_selection"]
         recipe = context.job.as_run_record()
         self.domain = json_digest(
@@ -163,6 +182,15 @@ class RecoveryAdapter(GenericPPOAdapter):
 
     def capture(self, context, counters):
         result = super().capture(context, counters)
+        if self.job.assets.get("reward_critic_adaptation"):
+            from .recovery_isaac.settle_lifecycle import VERSION
+
+            result["reward_critic_adaptation"] = dict(
+                version=VERSION,
+                completed=min(
+                    5, self._adaptation_done + int(counters["updates"]) - self._adaptation_start
+                ),
+            )
         result.update(
             legacy_unscoped_completed_statistics=copy.deepcopy(self.legacy_unscoped),
             recovery_episode_cursor=self.cursor,
