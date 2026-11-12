@@ -103,6 +103,10 @@ def benchmark(output, n, repeats):
                         failure = repr(exc)
                 physical_calls = list(e.robot.root_view.calls)
                 timings = []
+                for _ in range(0 if failure else 3):
+                    mark_ended(e)
+                    e._reset_idx(indices)
+                    profile(e)
                 for _ in range(0 if failure else repeats):
                     mark_ended(e)
                     timer = Measurement(True, "cpu")
@@ -114,6 +118,10 @@ def benchmark(output, n, repeats):
                     selected_rows=len(indices),
                     envs=n,
                     median_ms=statistics.median(timings) * 1000 if timings else None,
+                    p95_ms=sorted(timings)[max(0, int(len(timings) * 0.95 + 0.999) - 1)] * 1000
+                    if timings
+                    else None,
+                    warmup=3,
                     error=failure,
                     samples_ms=[t * 1000 for t in timings],
                     host_scalar_reads=ops.calls["aten._local_scalar_dense.default"],
