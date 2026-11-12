@@ -269,3 +269,45 @@ def test_recovery_real_publication_and_statistics_are_separate_children(tmp_path
     assert timer.parents["course_statistics"] == "task_post_update_total"
     assert timer.parents["candidate_references_views"] == "after_save_total"
     assert io.env.completed == []
+
+
+def test_recovery_reset_reports_actual_readback_calls_and_cache_rows(monkeypatch):
+    from test_recovery_reset_batching import make_env, reset_class
+
+    from native_stand.simulation.recovery_isaac.observations import physical_profile
+
+    env = make_env(reset_class(monkeypatch))
+    timer = env.reset_measurement = Measurement(True, "cuda:0")
+    monkeypatch.setattr(torch.cuda, "synchronize", lambda *args: pytest.fail("reset synchronized"))
+    env._reset_idx(torch.tensor([1, 3]))
+    assert timer.counters["recovery.reset.calls"] == 1
+    assert timer.counters["recovery.reset.rows"] == 2
+    assert timer.counters["recovery.reset.partial"] == 1
+    for name in ("material", "mass", "COM", "inertia"):
+        assert timer.counters[f"recovery.{name}.getters"] == 1
+        assert timer.counters[f"recovery.{name}.setters"] == 1
+        assert timer.counters[f"recovery.{name}.used_rows"] == 2
+        assert timer.counters[f"recovery.{name}.pool_rows"] == env.num_envs
+    assert timer.clocks["recovery_reset"] == "cpu_wall"
+    first = physical_profile(env)
+    before = first.clone()
+    physical_profile(env)
+    assert torch.equal(before, first)
+    assert timer.counters["recovery.profile.cache_hits"] >= 1
+    env._reset_idx(torch.tensor([], dtype=torch.long))
+    assert timer.counters["recovery.reset.empty"] == 1
+    assert timer.counters["recovery.material.getters"] == 1
+
+
+def test_recovery_wrapper_receives_same_run_measurement_without_engine(monkeypatch):
+    from native_stand.simulation.recovery_isaac import backend
+
+    timer = Measurement(True)
+    calls = []
+    monkeypatch.setattr(backend, "make_env", lambda job, **kwargs: calls.append(kwargs) or object())
+    backend.make_measured_env(object(), timer)
+    assert calls == [{"measurement": timer}]
+    wrapper = object.__new__(backend.IsaacRecovery)
+    wrapper.env = type("Env", (), {})()
+    wrapper.set_measurement(timer)
+    assert wrapper.measurement is wrapper.env.reset_measurement is timer
