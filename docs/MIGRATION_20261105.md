@@ -1331,3 +1331,20 @@ PYTHONPATH=src CUDA_VISIBLE_DEVICES='' python -m pytest -q -p no:cacheprovider \
 ### 距离正式迁移
 
 B1/B4/B5剩余/B7/B8完成后，方可安排有界执行smoke；真实物理/GPU验证另行安排。
+
+### Recovery数据根接续准备（独立worktree，2026-11-12）
+
+此增量基于实际HEAD `16f81c8`，分支`recovery/continuation-reset`，工作树`/home/kellen/wheel_leg_recovery_ws`，不在主工作树修改公共消费者。仅CPU，未启动Recovery或连接远端Motion。旧源最终仍为u1800（`578f22a8…c6ea2`），STOPPED_BOUNDED/max_output_bytes；本段1800、祖先1666、总耗3466、余6534，未发现较新本地Recovery接续。原best候选旧SHA继续UNAVAILABLE，standing u1400与最终完整点分别保护。旧run/账本/候选不回写。
+
+可重建准备材料（在本工作树执行，`--output`须不存在）：
+
+```sh
+PYTHONPATH=src /home/kellen/anaconda3/envs/issaclab/bin/python scripts/prepare_recovery_continuation.py \
+ --source-run /home/kellen/wheel_leg_native_train/runs/2026_11_11__recovery_preentry48_remaining \
+ --config configs/jobs/recovery_preentry48_remaining.json \
+ --data-root /home/kellen/wheel_leg_training_data --output artifacts/recovery_continuation/prepared
+```
+
+该脚本仅核对源终态/账本/数据根SHA，复用数据根`runtime_paths.json`，生成`job_record.json`与`receipt.json`。不是launcher或训练循环；记录接受`job_from_record`，不直接当preset配置传给`train`。派生记录full初始化、8334本段上限和原PPO参数不变；目标budget需承接used1800，不重新授权8334。尚未确定的GPU UUID/resource policy/target run不得继承旧机器，明确NOT_READY；未正式import、未写来源账本、未创建owner。准确的目标机器值确定后，使用既有`import-checkpoint`填完整manifest、目标run.json及budget，再`resume --max-updates 12`，不是`train`新建任务。12次最多15.36s采样，不等于已覆盖23s自然timeout；自然生命周期证据另记，不能私加额度。
+
+CPU搬迁复用`scripts/recovery_resume_rehearsal.py --path-mapping /home/kellen/wheel_leg_training_data/runtime_paths.json`，checkpoint指向数据根恢复的完整u1800。正式factory/adapter的Actor/909Critic、双Adam/std/CPU RNG、CUDA RNG字节、已完成5次warmup、全部1024行执行历史及课程保存恢复通过，旧根读取禁止；fixture只替换物理I/O。数据根的manifest/ModelIndex保持只读，不为本次测试复制模型到worktree；临时完整checkpoint仅在/tmp。未证明PhysX隐藏现场恢复；fresh-reset须丢弃未完成回合并记录边界，保留已完成统计、课程、优化器及实际预算。真实GPU恢复仍NOT_RUN。
