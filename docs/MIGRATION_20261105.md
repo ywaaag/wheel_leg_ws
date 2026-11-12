@@ -1368,3 +1368,7 @@ v9只增加连续的接稳早期成本：目标高度下8cm开始、6cm smoothst
 25%接稳状态池、HF/额外动作平滑、40/40/20 DR和额外Swing姿态本阶段NOT_RUN；没有新合格连续执行快照，不能用旧测试或reset-only姿态伪装。先保持原Swing70%课程和名义/.25DR，便于判断是否因接稳成本“不敢起身”。本次不增加独立能力评估；normal PPO ended统计的Swing/standing候选、收腿/转腿/抬升/入口/10s保持及HF分别保留，不颁能力证书。
 
 CPU新增221项回归通过46.58s，另5项v9实际Lifecycle/正式adapter保存恢复及六次合成优化通过1.57s，证明新前5次Actor和其Adam完全不变，第6次Actor真实更新。`train --config configs/jobs/recovery_settle48_full1800_10000.json --dry-run`及正式backend CPU preflight通过。旧4env PPO0接线证据仅作为原控制/时序来源；新reset和v9的真实GPU验证不由CPU结果推断，启动后以实际工程smoke读回为准。
+
+本地实际启动修复：首两次Kit初始化后进程退出而state仍RUNNING/u0；第二次waitpid实测exit0。第三次接入正确退出顺序后保存原异常：映射后的asset_module_path与未映射目录hint导致导入路径冲突。`5e4936b`禁止fast_shutdown并把owned app清理延至worker结算/通知后，构造异常先落盘；`5b7f9ee`从SHA-bound实际模块文件推导包根，保留严格文件/路径校验。此前未完成任何物理环境构造，PPO/物理均0；前两run经公共reconcile结算FAILED，第三run由worker结算FAILED，原日志/账本不覆盖。Kit最终teardown可能仍原生segfault，已与真实初始化错误及训练终态分离。
+
+新attempt4使用同一新阶段10000总额（前三次已用0），源仍u1800完整状态，未刷新旧链额度；绝对run `/home/kellen/wheel_leg_training_data/2026_11_13__recovery_settle48_full1800_10000_attempt4`。调用统一CLI train，only owner创建worker；启动诊断父进程仅一次waitpid保留native退出码，无日志watcher。配置`configs/jobs/recovery_settle48_full1800_10000_attempt4.json`。额外初始化回归17项通过1.79s；最终公共生命周期169项通过44.27s；架构208/0、Ruff通过。资产包文件不复制进源码worktree。通知默认sender提交`a4cb430`，经现有HAPI CLI stdin传输JSON，一次超时/失败不改训练终态；20项通知/生命周期回归通过，且已做一次真实本会话投递测试。
