@@ -2,6 +2,8 @@
 
 ## 主仓基线与依赖归档（2026-11-12，当前收尾）
 
+公共性能集成在独立worktree `/home/kellen/wheel_leg_public_ws` / `integration/performance-observability`推进。driver、GenericPPO、ControlledPPO与环境共享Measurement，关闭时不访问CUDA；嵌套子项默认CPU墙钟，父项inclusive不能重复相加。after_save总包已独立命名，候选与环境重建由领域分别计时；小型计数随update落盘，启动构造另列。当前公共针对性35项、生命周期联合91项、metrics补充23项通过，均为各自明确测试范围，不拼接为全套结果；最终领域集成与统一快照回归尚待收齐。Motion窗口/累计与候选原因由运动2负责；Recovery/Jump在各自worktree交付，不热改活动远端。
+
 主源码仓固定为`/home/kellen/wheel_leg_refactor_ws`，独立Git/main；旧仓及其.git保留，不交换目录、不转发软链接、不配置remote或push。源码/测试/CI/两套共享C源码及小型契约纳入基线；run、预算、模型、机器映射和原始证据留文件存储。精确提交与干净clone收据保存在本地`artifacts/repository_baseline`，不提交运行数据。
 
 本地数据根`/home/kellen/wheel_leg_training_data`从既有6074包恢复1930项SHA依赖，新增内容1782908312字节；同内容只在数据根内部硬链接，不链接旧仓原文件，非独立备份。当前四配方依赖另有12项小型增量7120399字节；`manifest.json`/`current_manifest.json`/`runtime_paths.json`记录真实来源及映射，`models.json`仍为既有ModelIndex。禁止旧依赖根读取下四配置dry-run、真实Recovery u1800完整加载/双Adam及部署golden通过。旧142份缺失数据、失效best SHA继续UNAVAILABLE；归档不代表正式handoff或训练授权。

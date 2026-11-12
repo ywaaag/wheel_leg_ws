@@ -42,6 +42,20 @@ SCALAR_KEYS = (
 )
 
 
+# Small, opt-in reporting summaries; TensorBoard still consumes scalars only.
+PERFORMANCE_KEYS = (
+    "performance_seconds",
+    "performance_counters",
+    "performance_parents",
+    "performance_clocks",
+    "initialization_measurement",
+    "saved_this_update",
+    "whole_update_wall_seconds_before_metrics",
+    "previous_metrics_write_seconds",
+    "stage_mean_wall_seconds",
+)
+
+
 class MetricsWriter:
     """按配置间隔写入一条精简记录，并复用同一行驱动TensorBoard。"""
 
@@ -76,7 +90,7 @@ class MetricsWriter:
         update = int(row.get("update", 0))
         if not force and not self.due(update):
             return False
-        record = {key: row[key] for key in SCALAR_KEYS if key in row}
+        record = {key: row[key] for key in (*SCALAR_KEYS, *PERFORMANCE_KEYS) if key in row}
         record["update"] = update
         if self.stage is not None:
             record["stage"] = self.stage

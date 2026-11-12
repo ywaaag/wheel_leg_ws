@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import os
+from contextlib import nullcontext
 
 from native_stand.artifacts.io import file_sha256, json_digest, write_json
 from native_stand.simulation.engine import GenericPPOAdapter
@@ -116,6 +117,11 @@ class RecoveryAdapter(GenericPPOAdapter):
             )
 
     def after_update(self, context, index, metrics):
+        timer = getattr(self, "measurement", None)
+        with timer.section("course_statistics", synchronize=False) if timer else nullcontext():
+            return self._consume_completed(context, index, metrics)
+
+    def _consume_completed(self, context, index, metrics):
         env = self.env.env
         first = env.completed_count - len(env.completed)
         if self.cursor < first or self.cursor > env.completed_count:
@@ -201,6 +207,15 @@ class RecoveryAdapter(GenericPPOAdapter):
         return result
 
     def after_save(self, context, reference):
+        timer = getattr(self, "measurement", None)
+        with (
+            timer.section("candidate_references_views", synchronize=False)
+            if timer
+            else nullcontext()
+        ):
+            return self._publish_candidates(context, reference)
+
+    def _publish_candidates(self, context, reference):
         if self.pending is None:
             return
         if reference["update"] != self.pending["end_update"]:

@@ -483,7 +483,7 @@ def test_driver_reports_saved_update_and_separate_stage_mean(tmp_path):
     assert len(records) == 2 and records[0]["seconds_per_update"] == 0.25
     for row in records:
         assert row["saved_this_update"] is True
-        assert {"checkpoint_capture", "checkpoint_save_SHA", "candidate_references_views"} <= row[
+        assert {"checkpoint_capture", "checkpoint_save_SHA", "after_save_total"} <= row[
             "performance_seconds"
         ].keys()
         assert row["whole_update_wall_seconds_before_metrics"] >= 0
