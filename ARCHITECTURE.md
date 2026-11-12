@@ -139,3 +139,9 @@ wheel-leg / python -m native_stand          cli.py：参数、展示、退出码
 driver只对优化、计费、任务后处理全部完成的边界补存。优化完成收据只证明应计费，不证明当前课程/执行现场可恢复；半完成rollout不得用旧update号发布新物理现场。保存失败保留上一有效引用，cleanup错误附注在primary异常上供worker结算。普通resume不放宽计数一致校验。
 
 sim2sim不是训练课程或另一套worker：显式协议经CLI直接顺序拥有两个后端会话，不创建子进程。collection adapter复用make_environment和公共推理factory；MuJoCo adapter复用playback.create_player、同一控制循环与模型合同。实际条件/积分接触定义、原始信号及真实子步形成统一trace后调用已有diagnose。故障保留partial数据与原因；不更改评分口径，不做隐式独立能力评估。
+
+## 公共性能观测接口
+
+复用`learning/ppo/performance.py::Measurement`。driver在adapter.build前注入同一`context.measurement`和`adapter.measurement`，GenericPPO再传给ControlledPPO与环境的`set_measurement`。需覆盖构造/reset的后端可声明`Backend.make_measured_env(job, measurement)`，原单参数factory仍有效。计时不参与预算、模型状态、RNG或课程决策。
+
+`section(name, parent=None, synchronize=None)`记录inclusive墙钟；嵌套默认不CUDA同步，hotpath显式False。`count(name, amount=1, reason=None)`累计已知主机计数；`reset()`只在update边界清空窗口，启动摘要另存。域内记录reset行数/full/partial、材质与mass/COM/inertia调用、整池/使用行数、已知传输字节、重建原因、编译和缓存失效；不得为计数新增设备同步。环境重建保持先关闭旧环境，再构造/读回，不能以缓存请求值代替实际后端核验。

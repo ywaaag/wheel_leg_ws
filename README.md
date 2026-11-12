@@ -42,7 +42,7 @@ wheel-leg cloud-plan --config CONFIG.json --manifest MANIFEST.json --dry-run
 
 | 流程 | 正式消费者与限制 |
 |---|---|
-| PPO | CLI→dispatch→owner/worker→公共driver→任务adapter；Motion／Spin领域组件由对应负责人维护；Recovery为当前v8/909D/4.8Nm配方。只完成CPU工程验收，Isaac6.2/3.0真实兼容性待验证 |
+| PPO | CLI→dispatch→owner/worker→公共driver→任务adapter；Motion／Spin领域组件由对应负责人维护；Recovery为当前v8/909D/4.8Nm配方。Motion已有其owner绑定的Isaac远端工程运行收据；Recovery真实接续由其owner安排，不能将Motion结果外推其他任务 |
 | BC／DAgger／补教 | `SupervisionConfig`声明Teacher集合和collect/label/fit/compare/export顺序及有界重复；同一owner/worker和BC数学循环。累计数据视图保留来源、episode划分、实际Teacher路由；holdout不回灌。`--max-rounds N`可作监督轮边界停止，resume不刷新额度 |
 | 采集 | 显式make_collection_env，按真实观测行数、owner和实际子步计费，分块持久化；未实现采样工厂的后端拒绝，不能借evaluation.envs包装器代替 |
 | 播放 | 一个GUI/headless循环，公共推理factory与模型执行合同；暂停不推进tick，Recovery physical输出不重复cubic解码 |
@@ -55,6 +55,12 @@ PPO更新、监督round、实际监督优化步和物理子步分别记账。com
 最新完整恢复点、各目标候选、selected/pin及真实来源依赖取并集保护。项目级ModelIndex为唯一权威，多消费者分别登记；本轮不清理真实文件。BC latest与selected用途不同。数据域变化时重新计算incumbent开发损失基线，旧best作为历史保留。
 
 `configs/jobs/dual_teacher_offline_import.json`是可审阅配方，真实提交仍因旧142条数据索引中的NPZ缺失而拒绝；dry-run成功不等于数据齐全。换目录必须使用SHA绑定RuntimePaths及显式handoff，不改旧文件。
+
+## 性能观测
+
+显式配置 `diagnostics.performance_measurement=true` 才启用分段计时和计数。公共driver、GenericPPO、ControlledPPO与任务环境共用一次运行的 `Measurement`；默认关闭不触发CUDA或引擎。`performance_seconds`及`performance.jsonl`保留每轮数据，保存轮用`saved_this_update`区分；启动构造单列`initialization_measurement`，不藏入下一轮rollout。
+
+计时是包含子项的墙钟：`performance_parents`／`parents`声明层次，父子不能相加。CUDA外层边界可同步，嵌套子项默认仅`cpu_wall`，不是GPU kernel耗时。`after_save_total`包含候选与必要重建，不能当成候选登记耗时；领域分别记录候选、关闭、构造、首次reset/readback和编译。`count(name, amount, reason=...)`只收已知主机数字，不为统计回读设备张量；按update输出小摘要。真实GPU细分与吞吐由任务owner在后续安全窗口验证。
 
 ## 目录
 
