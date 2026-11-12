@@ -24,7 +24,7 @@ PhysX场景直接复用Isaac的SimulationContext/InteractiveScene/Articulation/C
 
 ## 训练与退出
 
-一个formal阶段共10000次，总墙钟null；前几次通过公共`--max-updates`有界启动、保存、核验，再resume剩余额度。该安排避免同一Python进程重启Kit，也不额外增加smoke额度。32×64是初始资源配方，每次2048策略样本，总计划20480000样本；最终吞吐以实际公共measurement为准。
+一个formal阶段共10000次，总墙钟null；先通过公共`--max-updates 8`有界启动、保存、核验，再resume剩余额度。新Critic前5次只做Critic预热，随后检查双Adam均有真实更新；预热和有界8次均计入10000，恢复不重做预热。该安排避免同一Python进程重启Kit，也不额外增加smoke额度。32×64是初始资源配方，每次2048策略样本，总计划20480000样本；最终吞吐以实际公共measurement为准。
 
 原reward与AdaptiveCourse复用：先低落体/5cm起跳，再5/10/15/20cm；按正常训练结束回合自动晋降级，balance/landing_only/active_jump分池。早失败进分母，不新增独立能力评估。未训练Actor失败是物理结果，工程验收不要求它已经稳定跳跃。
 

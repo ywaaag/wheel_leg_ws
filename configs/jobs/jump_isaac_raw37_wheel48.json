@@ -90,7 +90,7 @@
     "critic_learning_rate": 9e-05,
     "epochs": 4,
     "minibatches": 4,
-    "critic_warmup_updates": 0,
+    "critic_warmup_updates": 5,
     "entropy_coef": 0.0,
     "gamma": 0.9980019986673331,
     "value_coef": 1.0,
