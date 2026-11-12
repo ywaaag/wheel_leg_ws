@@ -80,6 +80,10 @@ def ended_snapshot(env, ids):
             ),
             -1,
         )
+    timer = getattr(env, "reset_measurement", None)
+    if timer is not None and packed.device.type != "cpu":
+        timer.count("recovery.explicit_transfers")
+        timer.count("recovery.explicit_transfer_bytes", packed.numel() * packed.element_size())
     return packed.cpu().tolist()
 
 

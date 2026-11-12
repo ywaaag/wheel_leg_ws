@@ -19,10 +19,15 @@ def tensor_view(v):
     raise TypeError("Unsupported physical tensor frontend " + type(v).__name__)
 
 
-def value(v, device, ids=None):
+def value(v, device, ids=None, *, measurement=None):
     source = tensor_view(v)
     if ids is not None:
         source = source[ids.to(source.device, dtype=torch.long)]
+    if measurement is not None and source.device != torch.device(device):
+        measurement.count("recovery.explicit_transfers")
+        measurement.count(
+            "recovery.explicit_transfer_bytes", source.numel() * source.element_size()
+        )
     return source.to(device).clone()
 
 
@@ -147,16 +152,16 @@ class PhysicalParameters:
         materials[host, :, :2] = shape_mu[:, None, None]
         materials[host, :, 2] = 0
         self._set_material(host.to(torch.int32))
-        actual_material = value(self.view.get_material_properties(), "cpu", host)
+        actual_material = value(self.view.get_material_properties(), "cpu", host, measurement=timer)
         if not torch.allclose(actual_material, materials[host], atol=1e-6, rtol=0):
             raise RuntimeError("Actual material reset/readback differs")
         self.mass[ids] = mass
         self.inertia[ids] = inertia
         self.com[ids] = com
         actual = [
-            value(self.view.get_masses(), self.device, ids),
-            value(self.view.get_inertias(), self.device, ids),
-            value(self.view.get_coms(), self.device, ids),
+            value(self.view.get_masses(), self.device, ids, measurement=timer),
+            value(self.view.get_inertias(), self.device, ids, measurement=timer),
+            value(self.view.get_coms(), self.device, ids, measurement=timer),
         ]
         for name, x, y in zip(
             ["mass", "inertia", "COM"], actual, [mass, inertia, com], strict=False
