@@ -14,7 +14,7 @@ from native_stand.artifacts.io import file_sha256, read_json, write_json
 from native_stand.artifacts.runtime_paths import RuntimePaths, execution_json
 from native_stand.simulation import driver
 
-from .observability import count, section
+from .observability import count, rebuild_attribution, rebuild_inputs, section
 
 TRAINING_REPORT_EVERY_UPDATES = 100
 
@@ -611,7 +611,7 @@ class MotionProductionAdapter:
 
     def _make_env(self):
         job = self.job
-        return _build_environment(
+        result = _build_environment(
             job,
             self.spec,
             self.config,
@@ -623,6 +623,8 @@ class MotionProductionAdapter:
             measurement=getattr(self, "measurement", None),
             construction_reason=getattr(self, "_construction_reason", "initial_build"),
         )
+        self._environment_inputs = rebuild_inputs(self.spec, job, stage=result[0].stage_spec)
+        return result
 
     def _rebuild_environment(self):
         """Isaac单例：释放旧环境后才构造新环境；失败保持显式无环境状态。"""
@@ -632,18 +634,23 @@ class MotionProductionAdapter:
         self.env = None
         self.obs = None
         measurement = getattr(self, "measurement", None)
-        count(measurement, "motion.environment_rebuild", reason="course_revision")
+        attribution = getattr(self, "_rebuild_attribution", None)
+        reasons = attribution["reasons"] if attribution else ["attribution_unavailable"]
+        count(measurement, "motion.environment_rebuild")
+        for reason in reasons:
+            count(measurement, "motion.environment_rebuild", reason=reason)
+        reason = "+".join(reasons)
         if old is not None:
             with section(
                 measurement,
                 "environment_close",
                 parent="after_save_total",
-                reason="course_revision",
+                reason=reason,
             ):
                 old.close()
         del old
         snapshot = self.modules["rng_state"]() if self.modules is not None else None
-        self._construction_reason = "course_revision"
+        self._construction_reason = reason
         try:
             self.env, self.obs = self._make_env()
             if sample_state is not None:
@@ -1015,6 +1022,9 @@ class MotionProductionAdapter:
             },
         )
         if decision["state_revision_changed"]:
+            previous_inputs = getattr(self, "_environment_inputs", None)
+            if previous_inputs is None:
+                previous_inputs = rebuild_inputs(self.spec, self.job, stage=self.env.stage_spec)
             self.state["DR_episode_counters"] = (
                 self.env.identified_dr.episodes.detach().cpu().tolist()
             )
@@ -1030,6 +1040,10 @@ class MotionProductionAdapter:
                 self.job,
                 stage_builder=self.course_strategy.stage_config,
             )
+            self._rebuild_attribution = rebuild_attribution(
+                previous_inputs, rebuild_inputs(self.spec, self.job)
+            )
+            metrics["environment_rebuild"] = copy.deepcopy(self._rebuild_attribution)
             self._needs_rebuild = True
 
     def after_save(self, context, reference):
@@ -1417,7 +1431,7 @@ def _build_environment(
     """生产语义的环境构造；训练与评估使用同一段代码。"""
     import torch
 
-    parent = "after_save_total" if construction_reason == "course_revision" else "adapter_build"
+    parent = "adapter_build" if construction_reason == "initial_build" else "after_save_total"
     with section(
         measurement, "environment_construction", parent=parent, reason=construction_reason
     ):

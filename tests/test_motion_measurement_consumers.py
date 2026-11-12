@@ -1,6 +1,8 @@
 """Actual shared Measurement through Motion consumers; scripted native I/O only."""
 
+import copy
 import json
+from pathlib import Path
 from types import SimpleNamespace as NS
 
 import pytest
@@ -10,6 +12,7 @@ from native_stand.learning.ppo.performance import Measurement
 from native_stand.simulation.isaac.contact_materials import write_native
 from native_stand.simulation.isaac.critic_cache import CriticCache
 from native_stand.simulation.isaac.motion_backend import MotionProductionAdapter, _build_environment
+from native_stand.simulation.isaac.observability import rebuild_attribution, rebuild_inputs
 from native_stand.students.resume import restore_rng, rng_state
 
 FROZEN_TEST_SCOPE = "PORTABLE"
@@ -187,7 +190,8 @@ def test_candidate_and_rebuild_sections_use_public_after_save_parent_and_keep_co
     assert not adapter._needs_rebuild
     assert timer.parents["candidate_references_views"] == "after_save_total"
     assert timer.parents["environment_close"] == "after_save_total"
-    assert timer.counters["motion.environment_rebuild:course_revision"] == 1
+    assert timer.counters["motion.environment_rebuild"] == 1
+    assert timer.counters["motion.environment_rebuild:attribution_unavailable"] == 1
     current = adapter.env.onpolicy_episodes.sample_accounting.summary()
     assert current["student_policy_samples"] == current["all_transitions"] == 0
     assert current["cumulative_student_policy_samples"] == 1
@@ -209,3 +213,131 @@ def test_rebuild_construction_failure_keeps_original_exception_and_rng(tmp_path)
     with pytest.raises(RuntimeError, match="construction failed"):
         adapter._rebuild_environment()
     assert torch.equal(rng, torch.get_rng_state()) and adapter.env is None
+
+
+@pytest.mark.parametrize(
+    ("field", "reason"),
+    [
+        ("cohort_keys", "cohort_keys"),
+        ("slot_counts", "slots"),
+        ("sampling_slots", "slots"),
+        ("terrain_families", "scene"),
+        ("identified_amplitudes", "physics"),
+        ("commands", "task"),
+    ],
+)
+def test_rebuild_reasons_compare_actual_inputs_and_keep_key_slot_evidence(tmp_path, field, reason):
+    from test_motion_window_accounting import environment
+
+    job = NS(assets={})
+    spec = {"curriculum": {"stages": [environment().stage_spec]}}
+    before = rebuild_inputs(spec, job)
+    after = copy.deepcopy(spec)
+    stage = after["curriculum"]["stages"][0]
+    stage["id"] += 1
+    stage[field] = ["changed"]
+    rng = torch.get_rng_state()
+    result = rebuild_attribution(before, rebuild_inputs(after, job))
+    assert result["reasons"] == [reason]
+    assert result["old"]["cohort_keys"] == spec["curriculum"]["stages"][0]["cohort_keys"]
+    assert result["new"]["cohort_keys"] == stage["cohort_keys"]
+    assert result["old"]["slot_counts"] == [1, 1]
+    assert result["new"]["slot_counts"] == stage["slot_counts"]
+    assert torch.equal(rng, torch.get_rng_state())
+
+
+def test_statistics_revision_and_multi_reason_rebuild_keep_existing_lifecycle(tmp_path):
+    from test_motion_spin_branches import fixture
+    from test_motion_window_accounting import environment
+
+    job, _, _ = fixture(tmp_path)
+    old = environment()
+    spec = {"curriculum": {"stages": [old.stage_spec]}}
+    previous = rebuild_inputs(spec, job)
+    revised = copy.deepcopy(spec)
+    stage = revised["curriculum"]["stages"][0]
+    stage["id"] = 1
+    assert rebuild_attribution(previous, rebuild_inputs(revised, job))["reasons"] == [
+        "statistics_revision_only"
+    ]
+    stage.update(cohort_keys=[["new"]], slot_counts=[2], terrain_families=["H1"])
+    revised["motion_timing"] = {"configuration": {"target_ms": 5}}
+    detail = rebuild_attribution(previous, rebuild_inputs(revised, job))
+    assert detail["reasons"] == ["cohort_keys", "slots", "scene", "physics"]
+    order = []
+    old.close = lambda: order.append("close")
+    adapter = MotionProductionAdapter()
+    adapter.env = old
+    adapter._rebuild_attribution = detail
+    adapter.measurement = timer = Measurement(True)
+    adapter._make_env = lambda: (order.append("construct"), {})
+    adapter._bind_sample_window = lambda: None
+    # No sample state to import into this engine-I/O-only fixture.
+    del old.onpolicy_episodes
+    with timer.section("after_save_total", synchronize=False):
+        adapter._rebuild_environment()
+    assert order == ["close", "construct"]
+    assert timer.counters["motion.environment_rebuild"] == 1
+    for reason in detail["reasons"]:
+        assert timer.counters["motion.environment_rebuild:" + reason] == 1
+    assert "motion.environment_rebuild:statistics_revision_only" not in timer.counters
+
+
+def test_real_course_advance_reports_rebuild_inputs_before_save_without_early_rebuild(tmp_path):
+    from test_motion_spin_branches import fixture
+
+    from native_stand.simulation.isaac.motion_backend import _resolve_source
+    from native_stand.tasks.motion.course_strategy import resolve
+    from native_stand.tasks.motion.legacy_spec_adapter import build_environment_spec
+    from native_stand.tasks.motion.maneuver_statistics import RESPONSE_VERSION, episode_class
+
+    job, _, _ = fixture(tmp_path, envs=128)
+    source = _resolve_source(job, None).payload
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "run.json").write_text(json.dumps({"logical_run_id": "fixture"}))
+    adapter = MotionProductionAdapter()
+    adapter.job, adapter.source = job, source
+    adapter.course_strategy = resolve(job.curriculum.version)
+    adapter.state = adapter.course_strategy.prepare(source, job.runtime.envs)
+    adapter.template = json.loads(Path(job.assets["runtime_template"]).read_text())
+    adapter.spec = build_environment_spec(
+        adapter.template, source, job, stage_builder=adapter.course_strategy.stage_config
+    )
+    old_stage = adapter.spec["curriculum"]["stages"][0]
+    adapter.env = env = NS(
+        num_envs=128,
+        device="cpu",
+        stage_spec=old_stage,
+        identified_dr=NS(episodes=torch.zeros(128)),
+        transient_events=NS(summary=lambda: {}),
+    )
+    env.onpolicy_episodes = episode_class(object, version=RESPONSE_VERSION)(env)
+    adapter.context = context = NS(run_dir=run, updates_used=100)
+    adapter.modules = {"build_environment_spec": build_environment_spec}
+    adapter._update_scope = dict(
+        stats=NS(export=lambda: {}),
+        diagnostics={},
+        detail={},
+        channel_clips=torch.zeros(6),
+        valid_samples=torch.tensor(128.0),
+    )
+    adapter.physical_readback = lambda: {"physics_steps": 0}
+    original = copy.deepcopy(adapter.spec)
+    for update in (100, 200):
+        stats = env.onpolicy_episodes
+        for name in ("count", "complete", "passed", "quality"):
+            getattr(stats, name)[:] = 16
+        stats.group_sums[:, [0, 12, 14]] = 16
+        stats.group_sums[:, 1:3] = torch.tensor(old_stage["commands"]) * 16
+        context.updates_used = update
+        metrics = {}
+        adapter.after_update(context, update, metrics)
+    assert adapter._needs_rebuild and adapter.env is env
+    assert env.stage_spec == original["curriculum"]["stages"][0]
+    actual = metrics["environment_rebuild"]
+    expected = rebuild_attribution(rebuild_inputs(original, job), rebuild_inputs(adapter.spec, job))
+    assert actual == expected
+    assert "cohort_keys" in actual["reasons"] and "physics" in actual["reasons"]
+    assert "statistics_revision_only" not in actual["reasons"]
+    assert json.loads(json.dumps(metrics))["environment_rebuild"] == actual
