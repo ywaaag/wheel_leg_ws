@@ -82,7 +82,7 @@ class GenericPPOAdapter:
             job.diagnostics.get("performance_measurement", False), job.runtime.device
         )
         with self.measurement.section("environment_construction"):
-            measured_factory = self.backend.make_measured_env
+            measured_factory = getattr(self.backend, "make_measured_env", None)
             self.env = (
                 measured_factory(job, self.measurement)
                 if measured_factory is not None

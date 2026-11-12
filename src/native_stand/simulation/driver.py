@@ -251,10 +251,13 @@ def run_stage(
                         dict(
                             update=update,
                             saved_this_update=last_saved_update == update,
-                            phase_seconds=record["performance_seconds"],
+                            phase_seconds={
+                                **record["performance_seconds"],
+                                "metrics_write": last_metrics_write,
+                            },
                             counters=record["performance_counters"],
                             parents=record["performance_parents"],
-                            clocks=record["performance_clocks"],
+                            clocks={**record["performance_clocks"], "metrics_write": "cpu_wall"},
                             aggregation="inclusive; do not add child sections to their parents",
                             initialization_measurement=initialization_measurement
                             if index == 1
