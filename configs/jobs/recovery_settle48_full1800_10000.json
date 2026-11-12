@@ -184,7 +184,8 @@
       "minimum_ended": 16
     },
     "recovery_audit_metrics": true,
-    "performance_measurement": true
+    "performance_measurement": false,
+    "performance_scope": "No per-reset GPU synchronization; seconds_per_update from common worker, detailed synchronized profiling opt-in only"
   },
   "model": {
     "critic_input": 909,
