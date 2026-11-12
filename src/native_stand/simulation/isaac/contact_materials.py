@@ -6,6 +6,8 @@ import torch
 
 from native_stand.tasks.motion.contact_randomization import sample, validate
 
+from .observability import count, cpu, section
+
 
 def physics_tensor(value):
     if isinstance(value, torch.Tensor):
@@ -17,10 +19,32 @@ def physics_tensor(value):
     raise TypeError("Unsupported native material tensor: " + type(value).__name__)
 
 
-def write_native(view, name, tensors):
-    original = view.get_material_properties()
+def read_native(view, name, *, measurement=None, used_rows=0, reason=None):
+    with section(measurement, "motion.material_getters"):
+        result = getattr(view, name)()
+    count(measurement, "motion.material_getter_calls", reason=reason or name)
+    values = result if isinstance(result, tuple) else (result,)
+    count(measurement, "motion.material_getter_pool_rows", values[0].shape[0], reason=name)
+    count(measurement, "motion.material_getter_used_rows", used_rows, reason=name)
+    return result
+
+
+def write_native(view, name, tensors, *, measurement=None):
+    original = read_native(
+        view, "get_material_properties", measurement=measurement, reason="frontend_probe"
+    )
+    count(measurement, "motion.material_setter_calls", reason=name)
+    count(measurement, "motion.material_setter_buffer_rows", tensors[0].shape[0], reason=name)
+    count(measurement, "motion.material_setter_used_rows", tensors[-1].numel(), reason=name)
+    count(
+        measurement,
+        "motion.material_setter_buffer_bytes",
+        sum(x.numel() * x.element_size() for x in tensors),
+        reason=name,
+    )
     if isinstance(original, torch.Tensor):
-        getattr(view, name)(*tensors)
+        with section(measurement, "motion.material_setters"):
+            getattr(view, name)(*tensors)
         return
     import warp as wp
 
@@ -35,7 +59,8 @@ def write_native(view, name, tensors):
         )
         for x in tensors
     ]
-    getattr(view, name)(*converted)
+    with section(measurement, "motion.material_setters"):
+        getattr(view, name)(*converted)
 
 
 def check_scene_materials(env):
@@ -61,6 +86,7 @@ def check_scene_materials(env):
 class ContactMaterials:
     def __init__(self, dr, config, noise, tensor):
         self.dr, self.config, self.noise, self.tensor = dr, validate(config), noise, tensor
+        self.measurement = getattr(dr.env, "measurement", None)
         self.view = dr.env.robot.root_view
         for name in ("get_compliant_material_properties", "set_compliant_material_properties"):
             if not callable(getattr(self.view, name, None)):
@@ -79,21 +105,40 @@ class ContactMaterials:
         self.last_readback = None
 
     def reset(self, ids):
+        count(self.measurement, "motion.contact_reset_rows", len(ids))
+        with section(self.measurement, "motion.contact_reset"):
+            return self._reset(ids)
+
+    def _reset(self, ids):
         dr, config = self.dr, self.config
+        measurement = self.measurement
         expected = self.actual.new_zeros(len(ids), 4)
         active = (dr.profiles[ids] == 0) & (dr.amplitude[ids, 0] > 0)
         selected = ids[active]
         if len(selected):
             u = self.noise(dr.episodes[selected], selected, 5, 19031)
             expected[active] = sample(u, dr.amplitude[selected, 0], config)
-        host = ids.cpu().long()
-        desired = expected.cpu()
+        host = cpu(ids, measurement, reason="contact_reset_indices_to_host").long()
+        desired = cpu(expected, measurement, reason="contact_reset_values_to_host")
         soft_mask = (desired[:, :2] > 0).any(-1)
         soft, rigid = host[soft_mask], host[~soft_mask]
         for side, view in enumerate(self.wheels):
-            material = self.tensor(view.get_material_properties()).cpu().clone()
-            sd, _ = view.get_compliant_material_properties()
-            sd = self.tensor(sd).cpu().clone()
+            material = cpu(
+                self.tensor(
+                    read_native(
+                        view, "get_material_properties", measurement=measurement, used_rows=len(ids)
+                    )
+                ),
+                measurement,
+                reason="wheel_material_to_host",
+            ).clone()
+            sd, _ = read_native(
+                view,
+                "get_compliant_material_properties",
+                measurement=measurement,
+                used_rows=len(ids),
+            )
+            sd = cpu(self.tensor(sd), measurement, reason="wheel_compliance_to_host").clone()
             sd[host, 0, 0] = desired[:, side]
             sd[host, 0, 1] = desired[:, side + 2]
             data = torch.cat((material[..., :2], sd), -1).contiguous()
@@ -101,26 +146,59 @@ class ContactMaterials:
             # setter uses an extra shape axis). Only wheel links are touched.
             modes = torch.zeros(dr.n, 3, dtype=torch.uint8)
             write_native(
-                view, "set_compliant_material_properties", (data, modes, host.to(torch.int32))
+                view,
+                "set_compliant_material_properties",
+                (data, modes, host.to(torch.int32)),
+                measurement=measurement,
             )
             if len(rigid):
                 # Clear residual damping first, then restore ordinary bounce.
                 write_native(
-                    view, "set_material_properties", (material.contiguous(), rigid.to(torch.int32))
+                    view,
+                    "set_material_properties",
+                    (material.contiguous(), rigid.to(torch.int32)),
+                    measurement=measurement,
                 )
-            after = self.tensor(view.get_material_properties()).cpu()
+            after = cpu(
+                self.tensor(
+                    read_native(
+                        view, "get_material_properties", measurement=measurement, used_rows=len(ids)
+                    )
+                ),
+                measurement,
+                reason="wheel_material_readback_to_host",
+            )
             if not torch.allclose(after[host, :, :2], material[host, :, :2], atol=1e-6, rtol=0):
                 raise RuntimeError("Compliance update changed wheel friction")
         # Cross-view readback from the original articulation proves the named
         # wheel setters reached the same shapes used by the existing DR.
-        actual_sd, actual_modes = self.view.get_compliant_material_properties()
-        actual_sd, actual_modes = self.tensor(actual_sd).cpu(), self.tensor(actual_modes).cpu()
+        actual_sd, actual_modes = read_native(
+            self.view,
+            "get_compliant_material_properties",
+            measurement=measurement,
+            used_rows=len(ids),
+        )
+        actual_sd = cpu(
+            self.tensor(actual_sd), measurement, reason="articulation_compliance_to_host"
+        )
+        actual_modes = cpu(
+            self.tensor(actual_modes), measurement, reason="articulation_modes_to_host"
+        )
         columns = torch.tensor(dr.columns, dtype=torch.long)
         actual = actual_sd[host[:, None], columns[None]]
         raw_stiffness = actual[..., 0]
-        ordinary = self.tensor(self.view.get_material_properties()).cpu()[
-            host[:, None], columns[None], 2
-        ]
+        ordinary = cpu(
+            self.tensor(
+                read_native(
+                    self.view,
+                    "get_material_properties",
+                    measurement=measurement,
+                    used_rows=len(ids),
+                )
+            ),
+            measurement,
+            reason="articulation_material_to_host",
+        )[host[:, None], columns[None], 2]
         # PhysX6 returns +inf stiffness for a rigid material. Preserve that raw
         # identity and encode disabled compliance as0 in the finite Critic.
         # Only positive-infinite K with ordinary restitution and zero C is
@@ -139,7 +217,19 @@ class ContactMaterials:
                 expected=desired[bad].tolist(),
                 actual_articulation=actual[bad].tolist(),
                 actual_wheel_views=[
-                    self.tensor(v.get_compliant_material_properties()[0]).cpu()[rows].tolist()
+                    cpu(
+                        self.tensor(
+                            read_native(
+                                v,
+                                "get_compliant_material_properties",
+                                measurement=measurement,
+                                used_rows=len(rows),
+                                reason="failure_readback",
+                            )[0]
+                        ),
+                        measurement,
+                        reason="failure_readback_to_host",
+                    )[rows].tolist()
                     for v in self.wheels
                 ],
                 wheel_view_paths=[
@@ -153,6 +243,13 @@ class ContactMaterials:
             )
         if len(soft) and bool((actual_modes[soft[:, None], columns[None]] != 0).any()):
             raise RuntimeError("Actual compliant material combine mode differs")
+        if actual.device != self.actual.device:
+            count(
+                measurement,
+                "motion.explicit_transfer_bytes",
+                actual.numel() * actual.element_size(),
+                reason="contact_context_to_device",
+            )
         self.actual[ids] = actual.to(self.actual)
         # Ordinary restitution is not active for the compliant normal force.
         dr.restitution[ids[soft_mask.to(ids.device)]] = 0

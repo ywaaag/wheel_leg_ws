@@ -30,7 +30,7 @@ def control_router(job, source, prefix):
     )
 
 
-def environment(spec, role, *, envs, job, source, prefix, corrections):
+def environment(spec, role, *, envs, job, source, prefix, corrections, measurement=None):
     # Engine imports are strictly after the owner's AppLauncher.
     import onpolicy
     import runtime_support
@@ -136,6 +136,7 @@ def environment(spec, role, *, envs, job, source, prefix, corrections):
         terminal_critic_owner=(
             "outer" if maneuver and job.model.critic_input in (877, 881) else "fullchain"
         ),
+        measurement=measurement,
     )
     cls = corrected_environment_class(cls, corrections)
     if maneuver:

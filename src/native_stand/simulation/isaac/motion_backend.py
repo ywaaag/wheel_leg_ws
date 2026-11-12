@@ -14,6 +14,8 @@ from native_stand.artifacts.io import file_sha256, read_json, write_json
 from native_stand.artifacts.runtime_paths import RuntimePaths, execution_json
 from native_stand.simulation import driver
 
+from .observability import count, section
+
 TRAINING_REPORT_EVERY_UPDATES = 100
 
 
@@ -398,7 +400,45 @@ class MotionProductionAdapter:
         self._open_environment()
         if same_run and source.get("completed_episode_statistics") is not None:
             self.env.onpolicy_episodes.restore_completed(source["completed_episode_statistics"])
+        elif same_run and hasattr(self.env.onpolicy_episodes, "sample_accounting"):
+            sample_state = source.get("motion_sample_accounting")
+            if sample_state is not None:
+                self.env.onpolicy_episodes.inherit_sample_totals(sample_state)
+                if not source.get("motion_sample_accounting_revision_boundary", False):
+                    self.env.onpolicy_episodes.sample_accounting.window_known = False
+                    self.env.onpolicy_episodes.sample_accounting.unknown_reason = (
+                        "checkpoint_missing_completed_window_snapshot"
+                    )
+            else:
+                self.env.onpolicy_episodes.sample_accounting.restore_legacy()
+        self._bind_sample_window()
         self._assemble_training()
+
+    def _review_window(self, completed):
+        from native_stand.artifacts.io import json_digest
+
+        candidates = candidate_strategy(self.job)
+        return {
+            "run": read_json(self.context.run_dir / "run.json", {}).get(
+                "logical_run_id", str(self.context.run_dir.resolve())
+            ),
+            "comparison_sha256": json_digest(
+                candidates.comparison_context(self.job.as_run_record())
+            )
+            if self.job.diagnostics.get("training_candidate_selection")
+            else self.job.curriculum.version,
+            "stage_revision": self.state["stage"],
+            "start_update": self.state.get("consumed_window", {}).get(
+                "end_update", getattr(self, "window_start", 1) - 1
+            )
+            + 1,
+            "end_update": completed,
+        }
+
+    def _bind_sample_window(self):
+        bind = getattr(self.env.onpolicy_episodes, "bind_sample_window", None)
+        if bind is not None:
+            bind(self._review_window(self.context.updates_used))
 
     def _prepare_training(self):
         from native_stand.tasks.motion.course_strategy import resolve
@@ -489,6 +529,7 @@ class MotionProductionAdapter:
         from native_stand.students.resume import restore_rng
 
         self.algorithm = assemble_from_full(self.source, self.obs, self.job, fresh=self.fresh_actor)
+        self.algorithm.measurement = getattr(self, "measurement", None)
         if not self.fresh_actor:
             restore_rng(self.source["training_rng"])
         self._verify_restore()
@@ -579,20 +620,37 @@ class MotionProductionAdapter:
             self.modules["environment"],
             self.modules["observations"],
             train=True,
+            measurement=getattr(self, "measurement", None),
+            construction_reason=getattr(self, "_construction_reason", "initial_build"),
         )
 
     def _rebuild_environment(self):
         """Isaac单例：释放旧环境后才构造新环境；失败保持显式无环境状态。"""
         old = self.env
+        samples = getattr(getattr(old, "onpolicy_episodes", None), "sample_accounting", None)
+        sample_state = samples.state_dict() if samples is not None else None
         self.env = None
         self.obs = None
+        measurement = getattr(self, "measurement", None)
+        count(measurement, "motion.environment_rebuild", reason="course_revision")
         if old is not None:
-            old.close()
+            with section(
+                measurement,
+                "environment_close",
+                parent="after_save_total",
+                reason="course_revision",
+            ):
+                old.close()
         del old
         snapshot = self.modules["rng_state"]() if self.modules is not None else None
+        self._construction_reason = "course_revision"
         try:
             self.env, self.obs = self._make_env()
+            if sample_state is not None:
+                self.env.onpolicy_episodes.inherit_sample_totals(sample_state)
+            self._bind_sample_window()
         finally:
+            self._construction_reason = "initial_build"
             if snapshot is not None:
                 self.modules["restore_rng"](snapshot)
 
@@ -911,27 +969,12 @@ class MotionProductionAdapter:
             return
         # 模型进度只加恢复点之后的新增部分，连续与分段路径得到同一编号。
         model_update = self.course_update_base + (completed - self.restore_point_updates)
-        review = self.env.onpolicy_episodes.export(model_update)
-        from native_stand.artifacts.io import json_digest
-
-        motion_candidates = candidate_strategy(self.job)
-
-        review["window"] = {
-            "run": read_json(context.run_dir / "run.json", {}).get(
-                "logical_run_id", str(context.run_dir.resolve())
-            ),
-            "comparison_sha256": json_digest(
-                motion_candidates.comparison_context(self.job.as_run_record())
-            )
-            if self.job.diagnostics.get("training_candidate_selection")
-            else self.job.curriculum.version,
-            "stage_revision": self.state["stage"],
-            "start_update": self.state.get("consumed_window", {}).get(
-                "end_update", getattr(self, "window_start", 1) - 1
-            )
-            + 1,
-            "end_update": completed,
-        }
+        window = self._review_window(completed)
+        if hasattr(self.env.onpolicy_episodes, "bind_sample_window"):
+            review = self.env.onpolicy_episodes.export(model_update, window=window)
+        else:
+            review = self.env.onpolicy_episodes.export(model_update)
+        review["window"] = window
         candidate_config = self.job.diagnostics.get("training_candidate_selection")
         if candidate_config is not None:
             from native_stand.artifacts.io import json_digest
@@ -991,7 +1034,12 @@ class MotionProductionAdapter:
 
     def after_save(self, context, reference):
         """先有完整checkpoint，再发布与重建；失败不会丢掉最后有效训练状态。"""
-        self._publish_candidate(context, reference)
+        with section(
+            getattr(self, "measurement", None),
+            "candidate_references_views",
+            parent="after_save_total",
+        ):
+            self._publish_candidate(context, reference)
         if self._needs_rebuild:
             self._rebuild_environment()
             self._needs_rebuild = False
@@ -1151,6 +1199,10 @@ class MotionProductionAdapter:
             + 1
         )
         data["pending_training_candidate"] = copy.deepcopy(self._candidate_pending)
+        samples = getattr(getattr(env, "onpolicy_episodes", None), "sample_accounting", None)
+        if samples is not None:
+            data["motion_sample_accounting"] = samples.state_dict()
+            data["motion_sample_accounting_revision_boundary"] = self._needs_rebuild
         if (
             not self._needs_rebuild
             and hasattr(env, "onpolicy_episodes")
@@ -1359,27 +1411,42 @@ def _build_environment(
     observations,
     *,
     train: bool,
+    measurement=None,
+    construction_reason="initial_build",
 ):
     """生产语义的环境构造；训练与评估使用同一段代码。"""
     import torch
 
-    current = environment(
-        spec,
-        "MotionZeroStudent",
-        envs=job.runtime.envs,
-        job=job,
-        source=source,
-        prefix=prefix,
-        corrections=config,
-    )
+    parent = "after_save_total" if construction_reason == "course_revision" else "adapter_build"
+    with section(
+        measurement, "environment_construction", parent=parent, reason=construction_reason
+    ):
+        current = environment(
+            spec,
+            "MotionZeroStudent",
+            envs=job.runtime.envs,
+            job=job,
+            source=source,
+            prefix=prefix,
+            corrections=config,
+            **({"measurement": measurement} if measurement is not None else {}),
+        )
     try:
+        setter = getattr(current, "set_measurement", None)
+        if setter is not None:
+            setter(measurement)
+        current._measurement_reset_parent = "first_reset_readback"
         current.curriculum_training = bool(train)
         current.student_fault_diagnostics_enabled = bool(
             job.diagnostics.get("runtime_fault_snapshot", False)
         )
         current.select_initial_family("motion_native_normal", "train" if train else "holdout")
-        raw_obs, _ = current.reset()
-        value = observations(current, raw_obs)
+        with section(
+            measurement, "first_reset_readback", parent=parent, reason=construction_reason
+        ):
+            raw_obs, _ = current.reset()
+            value = observations(current, raw_obs)
+        current._measurement_reset_parent = "rollout_seconds"
         value["motion_diagnostic_cohort"] = current.command_index[:, None].float()
         annotate_retention(value, current, job)
         current.symmetry_mix = torch.tensor(

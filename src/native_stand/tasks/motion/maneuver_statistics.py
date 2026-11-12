@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import copy
+
 import torch
 
 from .maneuver_targets import MINIMUM_SIGNED_YAW_GAIN, mode_masks
+from .sample_accounting import SampleAccounting
 
 VERSION = "motion48_complete_episode_physical_statistics_v1"
 RESPONSE_VERSION = "motion48_response_checked_physical_statistics_v2"
@@ -35,8 +38,10 @@ def episode_class(base_class, *, version=VERSION):
             self.quality = self.count.clone()
             self.group_sums = torch.zeros(k, 15, device=device)
             self.pending = None
-            self.valid_total = torch.zeros((), device=device, dtype=torch.long)
-            self.samples_by_cohort = torch.zeros(k, device=device, dtype=torch.long)
+            self.sample_accounting = SampleAccounting(k, device)
+            self.valid_total = self.sample_accounting.total[0]
+            self.samples_by_cohort = self.sample_accounting.cohort[0]
+            self._last_export_identity = self._last_export_report = None
             if response_checked:
                 self.response_sums = torch.zeros(n, 4, device=device)
                 self.response_groups = torch.zeros(k, 6, device=device)
@@ -57,6 +62,9 @@ def episode_class(base_class, *, version=VERSION):
                 keys=self.env.stage_spec["cohort_keys"],
                 version=version,
                 tensors={name: getattr(self, name).detach().cpu().clone() for name in names},
+                sample_accounting=self.sample_accounting.state_dict(),
+                last_export_identity=copy.deepcopy(self._last_export_identity),
+                last_export_report=copy.deepcopy(self._last_export_report),
             )
 
         def restore_completed(self, record):
@@ -72,6 +80,21 @@ def episode_class(base_class, *, version=VERSION):
                 if value.shape != target.shape or not torch.isfinite(value).all():
                     raise ValueError("Maneuver completed statistics damaged")
                 target.copy_(value.to(target.device))
+            accounting = record.get("sample_accounting")
+            if accounting is None:
+                self.sample_accounting.restore_legacy(self.valid_total, self.samples_by_cohort)
+            else:
+                self.sample_accounting.restore(accounting)
+            self.observed_policy_steps = self.sample_accounting.policy_steps
+            self._last_export_identity = copy.deepcopy(record.get("last_export_identity"))
+            self._last_export_report = copy.deepcopy(record.get("last_export_report"))
+
+        def bind_sample_window(self, window):
+            self.sample_accounting.bind(window)
+
+        def inherit_sample_totals(self, record):
+            self.sample_accounting.restore(record, totals_only=True)
+            self.observed_policy_steps = self.sample_accounting.policy_steps
 
         def reset(self, ids):
             self.n[ids] = 0
@@ -89,8 +112,9 @@ def episode_class(base_class, *, version=VERSION):
 
         def observe_final(self, result):
             e = self.env
-            self.observed_policy_steps += 1
             valid = e.student_actor_valid
+            self.sample_accounting.observe(e.command_index, valid)
+            self.observed_policy_steps = self.sample_accounting.policy_steps
             age = e.rise_hold.episode.steps.float() * 0.01
             c = e.motion_action_command
             s = e.recovery_snapshot
@@ -112,8 +136,6 @@ def episode_class(base_class, *, version=VERSION):
             window = valid & (age >= start) & (age <= 31.0)
             self.n.add_(valid.float())
             self.hold.add_(window.float())
-            self.valid_total.add_(valid.sum())
-            self.samples_by_cohort.index_add_(0, e.command_index, valid.long())
             support = (s[:, 10:12] > 2).all(-1)
             self.loss_run.copy_(torch.where(window & ~support, self.loss_run + 1, 0))
             self.longest_loss.copy_(torch.maximum(self.longest_loss, self.loss_run))
@@ -221,8 +243,27 @@ def episode_class(base_class, *, version=VERSION):
             )
             self.group_sums.index_add_(0, index, metrics)
 
-        def export(self, update):
+        def export(self, update, *, window=None):
             stage = self.env.stage_spec
+            identity = (
+                copy.deepcopy(window)
+                if window is not None
+                else dict(through_update=update, stage_revision=stage["id"])
+            )
+            if identity == self._last_export_identity:
+                if self._last_export_report["through_update"] != update:
+                    raise ValueError("Repeated Motion window has conflicting model update")
+                return copy.deepcopy(self._last_export_report)
+            if window is not None:
+                if (
+                    type(window["start_update"]) is not int
+                    or type(window["end_update"]) is not int
+                    or window["start_update"] < 1
+                    or window["end_update"] < window["start_update"]
+                    or window["stage_revision"] != stage["id"]
+                ):
+                    raise ValueError("Motion sample window update/revision differs")
+                self.bind_sample_window(window)
             all_values = (
                 torch.cat(
                     (
@@ -237,7 +278,9 @@ def episode_class(base_class, *, version=VERSION):
                 .cpu()
                 .tolist()
             )
-            samples = self.samples_by_cohort.cpu().tolist()
+            samples = self.sample_accounting.summary()
+            student_rows = samples["student_samples_by_cohort"]
+            all_rows = samples["all_transitions_by_cohort"]
             rows = []
             responses = self.response_groups.cpu().tolist() if response_checked else None
             for i, a in enumerate(all_values):
@@ -253,7 +296,9 @@ def episode_class(base_class, *, version=VERSION):
                         axis=stage["maneuver_tasks"][i],
                         endpoint=True,
                         slot_count=stage["slot_counts"][i],
-                        actual_student_policy_samples=samples[i],
+                        actual_student_policy_samples=student_rows[i] if student_rows else None,
+                        actual_all_transitions=all_rows[i] if all_rows else None,
+                        sample_count_status=samples["window_status"],
                         ended_episodes=int(n),
                         completed_episodes=int(a[1]),
                         pass_fraction=a[2] / n if n else None,
@@ -297,14 +342,26 @@ def episode_class(base_class, *, version=VERSION):
             self.group_sums.zero_()
             if response_checked:
                 self.response_groups.zero_()
-            return dict(
+            result = dict(
                 version=version,
                 stage_revision=stage["id"],
                 through_update=update,
                 rows=rows,
-                valid_student_steps=int(self.valid_total),
-                observed_policy_steps=self.observed_policy_steps,
+                valid_student_steps=samples["student_policy_samples"],
+                all_transitions=samples["all_transitions"],
+                observed_policy_steps=samples["observed_policy_steps"],
+                sample_accounting=samples,
                 denominator="all ended student episodes; absent samples UNKNOWN; early failures included",
             )
+            self._last_export_identity = identity
+            self._last_export_report = copy.deepcopy(result)
+            if window is not None:
+                self.sample_accounting.advance(window)
+            else:
+                # Unnumbered legacy consumers cannot manufacture an update origin.
+                self.sample_accounting.window.zero_()
+                self.sample_accounting.window_policy_steps = 0
+                self.sample_accounting.anchor = None
+            return result
 
     return Episodes

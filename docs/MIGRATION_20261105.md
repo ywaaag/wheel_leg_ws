@@ -1358,3 +1358,14 @@ CPU搬迁复用`scripts/recovery_resume_rehearsal.py --path-mapping /home/kellen
 脚本`benchmark_recovery_reset_cpu.py`通过公共Measurement测量1024环境scripted-I/O，5轮中位数：单行8.756→1.904ms，16行9.525→2.265ms，全量82.805→30.052ms。单行标量提取21→7，tolist13→1；全量14343→7、4105→1。实际物理getter每reset5→4，setter顺序/次数不变；新空集合无操作，旧基线空集合IndexError单列。是CPU fixture结果，GPU时间、PCIe传输和整轮收益均未测。原始计数及源SHA见`artifacts/recovery_continuation/reset_cpu_benchmark.json`。
 
 相关总回归273通过（61.13s，3条原ONNX warning）；随后真实BC/prior/正式adapter及紧凑Execution reset增量49通过（7.10s）。覆盖全/partial/空/连续reset、未reset状态和RNG、实际909终态、动作/reward/GAE/梯度/双Adam/RNG严格一致，以及32后续PD/队列tick。架构与Ruff通过。剩余base reset默认姿态写入和再合法姿态写入因尚无PhysX实证不删除；执行历史、材质/COM/惯量核验均保留。
+### Motion窗口统计与领域性能计数（2026-11-13）
+
+Motion领域消费公共`Measurement`，不创建第二套计时器。样本记账将Student有效样本、全部transition、当前窗口和累计来源分开；窗口身份不完整时输出UNKNOWN，重复窗口幂等，恢复/partial reset/课程重建不重复消费。候选说明保留资格与排序，只新增覆盖、质量、任务三类原因和实际阈值。轮地材质统计按实际getter/setter、整池返回行数、使用行数、提交缓冲字节和显式host transfer计数；原生API内部传输不推算。CPU无物理回归覆盖之外的新增运行；远端训练未热改。
+
+独立领域分支`motion/window-candidate-observability`，依赖公共`455a198`（含`dd4a228`的Measurement接口）；不复制公共driver/计时器。改动文件：`tasks/motion/{sample_accounting,maneuver_statistics,split_candidates}.py`；`simulation/isaac/{observability,motion_backend,environment,fullchain,response_acceleration,critic_cache,contact_materials}.py`；`simulation/ground_surface.py`；`tests/test_motion_{window_accounting,measurement_consumers,execution_acceleration,production_integration}.py`；本报告与STATUS。旧production fixture仅补真实episode统计对象3行，不格式化历史测试全文。
+
+```bash
+PYTHONPATH=src CUDA_VISIBLE_DEVICES='' OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONDONTWRITEBYTECODE=1 PYTEST_ADDOPTS='' /home/kellen/anaconda3/envs/issaclab/bin/python -m pytest -q -p no:cacheprovider --basetemp=/tmp/motion_observability_release tests/test_motion_window_accounting.py tests/test_motion_measurement_consumers.py tests/test_motion_split_progression.py tests/test_motion_spin_branches.py tests/test_motion_contact_terrain.py tests/test_motion_speed_contract.py tests/test_motion_rollout_hotpath.py tests/test_motion_production_integration.py tests/test_motion_execution_acceleration.py tests/test_performance_observability.py tests/test_ppo_resume_activation.py tests/test_ppo_efficiency.py tests/test_current_recipe_migration.py tests/test_architecture_rules.py
+```
+
+真实结果224 passed in21.16s，无skip；架构208/0；固定Ruff0.8.4对CI范围check与207文件format、三个新增/扩展现代测试check通过。受管小模型数学/真实保存恢复与脚本native I/O属于CPU工程验证；真实PhysX、GPU吞吐、训练优化与远端均未运行，不外推提速比例。
