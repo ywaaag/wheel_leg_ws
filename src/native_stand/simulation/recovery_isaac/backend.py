@@ -328,7 +328,12 @@ def require_idle_gpu(expected_uuid, policy=None):
 
 
 class IsaacRecovery:
-    def __init__(self, job, *, output, application=None):
+    def __init__(self, job, *, output, application=None, measurement=None):
+        from native_stand.learning.ppo.performance import Measurement
+
+        self.measurement = (
+            measurement if measurement is not None else Measurement(False, job.runtime.device)
+        )
         self.env = None
         self._owns_app = application is None
         if application is None:
@@ -433,7 +438,7 @@ class IsaacRecovery:
         cfg.decimation = 10
         cfg.episode_length_s = 23.0
         cfg.is_finite_horizon = True
-        cfg.recovery_performance_measurement = job.diagnostics.get("performance_measurement", False)
+        cfg.recovery_measurement = self.measurement
         cfg.recovery_effort_caps = job.control.effort_limits_nm
         cfg.recovery_swing_priority = (
             job.assets.get("recovery_standalone_course", {}).get("version")
@@ -677,6 +682,11 @@ class IsaacRecovery:
             return self.initialize_from_training_state(state, same_run=True)
         return self.restore_execution(state["execution"])
 
+    def set_measurement(self, measurement):
+        self.measurement = measurement
+        if self.env is not None:
+            self.env.reset_measurement = measurement
+
     def close(self):
         try:
             if self.env is not None:
@@ -690,8 +700,14 @@ class IsaacRecovery:
                     self.app = None
 
 
-def make_env(job, *, output=None):
-    return IsaacRecovery(job, output=output or Path("/tmp/recovery_isaac_execution"))
+def make_env(job, *, output=None, measurement=None):
+    return IsaacRecovery(
+        job, output=output or Path("/tmp/recovery_isaac_execution"), measurement=measurement
+    )
+
+
+def make_measured_env(job, measurement):
+    return make_env(job, measurement=measurement)
 
 
 def make_collection_env(job, *, resources):

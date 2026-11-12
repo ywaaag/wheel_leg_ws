@@ -117,6 +117,13 @@ class PhysicalParameters:
         r = e.robot
         index = ids.to(torch.int32)
         rows = len(ids)
+        timer = getattr(e, "reset_measurement", None)
+        if timer is not None and timer.enabled:
+            for parameter in ("mass", "COM", "inertia", "material"):
+                timer.count("recovery." + parameter + ".getters")
+                timer.count("recovery." + parameter + ".setters")
+                timer.count("recovery." + parameter + ".pool_rows", e.num_envs)
+                timer.count("recovery." + parameter + ".used_rows", rows)
         mass = self.mass0[ids].clone()
         inertia = self.inertia0[ids].clone()
         com = self.com0[ids].clone()

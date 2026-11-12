@@ -232,6 +232,11 @@ def observe(self):
 
 
 def invalidate_physical_profile(self, rows=None):
+    timer = getattr(self, "reset_measurement", None)
+    if timer is not None:
+        timer.count(
+            "recovery.profile.invalidations", reason="full" if rows is None else "selected_rows"
+        )
     if rows is None:
         self._physical_profile_cache = None
         self._physical_profile_dirty = set()
@@ -250,7 +255,13 @@ def physical_profile(self):
     else:
         ids = sorted(getattr(self, "_physical_profile_dirty", set()))
         if not ids:
+            timer = getattr(self, "reset_measurement", None)
+            if timer is not None:
+                timer.count("recovery.profile.cache_hits")
             return cache
+    timer = getattr(self, "reset_measurement", None)
+    if timer is not None:
+        timer.count("recovery.profile.updated_rows", len(ids))
     rows = []
     for i in ids:
         d = self.draws[i]

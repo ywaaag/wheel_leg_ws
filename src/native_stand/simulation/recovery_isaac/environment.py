@@ -46,9 +46,9 @@ def environment_class(
         def _initialize_recovery(self, cfg):
             from native_stand.learning.ppo.performance import Measurement
 
-            self.reset_measurement = Measurement(
-                getattr(cfg, "recovery_performance_measurement", False), self.device
-            )
+            self.reset_measurement = getattr(cfg, "recovery_measurement", None)
+            if self.reset_measurement is None:
+                self.reset_measurement = Measurement(False, self.device)
             n = self.num_envs
             self.execution = Execution(
                 contract,
@@ -505,7 +505,7 @@ def environment_class(
         def _reset_idx(self, env_ids):
             if not self.recovery_ready:
                 return super()._reset_idx(env_ids)
-            with self.reset_measurement.section("reset"):
+            with self.reset_measurement.section("recovery_reset", synchronize=False):
                 return self._reset_recovery(env_ids)
 
         def _reset_recovery(self, env_ids):
@@ -514,9 +514,16 @@ def environment_class(
                 if env_ids is None
                 else env_ids.long()
             )
+            timer = self.reset_measurement
+            timer.count("recovery.reset.calls")
+            timer.count("recovery.reset.rows", len(ids))
+            timer.count(
+                "recovery.reset.full" if len(ids) == self.num_envs else "recovery.reset.partial"
+            )
             if len(ids) == 0:
+                timer.count("recovery.reset.empty")
                 return
-            with self.reset_measurement.section("reset_statistics"):
+            with self.reset_measurement.section("recovery_reset_statistics", synchronize=False):
                 ended = ended_snapshot(self, ids)
             rows = [int(row[0]) for row in ended]
             for row in ended:
@@ -614,7 +621,7 @@ def environment_class(
             self.robot.write_joint_position_to_sim_index(position=q, env_ids=ids)
             self.robot.write_joint_velocity_to_sim_index(velocity=dq, env_ids=ids)
             draws = [self.draws[i] for i in rows]
-            with self.reset_measurement.section("reset_physics"):
+            with self.reset_measurement.section("recovery_reset_physics", synchronize=False):
                 self.physics.reset(ids, draws, host_ids=rows)
             ex = self.execution
             ex.bias[ids] = ex.bias.new_tensor(np.stack([d["encoder_bias_rad"] for d in draws]))
