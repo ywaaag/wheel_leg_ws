@@ -42,10 +42,12 @@ def validate_job(job):
 def preflight(job):
     """Shared owner submission boundary; no engine, compilation or integration."""
     validate_job(job)
+    isaac = job.backend == "isaac"
     return dict(
         status="CPU_PREFLIGHT_PASS",
-        backend="MuJoCo CPU",
-        Isaac_GPU=False,
+        backend="Isaac PhysX GPU" if isaac else "MuJoCo CPU",
+        Isaac_GPU=isaac,
+        GPU_initialized=False,
         physical_steps=0,
         PPO_updates=0,
     )

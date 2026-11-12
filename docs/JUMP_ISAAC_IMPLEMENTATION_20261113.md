@@ -35,3 +35,19 @@ Kit6.2默认fast_shutdown会直接os._exit，不能在adapter.close中执行，�
 CPU联合252项通过，新增实际n环境C桥验证跨128环形边界、partial reset、FAULT行隔离和完整C/V4继续；schema、真实大Actor继承及双Adam初始化/恢复通过。实际GPU接线版本v7/v8/v9分别通过2环境×400物理tick、80次C PD、partial reset及fresh恢复；保留全部失败版本和对应stdout/receipt。成功接线不是跳跃能力证明；早期物理失败仍如实记账。构造期间SDK内部warmup未逐步计数，不能报告全部准备阶段物理消耗为零。
 
 服务器独立目录`/root/gpufree-data/wheel_leg_jump`。Motion目录仅作为已冻结SDK的只读来源，Jump数据/源码/模型索引/预算/run均独立；正式运行前逐SHA冻结。长训状态、实际消耗、性能与checkpoint以本任务run和`artifacts/jump_isaac`收据为准，文档不宣称尚未发生的训练结果。
+
+## 实际长训交付
+
+冻结训练源码提交`600261c5f85e85b5f3944e23c5db09066b140381`，601个Python模块摘要`7f92a8791d430b90d4a79784c08f9b4d7a325ceb9511c8c41b3d81c71d52da1c`，本地与远端一致。远端run为`/root/gpufree-data/wheel_leg_jump/runs/2026_11_13__jump_isaac_cloud10000_v1`。worker通过统一CLI启动；没有额外launcher、watcher或独立PPO能力评估。
+
+首8次正常`STOPPED_BOUNDED`，16384策略样本，failure=null。实际完整u8 SHA `6c5571c30aa46124da6ee79e34d4b3e433ace23d3c97ac9ab325f4b6041c31fc`，72637311字节。前5次Critic预热，随后3次Actor更新；累计Actor/ Critic Adam分别48/128步。Actor最大权重变化0.0002681208，载入后的Actor/Critic输出、双Adam、std、CPU/CUDA及Python/NumPy RNG均逐位一致。此检查没有增加物理步或PPO更新。
+
+已从该u8完整状态续训同一run，预算没有刷新。交付快照为`RUNNING`、累计10/10000、20480策略样本，failure=null；续训worker PID3392。已落u9 SHA `a91018452bd48f9723ba6a07004c81bf5cea8bca759e069d891cb9136d85d58b`，Actor/Critic Adam64/144，warmup仍为5，没有重复预热。快照会过时，最新值以run内state/budget为准。
+
+物理GPU为4090 UUID `GPU-07694748-3d8b-666b-3933-6443416715dd`，Jump进程实测占用3418MiB；没有修改Motion文件或进程。首8次平均54.31秒/更新；u8观测打包25.10秒、rollout51.91秒、学习0.092秒。这是当前共享服务器上32×64的实际耗时，不是GPU后端相对MuJoCo的提速结论。按此短窗口外推余下约6.3天，仅作资源规划。
+
+本地收据为`artifacts/jump_isaac/bounded8_checkpoint_receipt.json`、`long_running_receipt.json`、`source_600261c_frozen.json`。训练统计候选仍由正常结束回合按原三池发布，当前capability_accepted=false，不能将接线和有效优化等同于已经稳定跳跃。后续重点看正常训练统计中的站稳时长、有效起跳/落地闭环与课程晋降级；DR、运动跳和障碍跳尚未实现于本版PhysX场景。
+
+交付复核发现`jump_backend.preflight`的返回标签沿用“MuJoCo CPU/Isaac_GPU=False”，实际GPU消费者已经运行，错误仅在主机预检收据（修复位置`src/native_stand/simulation/jump_backend.py`）。本地后续小提交让标签跟随实际后端，并显式`GPU_initialized=False`，避免把CPU预检称作GPU验收；没有向活动远端热同步该修改，训练仍冻结在上述600261c。
+
+CPU减负原提交`148bcbc`已由公共负责人以`bb22253`集成到主仓；本次实际核对主仓HEAD已推进到`1cc65e1`，未恢复到历史16f81c。新集成只需按序承接`bc95acb`、`707b6bf`、`600261c`及本交付小提交，公共3提交和已集成CPU改动不重复提交。GPU在冻结快照上通过；与最新主仓其他领域增量的联合验收应由集成方完成，不能拿本分支的252项代替该结果。
