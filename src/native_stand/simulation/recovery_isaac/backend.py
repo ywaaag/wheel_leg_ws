@@ -348,6 +348,9 @@ class IsaacRecovery:
             measurement if measurement is not None else Measurement(False, job.runtime.device)
         )
         self.env = None
+        self.output = Path(output)
+        self.output.mkdir(parents=True, exist_ok=True)
+        self.app = None
         self._owns_app = application is None
         if application is None:
             preflight(job, resources=True)
@@ -357,7 +360,12 @@ class IsaacRecovery:
 
             with preserve_worker_signals():
                 self.app = AppLauncher(
-                    {"headless": True, "device": job.runtime.device, "multi_gpu": False}
+                    {
+                        "headless": True,
+                        "device": job.runtime.device,
+                        "multi_gpu": False,
+                        "fast_shutdown": False,
+                    }
                 ).app
         else:
             preflight(job, resources=False)
@@ -365,6 +373,17 @@ class IsaacRecovery:
         try:
             self._initialize(job, output)
         except BaseException as exc:
+            import traceback
+
+            write_json(
+                self.output / "construction_failure.json",
+                dict(
+                    error=repr(exc),
+                    traceback=traceback.format_exc(),
+                    reported_before_application_shutdown=True,
+                ),
+            )
+            traceback.print_exc(file=sys.__stderr__)
             try:
                 self.close()
             except BaseException as cleanup:
@@ -709,15 +728,22 @@ class IsaacRecovery:
         finally:
             self.env = None
             if self._owns_app and self.app is not None:
-                try:
-                    self.app.close()
-                finally:
-                    self.app = None
+                # Kit may call _exit even when a launcher ignores fast_shutdown.
+                # Public worker must first settle Budget/state/report/notify.
+                import atexit
+
+                app, self.app = self.app, None
+                exit_code = 1 if sys.exc_info()[1] is not None else 0
+                atexit.register(lambda: app.close(exit_code=exit_code))
 
 
 def make_env(job, *, output=None, measurement=None):
     return IsaacRecovery(
-        job, output=output or Path("/tmp/recovery_isaac_execution"), measurement=measurement
+        job,
+        output=output
+        or job.assets.get("recovery_execution_output")
+        or Path("/tmp/recovery_isaac_execution"),
+        measurement=measurement,
     )
 
 
