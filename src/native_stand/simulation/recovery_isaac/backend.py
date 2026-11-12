@@ -397,7 +397,11 @@ class IsaacRecovery:
         self.output = Path(output)
         self.output.mkdir(parents=True, exist_ok=True)
         template = execution_json(runtime["bindings"]["scene_spec"]["path"], job.assets)
-        sys.path.insert(0, template["asset_module_root"])
+        # RuntimePaths maps SHA-bound files, not every directory. Derive the
+        # package root from the actual bound module, never the legacy hint.
+        from .bindings import asset_module_root
+
+        sys.path.insert(0, str(asset_module_root(template)))
         from native_stand.command_v6.runtime.configure import verify_asset_import
         from native_stand.env import NativeStandCfg
 

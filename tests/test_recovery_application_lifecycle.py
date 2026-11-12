@@ -53,3 +53,25 @@ def test_normal_close_is_idempotent_and_defers_only_owned_app(monkeypatch):
     assert closed == ["env"] and len(callbacks) == 1
     callbacks[0]()
     assert closed == ["env", dict(exit_code=0)]
+
+
+def test_mapped_asset_module_file_is_authoritative_over_unmapped_directory_hint(tmp_path):
+    from native_stand.artifacts.io import file_sha256
+    from native_stand.simulation.recovery_isaac.bindings import asset_module_root
+
+    root = tmp_path / "copied/source/agent_world"
+    package = root / "agent_world/assets"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("")
+    (package.parent / "__init__.py").write_text("")
+    module = package / "rmuc_wheel_leg.py"
+    module.write_text("VALUE = 42\n")
+    template = dict(
+        asset_module_root="/unavailable/original/directory",
+        asset_module_path=str(module),
+        asset_module_sha256=file_sha256(module),
+    )
+    assert asset_module_root(template) == root
+    module.write_text("VALUE = 43\n")
+    with pytest.raises(ValueError, match="identity"):
+        asset_module_root(template)
