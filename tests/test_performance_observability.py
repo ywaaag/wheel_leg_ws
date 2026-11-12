@@ -204,3 +204,28 @@ def test_generic_adapter_passes_same_timer_to_environment_and_policy(tmp_path):
         assert adapter.measurement is timer and adapter.ppo.measurement is timer
     finally:
         adapter.close()
+
+
+def test_metrics_writer_persists_small_opt_in_summary_without_unknown_payload(tmp_path):
+    from native_stand.artifacts.metrics import MetricsWriter
+
+    writer = MetricsWriter(tmp_path / "metrics.jsonl", every_updates=1, tensorboard=False)
+    summary = Measurement(True)
+    with summary.section("rollout"):
+        summary.count("reset_rows", 2)
+    row = dict(
+        update=1,
+        performance_seconds=summary.seconds,
+        performance_counters=summary.counters,
+        performance_parents=summary.parents,
+        performance_clocks=summary.clocks,
+        saved_this_update=True,
+        unused_observations="not telemetry",
+    )
+    writer.write(row)
+    writer.close()
+    actual = json.loads((tmp_path / "metrics.jsonl").read_text())
+    assert "unused_observations" not in actual
+    assert actual["performance_counters"] == {"reset_rows": 2}
+    assert actual["performance_clocks"] == {"rollout": "cpu_wall"}
+    assert actual["saved_this_update"] is True
