@@ -15,6 +15,7 @@ from native_stand.tasks.recovery.cubic_randomization import draw
 from .execution import LEGS, WHEELS, Execution
 from .lifecycle import Lifecycle
 from .physics import PhysicalParameters
+from .reset import InitialStates, ended_snapshot, phase_record
 from .routing import physical_control
 
 
@@ -43,6 +44,11 @@ def environment_class(
                 raise
 
         def _initialize_recovery(self, cfg):
+            from native_stand.learning.ppo.performance import Measurement
+
+            self.reset_measurement = Measurement(
+                getattr(cfg, "recovery_performance_measurement", False), self.device
+            )
             n = self.num_envs
             self.execution = Execution(
                 contract,
@@ -93,6 +99,7 @@ def environment_class(
                 self.life.command_height = self.height_initial.clone()
             self.physics = PhysicalParameters(self, contract, initials["mechanics"])
             self.init_catalog = initials
+            self.initial_states = InitialStates(initials, self.robot.joint_names, self.device)
             self.courses = [course_class(cfg.seed + i) for i in range(n)]
             if getattr(cfg, "recovery_standalone_course", False):
                 for course in self.courses:
@@ -451,7 +458,7 @@ def environment_class(
                 terminated = terminated & ~result["success"]
             return terminated, result["truncated"]
 
-        def refresh_pulses(self, ids=None):
+        def refresh_pulses(self, ids=None, *, rows=None):
             ids = torch.arange(self.num_envs, device=self.device) if ids is None else ids
             patterns = self.effort.new_tensor(
                 [
@@ -461,8 +468,7 @@ def environment_class(
                     [0.5, -0.5, -0.5, 0.5],
                 ]
             )
-            rows = ids.tolist()
-            counts = self.reset_count[ids].tolist()
+            rows = ids.cpu().tolist() if rows is None else rows
             self.pulse_enabled[ids] = torch.tensor(
                 [bool(self.episode_spec[i] and self.episode_spec[i]["pulse"]) for i in rows],
                 device=self.device,
@@ -477,7 +483,7 @@ def environment_class(
                 )
                 + 0.05
             )
-            mode = ids.new_tensor([(i + c) % 4 for i, c in zip(rows, counts, strict=False)])
+            mode = (ids + self.reset_count[ids]) % 4
             sign = torch.where(ids % 2 == 0, 1.0, -1.0)
             self.pulse_pattern[ids] = patterns[mode] * sign[:, None]
 
@@ -499,27 +505,28 @@ def environment_class(
         def _reset_idx(self, env_ids):
             if not self.recovery_ready:
                 return super()._reset_idx(env_ids)
+            with self.reset_measurement.section("reset"):
+                return self._reset_recovery(env_ids)
+
+        def _reset_recovery(self, env_ids):
             ids = (
                 torch.arange(self.num_envs, device=self.device)
                 if env_ids is None
                 else env_ids.long()
             )
-            for i in ids.tolist():
-                if (
-                    self.episode_spec[i] is not None
-                    and self.episode_steps[i] > 0
-                    and self.life.last_result
-                    and bool(self.life.last_result["done"][i])
-                ):
-                    success = bool(self.life.success[i])
-                    quality = bool(
-                        self.HP10_count[i] >= 500
-                        and (self.HP10_sum[i] / 500).clamp_min(0).sqrt().max() <= 0.1
-                    )
+            if len(ids) == 0:
+                return
+            with self.reset_measurement.section("reset_statistics"):
+                ended = ended_snapshot(self, ids)
+            rows = [int(row[0]) for row in ended]
+            for row in ended:
+                i, steps = int(row[0]), int(row[1])
+                if self.episode_spec[i] is not None and steps > 0 and bool(row[2]):
+                    success, quality = bool(row[3]), bool(row[4])
                     self.courses[i].record(
                         self.episode_spec[i]["group"],
-                        student_seconds=float(self.student_seconds[i]),
-                        teacher_seconds=float(self.teacher_seconds[i]),
+                        student_seconds=row[5],
+                        teacher_seconds=row[6],
                         passed=success,
                         nominal=self.episode_spec[i]["nominal_anchor"],
                         physical_quality=quality,
@@ -527,12 +534,8 @@ def environment_class(
                     self.completed.append(
                         dict(
                             Motion_confirmed=success if self.handover_mode else None,
-                            Recovery_handover_reached=bool(self.life.handover_active[i])
-                            if self.handover_mode
-                            else None,
-                            Recovery_handover_time_s=float(self.life.handover_time[i])
-                            if self.handover_mode
-                            else None,
+                            Recovery_handover_reached=bool(row[7]) if self.handover_mode else None,
+                            Recovery_handover_time_s=row[8] if self.handover_mode else None,
                             env_id=i,
                             command_height_m=self.episode_spec[i].get("height_m", 0.34),
                             height_dynamic=self.episode_spec[i].get("height_dynamic", False),
@@ -541,18 +544,18 @@ def environment_class(
                             DR_strength=self.episode_spec[i]["DR_strength"],
                             physical_quality=quality,
                             success=success,
-                            student_seconds=float(self.student_seconds[i]),
-                            teacher_seconds=float(self.teacher_seconds[i]),
-                            steps=int(self.episode_steps[i]),
+                            student_seconds=row[5],
+                            teacher_seconds=row[6],
+                            steps=steps,
                         )
                     )
                     if self.phase_readback is not None:
                         self.completed[-1].update(
-                            phase_readback=self.phase_readback.record(i),
+                            phase_readback=phase_record(row),
                             end_reason="success"
                             if success
                             else "timeout"
-                            if self.episode_steps[i] >= 2300
+                            if steps >= 2300
                             else "fault",
                         )
                     self.completed_count += 1
@@ -586,38 +589,22 @@ def environment_class(
                         if not spec["standing"] or count % 2 == 0 or spec["height_dynamic"]
                         else [0.30, 0.32, 0.34, 0.36, 0.38][(i + count // 2) % 5],
                     )
-                    self.height_initial[i] = spec["height_m"]
-                    self.height_dynamic[i] = spec["height_dynamic"]
                 self.episode_spec[i] = spec
                 self.draws[i] = draw(spec["DR_strength"], self.DR_rng[i])
                 self.draws[i]["friction"] *= self.cfg.ground_dynamic_friction / 0.5
             # A real episode reset only. Continuous prefix->student change
             # never calls this method, clears a queue, or overwrites q/dq.
             super()._reset_idx(ids)
-            poses = [
-                self.init_catalog["poses"][
-                    (
-                        f"standing_h{self.episode_spec[i]['height_m']:.2f}"
-                        if self.height_conditioned
-                        else "standing"
-                    )
-                    if self.episode_spec[i]["standing"]
-                    else "Swing"
-                ]
-                for i in ids.tolist()
-            ]
-            q = torch.tensor(
-                [[p["joint_position"][name] for name in self.robot.joint_names] for p in poses],
-                device=self.device,
-            )
-            dq = torch.tensor(
-                [[p["joint_velocity"][name] for name in self.robot.joint_names] for p in poses],
-                device=self.device,
-            )
-            root = torch.tensor([p["root_pose_xyzw"] for p in poses], device=self.device)
-            root[:, :3] += self.scene.env_origins[ids]
-            velocity = torch.tensor(
-                [p["root_velocity_linear_angular"] for p in poses], device=self.device
+            specs = [self.episode_spec[i] for i in rows]
+            if self.height_conditioned:
+                self.height_initial[ids] = self.height_initial.new_tensor(
+                    [p["height_m"] for p in specs]
+                )
+                self.height_dynamic[ids] = self.height_dynamic.new_tensor(
+                    [p["height_dynamic"] for p in specs]
+                )
+            q, dq, root, velocity = self.initial_states.select(
+                specs, self.scene.env_origins[ids], height_conditioned=self.height_conditioned
             )
             from native_stand.simulation.scenes import validate_reset_pose
 
@@ -626,9 +613,9 @@ def environment_class(
             self.robot.write_root_com_velocity_to_sim_index(root_velocity=velocity, env_ids=ids)
             self.robot.write_joint_position_to_sim_index(position=q, env_ids=ids)
             self.robot.write_joint_velocity_to_sim_index(velocity=dq, env_ids=ids)
-            draws = [self.draws[i] for i in ids.tolist()]
-            self.physics.reset(ids, draws)
-            self._physical_profile_cache = None
+            draws = [self.draws[i] for i in rows]
+            with self.reset_measurement.section("reset_physics"):
+                self.physics.reset(ids, draws, host_ids=rows)
             ex = self.execution
             ex.bias[ids] = ex.bias.new_tensor(np.stack([d["encoder_bias_rad"] for d in draws]))
             ex.packet_age[ids] = ex.packet_age.new_tensor([d["Actor_age_ms"] for d in draws])
@@ -636,7 +623,7 @@ def environment_class(
             ex.wheel_delay[ids] = ex.wheel_delay.new_tensor(
                 np.stack([d["wheel_delay_ms"] for d in draws])
             )
-            self.refresh_pulses(ids)
+            self.refresh_pulses(ids, rows=rows)
             self.sim.forward()
             self._closure()
             if not bool((self.closure_each[ids].amax(-1) <= 0.005).all()):
@@ -645,7 +632,7 @@ def environment_class(
             self.episode_steps[ids] = 0
             self.initialized[ids] = True
             self.prefix_s[ids] = self.prefix_s.new_tensor(
-                [self.episode_spec[i]["prefix_s"] for i in ids.tolist()]
+                [self.episode_spec[i]["prefix_s"] for i in rows]
             )
             self.life.reset(ids, root[:, 2] - self.scene.env_origins[ids, 2], self.prefix_s[ids])
             if self.phase_readback is not None:

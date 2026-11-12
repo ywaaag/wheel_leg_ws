@@ -4,11 +4,26 @@ from __future__ import annotations
 
 import torch
 
-from native_stand.control_readback import tensor
+from .observations import invalidate_physical_profile
 
 
-def value(v, device):
-    return torch.as_tensor(tensor(v), device=device).clone()
+def tensor_view(v):
+    if isinstance(v, torch.Tensor):
+        return v.detach()
+    if hasattr(v, "torch"):
+        return v.torch.detach()
+    import warp as wp
+
+    if isinstance(v, wp.array):
+        return wp.to_torch(v)
+    raise TypeError("Unsupported physical tensor frontend " + type(v).__name__)
+
+
+def value(v, device, ids=None):
+    source = tensor_view(v)
+    if ids is not None:
+        source = source[ids.to(source.device, dtype=torch.long)]
+    return source.to(device).clone()
 
 
 class PhysicalParameters:
@@ -20,8 +35,6 @@ class PhysicalParameters:
         self.mass0 = value(self.view.get_masses(), self.device)
         self.inertia0 = value(self.view.get_inertias(), self.device)
         self.com0 = value(self.view.get_coms(), self.device)
-        self.mass0 = self.mass0.clone()
-        self.inertia0 = self.inertia0.clone()
         self.body_ids = torch.arange(len(r.body_names), device=self.device, dtype=torch.int32)
         self.joint_ids = torch.arange(len(r.joint_names), device=self.device, dtype=torch.int32)
         if set(r.joint_names) != set(mechanics["joint_names"]):
@@ -77,14 +90,30 @@ class PhysicalParameters:
         )
         # Coulomb torque is explicitly routed outside motor caps. It is a
         # kinetic-friction candidate, NOT MuJoCo's static friction solver.
-        self.material = value(self.view.get_material_properties(), "cpu")
+        material = self.view.get_material_properties()
+        self._material_torch = isinstance(material, torch.Tensor)
+        self.material = value(material, "cpu")
         self.mass = self.mass0.clone()
         self.inertia = self.inertia0.clone()
         self.com = self.com0.clone()
 
-    def reset(self, ids, draws):
+    def _set_material(self, indices):
+        # PhysX requires a full (envs, shapes, 3) tensor plus selected env IDs.
+        if self._material_torch:
+            self.view.set_material_properties(self.material, indices)
+        else:
+            import warp as wp
+
+            self.view.set_material_properties(
+                wp.from_torch(self.material.contiguous(), dtype=wp.float32),
+                wp.from_torch(indices.contiguous(), dtype=wp.int32),
+            )
+
+    def reset(self, ids, draws, *, host_ids=None):
         e = self.e
-        e._physical_profile_cache = None
+        if len(ids) == 0:
+            return
+        invalidate_physical_profile(e, host_ids if host_ids is not None else ids.cpu().tolist())
         r = e.robot
         index = ids.to(torch.int32)
         rows = len(ids)
@@ -102,30 +131,25 @@ class PhysicalParameters:
         r.set_inertias_index(inertias=inertia.contiguous(), body_ids=self.body_ids, env_ids=index)
         # Average ground(.5)/shape combine: 2*mu-.5 on wheel material yields
         # the same explicitly requested effective friction as CPU uniform mu.
-        host = ids.cpu().long()
-        materials = self.material.clone()
+        host = ids.cpu().long() if host_ids is None else torch.tensor(host_ids, dtype=torch.long)
+        materials = self.material
         mu = materials.new_tensor([d["friction"] for d in draws])
         shape_mu = 2 * mu - e.cfg.ground_dynamic_friction
         if bool((shape_mu < 0).any()):
             raise ValueError("Scene material cannot represent this DR effective friction")
         materials[host, :, :2] = shape_mu[:, None, None]
         materials[host, :, 2] = 0
-        from native_stand.students.recovery_dr_runtime import set_material_tensor
-
-        set_material_tensor(self.view, materials, host.to(torch.int32))
-        self.material = materials
-        from native_stand.students.recovery_dr_runtime import material_tensor
-
-        actual_material = material_tensor(self.view)[host]
+        self._set_material(host.to(torch.int32))
+        actual_material = value(self.view.get_material_properties(), "cpu", host)
         if not torch.allclose(actual_material, materials[host], atol=1e-6, rtol=0):
             raise RuntimeError("Actual material reset/readback differs")
         self.mass[ids] = mass
         self.inertia[ids] = inertia
         self.com[ids] = com
         actual = [
-            value(self.view.get_masses(), self.device)[ids],
-            value(self.view.get_inertias(), self.device)[ids],
-            value(self.view.get_coms(), self.device)[ids],
+            value(self.view.get_masses(), self.device, ids),
+            value(self.view.get_inertias(), self.device, ids),
+            value(self.view.get_coms(), self.device, ids),
         ]
         for name, x, y in zip(
             ["mass", "inertia", "COM"], actual, [mass, inertia, com], strict=False
@@ -173,6 +197,5 @@ class PhysicalParameters:
         r.set_masses_index(masses=self.mass, body_ids=self.body_ids, env_ids=ids)
         r.set_coms_index(coms=self.com, body_ids=self.body_ids, env_ids=ids)
         r.set_inertias_index(inertias=self.inertia, body_ids=self.body_ids, env_ids=ids)
-        from native_stand.students.recovery_dr_runtime import set_material_tensor
-
-        set_material_tensor(self.view, self.material, ids.cpu())
+        self._set_material(ids.cpu())
+        invalidate_physical_profile(self.e)

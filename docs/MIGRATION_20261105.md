@@ -1348,3 +1348,11 @@ PYTHONPATH=src /home/kellen/anaconda3/envs/issaclab/bin/python scripts/prepare_r
 该脚本仅核对源终态/账本/数据根SHA，复用数据根`runtime_paths.json`，生成`job_record.json`与`receipt.json`。不是launcher或训练循环；记录接受`job_from_record`，不直接当preset配置传给`train`。派生记录full初始化、8334本段上限和原PPO参数不变；目标budget需承接used1800，不重新授权8334。尚未确定的GPU UUID/resource policy/target run不得继承旧机器，明确NOT_READY；未正式import、未写来源账本、未创建owner。准确的目标机器值确定后，使用既有`import-checkpoint`填完整manifest、目标run.json及budget，再`resume --max-updates 12`，不是`train`新建任务。12次最多15.36s采样，不等于已覆盖23s自然timeout；自然生命周期证据另记，不能私加额度。
 
 CPU搬迁复用`scripts/recovery_resume_rehearsal.py --path-mapping /home/kellen/wheel_leg_training_data/runtime_paths.json`，checkpoint指向数据根恢复的完整u1800。正式factory/adapter的Actor/909Critic、双Adam/std/CPU RNG、CUDA RNG字节、已完成5次warmup、全部1024行执行历史及课程保存恢复通过，旧根读取禁止；fixture只替换物理I/O。数据根的manifest/ModelIndex保持只读，不为本次测试复制模型到worktree；临时完整checkpoint仅在/tmp。未证明PhysX隐藏现场恢复；fresh-reset须丢弃未完成回合并记录边界，保留已完成统计、课程、优化器及实际预算。真实GPU恢复仍NOT_RUN。
+
+### Recovery reset等价性能增量（独立领域提交）
+
+正式消费者为`RecoveryEnv._reset_idx→ended_snapshot/InitialStates→PhysicalParameters.reset→Execution.reset→physical_profile`。结束摘要合并一次传输，保持env顺序与每env choose/draw/RNG；初态合法模板只代替反复构造，不代替实际几何观测。材质仍用PhysX要求的全形状缓冲+索引；mass→COM→final inertia和实际读回保留。partial reset只刷新受影响32列profile，完整加载/device/dtype变化全失效。Execution.reset只算reset行的V4 pair，不清未reset行队列。fine_ring/909终态/BC/prior消费者未裁剪。
+
+脚本`benchmark_recovery_reset_cpu.py`通过公共Measurement测量1024环境scripted-I/O，5轮中位数：单行8.756→1.904ms，16行9.525→2.265ms，全量82.805→30.052ms。单行标量提取21→7，tolist13→1；全量14343→7、4105→1。实际物理getter每reset5→4，setter顺序/次数不变；新空集合无操作，旧基线空集合IndexError单列。是CPU fixture结果，GPU时间、PCIe传输和整轮收益均未测。原始计数及源SHA见`artifacts/recovery_continuation/reset_cpu_benchmark.json`。
+
+相关总回归273通过（61.13s，3条原ONNX warning）；随后真实BC/prior/正式adapter及紧凑Execution reset增量49通过（7.10s）。覆盖全/partial/空/连续reset、未reset状态和RNG、实际909终态、动作/reward/GAE/梯度/双Adam/RNG严格一致，以及32后续PD/队列tick。架构与Ruff通过。剩余base reset默认姿态写入和再合法姿态写入因尚无PhysX实证不删除；执行历史、材质/COM/惯量核验均保留。
