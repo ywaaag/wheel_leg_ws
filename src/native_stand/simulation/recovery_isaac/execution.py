@@ -111,20 +111,17 @@ class Execution:
         dq = dq.to(self.device, self.dtype)
         if q.shape != (len(ids), 6) or dq.shape != q.shape:
             raise ValueError("Measured reset rows required")
-        fullq = self.last_q.clone()
-        fullv = self.last_dq.clone()
-        fullq[ids] = q
-        fullv[ids] = dq
+        if len(ids) == 0:
+            return
         pairs = (ids[:, None] * 2 + torch.arange(2, device=self.device)).flatten()
         target = q.clone()
         target[:, WHEELS] = 0
-        allt = self.adopted.clone()
-        allt[ids] = target
-        self.leg.reset(
-            self.pair(fullq)[pairs], self.pair(fullv)[pairs], self.pair(allt)[pairs], ids=pairs
-        )
-        self.theta[pairs] = self.pair(fullq)[pairs]
-        self.omega[pairs] = self.pair(fullv)[pairs]
+        # Response.reset explicitly consumes compact rows plus global pair IDs.
+        # pair() is row-local, so never clone/gather the whole execution pool.
+        pairq, pairv, pairtarget = self.pair(q), self.pair(dq), self.pair(target)
+        self.leg.reset(pairq, pairv, pairtarget, ids=pairs)
+        self.theta[pairs] = pairq
+        self.omega[pairs] = pairv
         for name in ["raw", "range_request", "requested", "adopted"]:
             getattr(self, name)[ids] = target
         for name in ["targets", "target_policy_history"]:

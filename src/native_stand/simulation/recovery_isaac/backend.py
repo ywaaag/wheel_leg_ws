@@ -433,6 +433,7 @@ class IsaacRecovery:
         cfg.decimation = 10
         cfg.episode_length_s = 23.0
         cfg.is_finite_horizon = True
+        cfg.recovery_performance_measurement = job.diagnostics.get("performance_measurement", False)
         cfg.recovery_effort_caps = job.control.effort_limits_nm
         cfg.recovery_swing_priority = (
             job.assets.get("recovery_standalone_course", {}).get("version")

@@ -231,12 +231,29 @@ def observe(self):
     return self._obs
 
 
+def invalidate_physical_profile(self, rows=None):
+    if rows is None:
+        self._physical_profile_cache = None
+        self._physical_profile_dirty = set()
+    elif getattr(self, "_physical_profile_cache", None) is not None:
+        self._physical_profile_dirty = getattr(self, "_physical_profile_dirty", set()) | set(rows)
+
+
 def physical_profile(self):
-    if getattr(self, "_physical_profile_cache", None) is not None:
-        return self._physical_profile_cache
-    rows = []
+    cache = getattr(self, "_physical_profile_cache", None)
     p = self.physics
-    for _i, d in enumerate(self.draws):
+    signature = (self.num_envs, self.effort.device, self.effort.dtype)
+    previous = getattr(self, "_physical_profile_signature", None)
+    if cache is None or previous != signature:
+        cache = self.effort.new_empty(self.num_envs, 32)
+        ids = list(range(self.num_envs))
+    else:
+        ids = sorted(getattr(self, "_physical_profile_dirty", set()))
+        if not ids:
+            return cache
+    rows = []
+    for i in ids:
+        d = self.draws[i]
         rows.append(
             [
                 d["root_mass_scale"],
@@ -250,14 +267,18 @@ def physical_profile(self):
                 *d["wheel_delay_ms"],
             ]
         )
-    self._physical_profile_cache = torch.cat(
+    index = torch.tensor(ids, device=self.device, dtype=torch.long)
+    cache[index] = torch.cat(
         (
-            torch.tensor(rows, device=self.device, dtype=self.effort.dtype),
-            p.mass[:, 0:1],
-            torch.diagonal(p.inertia[:, 0].reshape(self.num_envs, 3, 3), dim1=-2, dim2=-1),
-            p.com[:, 0, :3],
-            self.effort.new_tensor([0.0, 0.0, 1.0]).expand(self.num_envs, -1),
+            self.effort.new_tensor(rows),
+            p.mass[index, 0:1],
+            torch.diagonal(p.inertia[index, 0].reshape(len(ids), 3, 3), dim1=-2, dim2=-1),
+            p.com[index, 0, :3],
+            self.effort.new_tensor([0.0, 0.0, 1.0]).expand(len(ids), -1),
         ),
         -1,
     )
-    return self._physical_profile_cache
+    self._physical_profile_cache = cache
+    self._physical_profile_signature = signature
+    self._physical_profile_dirty = set()
+    return cache
