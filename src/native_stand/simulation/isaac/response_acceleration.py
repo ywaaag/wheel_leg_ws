@@ -6,6 +6,8 @@ module/class is replaced, and the frozen dependency remains read-only.
 
 import torch
 
+from .observability import count, section
+
 VERSION = "motion_v4_tensor_execution_v2"
 
 
@@ -86,12 +88,22 @@ def response_tick(
     ) * load_scale
 
 
-def accelerate(original, *, compile_tick=False):
+def accelerate(original, *, compile_tick=False, measurement=None):
     """Adopt the existing state without reinitializing a single causal buffer."""
     base = type(original)
 
     class AcceleratedResponse(base):
         def reset(self, q, v, target, ids=None):
+            count(
+                self.measurement,
+                "motion.response_reset_rows",
+                len(q),
+                reason="all_rows" if ids is None else "partial_rows",
+            )
+            with section(self.measurement, "motion.response_history_reset"):
+                return self._reset_buffers(q, v, target, ids)
+
+        def _reset_buffers(self, q, v, target, ids=None):
             if ids is None:
                 ids = self.ids
                 self.tick = 0
@@ -168,7 +180,15 @@ def accelerate(original, *, compile_tick=False):
             if self._compiled_tick and phase not in self._compiled_phases:
                 # Lazy compiler/autotuner activity must not consume policy RNG.
                 devices = [q.device.index] if q.is_cuda else []
-                with torch.random.fork_rng(devices=devices):
+                with (
+                    section(
+                        self.measurement,
+                        "compile_prepare",
+                        parent="rollout_seconds",
+                        reason="PD" if phase[0] else "held_PD",
+                    ),
+                    torch.random.fork_rng(devices=devices),
+                ):
                     result = self._tick_function(*arguments, pd=phase[0], quantized=quantized)
                 self._compiled_phases.add(phase)
             else:
@@ -179,6 +199,7 @@ def accelerate(original, *, compile_tick=False):
     result = object.__new__(AcceleratedResponse)
     result.__dict__.update(original.__dict__)
     result._history_slots = torch.arange(128, device=original.x.device)
+    result.measurement = measurement
     result._zero_white = original.x.new_zeros(original.n, 4)
     result._tick_function = response_tick
     result._compiled_tick = compile_tick

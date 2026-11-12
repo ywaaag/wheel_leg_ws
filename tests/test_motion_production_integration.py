@@ -224,6 +224,9 @@ def test_public_worker_uses_production_course_decoder_optimizer_and_capture(tmp_
         env=NS(num_envs=4,device='cpu',fsm=NS(mode=torch.full((4,),2,dtype=torch.long)),
             initialization_checked=torch.ones(4,dtype=torch.bool),height_adapter=NS(target=torch.full((4,),.34)),
             student_obs=obs,identified_dr=NS(episodes=torch.zeros(4,dtype=torch.long)))
+        from native_stand.tasks.motion.maneuver_statistics import RESPONSE_VERSION, episode_class
+        env.stage_spec = stage
+        env.onpolicy_episodes = episode_class(object, version=RESPONSE_VERSION)(env)
         router=control_router(adapter.job,adapter.source,Teacher())
         router.initialize(env,{})
         requested,student=router.actions(env,torch.tensor([[0.,0.,1.,0.,0.,-1.]]).expand(4,-1))

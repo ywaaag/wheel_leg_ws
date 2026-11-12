@@ -136,6 +136,29 @@ def test_real_tick_has_full_graph_capture_for_both_pd_phases_without_tick_recomp
     assert len(graphs) == 2  # PD and held-PD; neither 16 clocks nor128 slots.
 
 
+def test_shared_measurement_counts_only_cold_compile_phases_without_rng_change():
+    from native_stand.learning.ppo.performance import Measurement
+
+    old = response()
+    timer = Measurement(True)
+    new = accelerate(copy.deepcopy(old), measurement=timer)
+    new._compiled_tick = True
+    new._tick_function = torch.compile(
+        response_tick, backend="eager", fullgraph=True, dynamic=False
+    )
+    rng = torch.get_rng_state()
+    for _ in range(16):
+        q, v = old.ref, torch.zeros_like(old.ref)
+        expected, actual = old.step(q, v, q), new.step(q, v, q)
+        for a, b in zip(expected, actual, strict=True):
+            torch.testing.assert_close(a, b, atol=0, rtol=0)
+    assert torch.equal(rng, torch.get_rng_state())
+    assert timer.counters["compile_prepare.calls:PD"] == 1
+    assert timer.counters["compile_prepare.calls:held_PD"] == 1
+    assert timer.parents["compile_prepare"] == "rollout_seconds"
+    assert timer.clocks["compile_prepare"] == "cpu_wall"
+
+
 def test_real_history_gather_matches_causal_indices_and_reuses_index_storage():
     cache = CriticCache(torch.zeros(3, 31))
     for length, ages in ((128, range(1, 25)), (128, range(1, 11)), (32, range(1, 6))):

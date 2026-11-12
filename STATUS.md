@@ -1,5 +1,13 @@
 # 当前任务
 
+## Motion领域窗口统计与性能观测增量（2026-11-13）
+
+Motion独立分支已接入公共`Measurement`（公共提交`455a198`）：训练计时仍由公共driver创建并共享给adapter、环境和PPO；领域只记录实际消费者的关闭、构造、首次reset/readback、编译、缓存命中/失效、材质getter/setter、整池行数、实际使用行数和明确的host transfer bytes。计数不读取GPU张量，不新增CUDA同步。`after_save_total`下分别记录candidate引用和课程重建子项。
+
+Motion统计现区分当前完整review窗口的Student有效样本、全部transition与累计计数。窗口身份绑定run、comparison、stage revision和起始update；相同窗口重复导出幂等，冲突更新拒绝；保存恢复、partial reset和课程重建保留累计计数。旧checkpoint缺少窗口起点或完整窗口快照时标为`UNKNOWN`，不猜测窗口样本。
+
+训练候选报告分别记录`coverage_insufficient`、`quality_insufficient`和`task_insufficient`及实际值/阈值；资格和排名规则不变，UNKNOWN不制造失败或best。最终领域/公共边界联合224 passed（21.16s）、架构208文件/0例外、CI范围Ruff0.8.4 check和207文件format通过；完整命令及改动表在迁移报告本节。本分支物理/GPU/远端/真实训练均0，未热改r15。
+
 ## 主仓基线与依赖归档（2026-11-12，当前收尾）
 
 公共性能集成在独立worktree `/home/kellen/wheel_leg_public_ws` / `integration/performance-observability`推进。driver、GenericPPO、ControlledPPO与环境共享Measurement，关闭时不访问CUDA；嵌套子项默认CPU墙钟，父项inclusive不能重复相加。after_save总包已独立命名，候选与环境重建由领域分别计时；小型计数随update落盘，启动构造另列。当前公共针对性35项、生命周期联合91项、metrics补充23项通过，均为各自明确测试范围，不拼接为全套结果；最终领域集成与统一快照回归尚待收齐。Motion窗口/累计与候选原因由运动2负责；Recovery/Jump在各自worktree交付，不热改活动远端。

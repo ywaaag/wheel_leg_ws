@@ -1,5 +1,7 @@
 """World-Z clearance above the actual plane or injected triangle surface."""
 
+from .isaac.observability import count, section
+
 VERSION = "motion_vertical_ground_height_v2"
 
 
@@ -19,11 +21,31 @@ def _surface_query(env, provider):
     clock = getattr(env, "_sim_step_counter", None)
     key = (id(provider), clock, getattr(env, "_motion_reset_epoch", 0))
     old = getattr(env, "_motion_surface_query", None)
+    measurement = getattr(env, "measurement", None)
     if enabled and clock is not None and old is not None and old[0] == key:
+        count(measurement, "motion.surface_cache", reason="hit")
         return old[1:]
+    reason = (
+        "disabled"
+        if not enabled or clock is None
+        else "first_use"
+        if old is None
+        else "surface_changed"
+        if old[0][0] != key[0]
+        else "reset_epoch_changed"
+        if old[0][2] != key[2]
+        else "physics_advanced"
+    )
+    count(measurement, "motion.surface_cache", reason=reason)
     xy = env.robot.data.root_pos_w.torch[..., :2]
-    valid = provider.contains(xy)
-    z, gradient = provider.sample(xy, check=False)
+    count(measurement, "motion.surface_query_rows", len(xy))
+    with section(
+        measurement,
+        "motion.surface_query",
+        parent=getattr(env, "_measurement_reset_parent", "rollout_seconds"),
+    ):
+        valid = provider.contains(xy)
+        z, gradient = provider.sample(xy, check=False)
     if enabled and clock is not None:
         env._motion_surface_query = (key, valid, z, gradient)
     return valid, z, gradient

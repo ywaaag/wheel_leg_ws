@@ -8,6 +8,7 @@ from critic_tensor import input_tensor
 from robot_adapter import LEGS, WHEELS, Timing
 from runtime_support import noise
 
+from .observability import count, section
 from .sensor_packets import Packets
 
 
@@ -22,7 +23,7 @@ def base511_critic(env, actor, *, body_velocity):
 
     cache = getattr(env, "_motion_value_cache", None)
     if cache is None:
-        cache = env._motion_value_cache = CriticCache(actor)
+        cache = env._motion_value_cache = CriticCache(actor, getattr(env, "measurement", None))
     scales = cache.scales
     history = cache.history
     static = cache.reset_fields(env)
@@ -101,6 +102,7 @@ def subclass(
     episodes_factory,
     events_factory,
     terminal_critic_owner="fullchain",
+    measurement=None,
 ):
     from ground_height import VERSION
 
@@ -159,6 +161,7 @@ def subclass(
                 setup_terrain(self, info["terrain_scene"])
 
         def __init__(self, *args, **kwargs):
+            self.measurement = measurement
             self.identified_ready = False
             super().__init__(*args, **kwargs)
             self.mcu_override = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
@@ -178,7 +181,9 @@ def subclass(
 
                 self.motion_surface_query_cache = True
                 self.motion_timing.leg = accelerate(
-                    self.motion_timing.leg, compile_tick=optimization["compile_tensor_tick"]
+                    self.motion_timing.leg,
+                    compile_tick=optimization["compile_tensor_tick"],
+                    measurement=self.measurement,
                 )
             self.identified_packets = Packets(self.motion_timing, noise=noise)
             self.actor_sensor_packets = self.identified_packets
@@ -199,6 +204,16 @@ def subclass(
             self.identified_ready = True
             self.onpolicy_episodes = episodes_factory(self)
             self.transient_events = events_factory(self)
+
+        def set_measurement(self, value):
+            self.measurement = value
+            self.motion_timing.leg.measurement = value
+            contact = getattr(self.identified_dr, "contact", None)
+            if contact is not None:
+                contact.measurement = value
+            cache = getattr(self, "_motion_value_cache", None)
+            if cache is not None:
+                cache.measurement = value
 
         def configure_mcu_cases(self, cases):
             super().configure_mcu_cases(cases)
@@ -230,11 +245,21 @@ def subclass(
         def _reset_idx(self, ids):
             if not self.identified_ready:
                 return super()._reset_idx(ids)
+            parent = getattr(self, "_measurement_reset_parent", "rollout_seconds")
+            reason = "all_rows" if ids is None else "partial_rows"
+            count(self.measurement, "motion.reset_calls", reason=reason)
+            count(
+                self.measurement,
+                "motion.reset_rows",
+                self.num_envs if ids is None else len(ids),
+                reason=reason,
+            )
             t = self.motion_timing
             d = t.dr
             t.dr = None
             try:
-                super()._reset_idx(ids)
+                with section(self.measurement, "motion.base_reset", parent=parent):
+                    super()._reset_idx(ids)
             finally:
                 t.dr = d
             ids = t.ids if ids is None else ids
@@ -244,10 +269,11 @@ def subclass(
                 from .terrain_scene import align_reset_height
 
                 align_reset_height(self, ids)
-            t.reset(ids)
+            with section(self.measurement, "motion.execution_reset", parent=parent):
+                t.reset(ids)
             value_cache = getattr(self, "_motion_value_cache", None)
             if value_cache is not None:
-                value_cache.invalidate()
+                value_cache.invalidate(reason="partial_reset")
             self.identified_packets.reset(ids)
             self.fullchain_history_valid[ids] = False
             self.physical_hf.reset(ids)
