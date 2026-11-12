@@ -3,6 +3,8 @@
 import copy
 import os
 from dataclasses import asdict
+from functools import partial
+from inspect import signature
 from pathlib import Path
 
 from native_stand.artifacts.io import json_digest, write_json
@@ -12,13 +14,26 @@ from native_stand.tasks.jump.unified import VERSION
 
 class JumpAdapter(GenericPPOAdapter):
     def build(self, context, stage, resume_from):
+        from .jump_backend import make_measured_env
+
+        # The public driver owns measurement. Inject through its existing
+        # optional factory boundary; custom/script factories retain their API.
+        if "measurement" in signature(self.backend.make_env).parameters:
+            self.backend.make_measured_env = partial(
+                make_measured_env, factory=self.backend.make_env
+            )
         self.pending = None
         super().build(context, stage, resume_from)
         from native_stand.artifacts.io import file_sha256
         from native_stand.artifacts.model_refs import ModelReference
 
+        registered = set()
         for env in self.env.envs:
             binding = env.plant.binding
+            key = (binding["path"], binding["sha256"])
+            if key in registered:
+                continue
+            registered.add(key)
             for path, sha in binding["sources"].items():
                 context.refs.register(
                     ModelReference(sha, path, ("control",), context.run_dir.name, kind="C_source")
@@ -84,6 +99,10 @@ class JumpAdapter(GenericPPOAdapter):
                 )
 
     def after_update(self, context, index, metrics):
+        with self.measurement.section("jump_candidate_summary", synchronize=False):
+            self._after_update(context, index, metrics)
+
+    def _after_update(self, context, index, metrics):
         if context.updates_used % 100:
             return
         rows = [r for r in self.env.completed if r["id"] > self.cursor]
@@ -110,6 +129,10 @@ class JumpAdapter(GenericPPOAdapter):
         return value
 
     def after_save(self, context, reference):
+        with self.measurement.section("jump_candidate_publication", synchronize=False):
+            self._after_save(context, reference)
+
+    def _after_save(self, context, reference):
         if self.pending is None:
             return
         if self.pending["end_update"] != reference["update"]:
@@ -149,13 +172,16 @@ def consider(index, window, reference):
             if len(rows) < config["window_episodes"]:
                 continue
             if objective == "balance":
-                measured = [r for r in rows if r["balance_seconds"] >= 1.0]
-                if len(measured) < config["window_episodes"]:
+                known = [r for r in rows if r["balance_seconds"] >= 1.0 or r["fault"]]
+                if len(known) < config["window_episodes"]:
                     continue
                 fraction = sum(
-                    r["balance_good_seconds"] / r["balance_seconds"] for r in measured
-                ) / len(measured)
-                rows = measured
+                    r["balance_good_seconds"] / r["balance_seconds"]
+                    if r["balance_seconds"] >= 1.0 and not r["fault"]
+                    else 0.0
+                    for r in known
+                ) / len(known)
+                rows = known
             else:
                 fraction = sum(r["success"] for r in rows) / len(rows)
             fault = sum(r["fault"] for r in rows) / len(rows)

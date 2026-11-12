@@ -88,9 +88,9 @@ class UnifiedBase(DirectEngineeringEnv):
         values, self.schema = pack(self, actor[0])
         self._obs = TensorDict(
             dict(
-                student_actor=torch.tensor(actor),
-                student_critic=torch.tensor(values[None]),
-                recovery_actor_valid=torch.tensor(valid[:, None]),
+                student_actor=torch.from_numpy(actor),
+                student_critic=torch.from_numpy(values[None]),
+                recovery_actor_valid=torch.from_numpy(valid[:, None]),
             ),
             batch_size=[1],
         )
@@ -118,9 +118,15 @@ class UnifiedLearningEnv(DenseJumpEnv):
     def observations(self):
         if self._obs is not None:
             return self._obs
-        previous_schema = self.schema
-        self.schema = None
-        obs = super().observations(schema_class=UnifiedDenseCritic)
+        timer = getattr(self, "measurement", None)
+        if timer is not None:
+            with timer.section("jump_observation_pack", synchronize=False):
+                timer.count("jump_observation_packs")
+                return self._pack_observations()
+        return self._pack_observations()
+
+    def _pack_observations(self):
+        obs = self.base.observations()
         p = self.plant
         after = p.jump_request_after_ms
         extras = dict(
@@ -140,17 +146,28 @@ class UnifiedLearningEnv(DenseJumpEnv):
                 "seconds",
             ),
         )
-        values, fields = extend_fields({}, [], extras)
-        self._request_tail_schema = NormalizedCritic.reuse(
-            fields, getattr(self, "_request_tail_schema", None)
+        values, fields = extend_fields({}, [], self.reward.critic_fields())
+        values, fields = extend_fields(values, fields, extras)
+        self._tail_schema = NormalizedCritic.reuse(fields, getattr(self, "_tail_schema", None))
+        tail = self._tail_schema.encode(values)
+        self.schema = UnifiedDenseCritic.reuse(list(self.base.schema.fields) + fields, self.schema)
+        combined = np.concatenate((obs["student_critic"][0].numpy(), tail))
+        self._obs = TensorDict(
+            dict(
+                student_actor=obs["student_actor"],
+                student_critic=torch.from_numpy(combined[None]),
+                recovery_actor_valid=obs["recovery_actor_valid"].clone(),
+                jump_C_phase=torch.tensor([[int(p.execution.c.states[0].phase)]]),
+                jump_C_owner=torch.tensor([[int(p.execution.c.states[0].owner)]]),
+            ),
+            batch_size=[1],
         )
-        tail = self._request_tail_schema.encode(values)
-        self.schema = UnifiedDenseCritic.reuse(list(self.schema.fields) + fields, previous_schema)
-        obs["student_critic"] = torch.cat((obs["student_critic"], torch.tensor(tail[None])), dim=1)
-        obs["jump_C_phase"] = torch.tensor([[int(p.execution.c.states[0].phase)]])
-        obs["jump_C_owner"] = torch.tensor([[int(p.execution.c.states[0].owner)]])
-        self._obs = obs
-        return obs
+        return self._obs
+
+    def invalidate_observations(self, *, parameters_changed=False):
+        """Explicit scene-parameter writes must invalidate measurements AND observations."""
+        self.plant.invalidate_measurements(parameters_changed=parameters_changed)
+        self.base._obs = self._obs = None
 
     def reset_next(self):
         if not self.base.done:
@@ -196,7 +213,8 @@ class UnifiedLearningEnv(DenseJumpEnv):
             raise RuntimeError("C raw publication rejected")
         from dataclasses import replace
 
-        outcomes, samples, failure = [], [], None
+        totals, result, failure = {}, None, None
+        physical_steps = 0
         for substep in range(10):
             before = p.physics_steps
             try:
@@ -219,8 +237,13 @@ class UnifiedLearningEnv(DenseJumpEnv):
                 )
                 if failure:
                     sample = replace(sample, fault=True)
-                samples.append(sample)
-                outcomes.append(self.reward.step(sample))
+                physical_steps += int(advanced > 0)
+                result = self.reward.step(sample)
+                timer = getattr(self, "measurement", None)
+                if timer is not None:
+                    timer.count("jump_reward_packets")
+                for name, value in result["terms"].items():
+                    totals[name] = totals.get(name, 0.0) + value
                 if sample.phase == unified.BALANCE and sample.owner == 2:
                     cfg = self.reward_config
                     self.balance_seconds += sample.dt_s
@@ -233,11 +256,10 @@ class UnifiedLearningEnv(DenseJumpEnv):
                         and np.linalg.norm(sample.omega_rad_s) <= cfg.stable_omega_rad_s
                     )
                     self.balance_good_seconds += sample.dt_s * bool(good)
-            if failure or outcomes and outcomes[-1]["terminated"]:
+            if failure or result and result["terminated"]:
                 break
-        names = set().union(*(v["terms"] for v in outcomes))
-        terms = {k: sum(v["terms"].get(k, 0.0) for v in outcomes) for k in names}
-        result = {**outcomes[-1], "terms": terms, "total": float(sum(terms.values()))}
+        terms = {k: totals[k] for k in set(totals)}
+        result = {**result, "terms": terms, "total": float(sum(terms.values()))}
         self.base.done = bool(result["terminated"])
         self.base._obs = self._obs = None
         if self.base.done and not self.episode_recorded:
@@ -255,11 +277,13 @@ class UnifiedLearningEnv(DenseJumpEnv):
             dones=torch.tensor([self.base.done]),
             terminated=torch.tensor([self.base.done]),
             truncated=torch.tensor([False]),
-            terminal_critic=out["student_critic"].clone(),
+            # Observations are owned values, replaced on advance/reset. The
+            # pre-reset terminal reference needs no extra 6370-element clone.
+            terminal_critic=out["student_critic"],
             extras=dict(
                 reward=result,
                 failure=failure,
-                physical_steps=sum(v.dt_s > 0 for v in samples),
+                physical_steps=physical_steps,
                 actual_C_owner=int(e.c.states[0].owner),
             ),
         )

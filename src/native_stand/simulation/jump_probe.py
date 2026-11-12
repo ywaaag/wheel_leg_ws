@@ -43,6 +43,7 @@ class JumpProbePlant:
         plant="V4",
         motor_cap_factor=1.0,
         charge_step=None,
+        execution_factory=None,
     ):
         if plant not in ("V4", "mechanical350") or motor_cap_factor not in (1.0, 0.8):
             raise ValueError("Explicit finite candidate")
@@ -65,11 +66,14 @@ class JumpProbePlant:
                 for n in CHANNELS
             ]
         )
-        self.execution = Execution(
-            V4 if plant == "V4" else mechanical_contract(V4), response_class, 1, dtype=torch.float64
+        execution_contract = V4 if plant == "V4" else mechanical_contract(V4)
+        self.execution = (
+            Execution(execution_contract, response_class, 1, dtype=torch.float64)
+            if execution_factory is None
+            else execution_factory(execution_contract, response_class, 1)
         )
         self.execution.reset(
-            self.execution.ids,
+            torch.arange(1),
             torch.tensor(self.data.qpos[self.qids][None]),
             torch.tensor(self.data.qvel[self.vids][None]),
         )

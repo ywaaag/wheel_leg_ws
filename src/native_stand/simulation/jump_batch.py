@@ -12,7 +12,7 @@ class JumpBatch:
     device = "cpu"
     infinite_horizon = False
 
-    def __init__(self, envs, job):
+    def __init__(self, envs, job, *, measurement=None):
         self.envs = envs
         self.job = job
         self.num_envs = len(envs)
@@ -27,10 +27,32 @@ class JumpBatch:
             )
         )
         self.schema_verified = False
+        self.schema_digest = json_digest(self.job.assets["jump_critic_schema"])
+        self.set_measurement(measurement)
         self.reset()
 
-    def reset(self, ids=None):
+    def set_measurement(self, measurement):
+        from native_stand.learning.ppo.performance import Measurement
+
+        self.measurement = measurement if measurement is not None else Measurement(False, "cpu")
+        for env in self.envs:
+            env.measurement = self.measurement
+            plant = getattr(env, "plant", None)
+            if plant is not None:
+                plant.measurement = plant.execution.c.measurement = self.measurement
+
+    def invalidate_observations(self, ids=None, *, parameters_changed=False):
         self._obs = None
+        for i in range(self.num_envs) if ids is None else ids:
+            self.envs[int(i)].invalidate_observations(parameters_changed=parameters_changed)
+
+    def reset(self, ids=None):
+        with self.measurement.section("jump_reset", synchronize=False):
+            return self._reset(ids)
+
+    def _reset(self, ids):
+        self._obs = None
+        full = ids is None
         ids = range(self.num_envs) if ids is None else ids
         for i in ids:
             env = self.envs[int(i)]
@@ -39,6 +61,7 @@ class JumpBatch:
                 env.course.pending.pop(env.request["request_id"])
                 env.base.done = True
             env.reset_next()
+            self.measurement.count("jump_environment_resets", reason="full" if full else "partial")
         return self.observations()
 
     def observations(self):
@@ -46,29 +69,39 @@ class JumpBatch:
             return self._obs
         obs = torch.cat([e.observations() for e in self.envs], dim=0)
         for env in self.envs if not self.schema_verified else ():
-            if json_digest(env.schema.contract()) != json_digest(
-                self.job.assets["jump_critic_schema"]
-            ):
+            if json_digest(env.schema.contract()) != self.schema_digest:
                 raise ValueError("Jump实际6370D/235字段schema与冻结布局不同")
         self.schema_verified = True
         self._obs = obs
         return obs
 
     def step(self, raw):
+        with self.measurement.section("jump_batch_step", synchronize=False):
+            return self._step(raw)
+
+    def _step(self, raw):
+        # One host conversion per batch, rather than one detach per environment.
+        if torch.is_tensor(raw):
+            if raw.device.type != "cpu":
+                raise ValueError("Jump MuJoCo CPU不接受CUDA动作；不是GPU后端")
+            raw = raw.detach().numpy()
         rewards = []
         dones = []
         terminal = []
         durations = []
         reasons = []
+        owners = []
         next_observations = []
         for i, env in enumerate(self.envs):
             result = env.step(raw[i : i + 1])
             rewards.append(result["rewards"].reshape(1))
             done = bool(result["dones"][0])
             dones.append(done)
-            terminal.append(result["terminal_critic"])
+            terminal.append(result["observations"])
             steps = result["extras"]["physical_steps"]
             durations.append(steps)
+            self.measurement.count("jump_script_or_physics_ticks", steps)
+            owners.append(result["extras"].get("actual_C_owner", -1))
             if env.reward.timeout_paid:
                 reason = "task_timeout"
             elif env.reward.failure_paid:
@@ -107,6 +140,7 @@ class JumpBatch:
                     )
                 )
                 next_observations.append(env.reset_next())
+                self.measurement.count("jump_environment_resets", reason="terminal")
             else:
                 next_observations.append(result["observations"])
         self._obs = torch.cat(next_observations, dim=0)
@@ -117,10 +151,12 @@ class JumpBatch:
             dones=torch.tensor(dones),
             terminated=torch.tensor(dones),
             truncated=torch.zeros(self.num_envs, dtype=torch.bool),
-            terminal_observations={"student_critic": torch.cat(terminal)},
+            terminal_observations=torch.cat(terminal, dim=0) if any(dones) else obs,
             extras=dict(
                 actual_physics_steps=durations,
-                control_owner=torch.zeros(self.num_envs, dtype=torch.long),
+                # Shared collection encoding:0 policy,2 unavailable/safety.
+                control_owner=torch.tensor([0 if owner == 2 else 2 for owner in owners]),
+                actual_C_owner=torch.tensor(owners),
                 collection_conditions={},
                 transition_valid=torch.tensor([n == 10 for n in durations]),
                 termination_reasons=reasons,

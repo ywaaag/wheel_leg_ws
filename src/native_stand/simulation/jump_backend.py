@@ -41,18 +41,26 @@ def preflight(job):
     )
 
 
-def make_plant(job, *, output, charge_step):
+def make_plant(job, *, output, charge_step, binding=None, inputs=None):
     from .jump_build import build
     from .jump_response import Response
     from .jump_unified import UnifiedPlant
 
     refs = job.assets["jump_bindings"]
-    binding = build(Path(output) / "jump_abi4.so")
+    binding = binding if binding is not None else build(Path(output) / "jump_abi4.so")
+    inputs = (
+        inputs
+        if inputs is not None
+        else {
+            name: read_json(refs[name]["path"])
+            for name in ("description", "spring_geometry", "mechanics", "V4")
+        }
+    )
     plant = UnifiedPlant(
-        read_json(refs["description"]["path"]),
-        read_json(refs["spring_geometry"]["path"])["springs"],
-        read_json(refs["mechanics"]["path"])["mechanics"],
-        read_json(refs["V4"]["path"]),
+        inputs["description"],
+        inputs["spring_geometry"]["springs"],
+        inputs["mechanics"]["mechanics"],
+        inputs["V4"],
         Response,
         unified_library=binding["path"],
         unified_library_sha=binding["sha256"],
@@ -63,27 +71,50 @@ def make_plant(job, *, output, charge_step):
     return plant
 
 
-def make_env(job, *, output=None):
+def make_env(job, *, output=None, measurement=None):
     import tempfile
 
+    from native_stand.learning.ppo.performance import Measurement
     from native_stand.tasks.jump.adaptive_course import AdaptiveCourse
 
     from .jump_batch import JumpBatch
+    from .jump_build import build
     from .jump_unified_learning import UnifiedLearningEnv
 
-    validate_job(job)
+    timer = measurement if measurement is not None else Measurement(False, "cpu")
+    with timer.section("jump_input_validation", synchronize=False):
+        validate_job(job)
     output = Path(output or tempfile.mkdtemp(prefix="jump-execution-"))
+    with timer.section("jump_C_build", synchronize=False):
+        binding = build(output / "jump_abi4.so", measurement=timer)
+    refs = job.assets["jump_bindings"]
+    with timer.section("jump_input_loading", synchronize=False):
+        inputs = {
+            name: read_json(refs[name]["path"])
+            for name in ("description", "spring_geometry", "mechanics", "V4")
+        }
     plants = []
     try:
         for index in range(job.runtime.envs):
             course = AdaptiveCourse(seed=job.runtime.seed + index, **job.assets["jump_course"])
-            plant = make_plant(job, output=output / str(index), charge_step=lambda n: None)
-            plants.append(UnifiedLearningEnv(plant, course=course))
-        return JumpBatch(plants, job)
+            with timer.section("jump_environment_initialization", synchronize=False):
+                plant = make_plant(
+                    job,
+                    output=output / str(index),
+                    charge_step=lambda n: None,
+                    binding=binding,
+                    inputs=inputs,
+                )
+                plants.append(UnifiedLearningEnv(plant, course=course))
+        return JumpBatch(plants, job, measurement=timer)
     except BaseException:
         for env in plants:
             env.close()
         raise
+
+
+def make_measured_env(job, measurement, *, factory=None):
+    return (make_env if factory is None else factory)(job, measurement=measurement)
 
 
 def available(job):

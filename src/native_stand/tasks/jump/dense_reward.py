@@ -527,7 +527,7 @@ class DenseReward:
             fields["dense." + name] = (np.asarray(value, float), scale, unit)
 
         add("kind", [self.spec.kind == "ground_active_jump", self.spec.kind == "landing_only"])
-        for name, value in asdict(self.spec).items():
+        for name, value in vars(self.spec).items():
             if name != "kind":
                 add(
                     "goal." + name,
@@ -535,7 +535,7 @@ class DenseReward:
                     25.0 if name == "mass_kg" else 10.0 if name == "horizon_s" else 0.5,
                     "kg, seconds or metres by field",
                 )
-        state = asdict(self)
+        state = vars(self)
         for name, value in state.items():
             if name in ("spec", "config", "previous", "best"):
                 continue
@@ -555,7 +555,7 @@ class DenseReward:
             adopted_target=[1.5, 1.5, 100, 1.5, 1.5, 100],
             wheel_normal_force_N=250.0,
         )
-        for name, value in asdict(self.previous).items():
+        for name, value in vars(self.previous).items():
             if name in ("phase", "owner"):
                 add("previous." + name, np.eye(9 if name == "phase" else 5)[value])
             else:
