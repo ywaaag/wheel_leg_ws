@@ -453,6 +453,15 @@ def environment_class(
             )
             self.transition["initial_Swing"] = self.life.h0 < 0.27
             self.transition["task_success"] = result["success"].clone()
+            if getattr(self.cfg, "recovery_collection", False):
+                self.transition.update(
+                    collection_entered=(self.life.entry >= 0).long().clone(),
+                    collection_hold=self.life.hold.clone(),
+                    collection_HF=(self.HP10_sum / self.HP10_count.clamp_min(1)[:, None])
+                    .clamp_min(0)
+                    .sqrt()
+                    .amax(-1),
+                )
             terminated = result["terminated"]
             if getattr(self.cfg, "recovery_probe_full23", False):
                 terminated = terminated & ~result["success"]
@@ -569,7 +578,9 @@ def environment_class(
                     if len(self.completed) > 4096:
                         self.completed = self.completed[-4096:]
                 spec = self.courses[i].choose()
-                fixtures = getattr(self.cfg, "recovery_probe_cases", None)
+                fixtures = getattr(self.cfg, "recovery_collection_cases", None) or getattr(
+                    self.cfg, "recovery_probe_cases", None
+                )
                 if fixtures is not None:
                     case = fixtures[i]
                     strength = case.get("DR_strength", 0.0)
@@ -598,6 +609,20 @@ def environment_class(
                     )
                 self.episode_spec[i] = spec
                 self.draws[i] = draw(spec["DR_strength"], self.DR_rng[i])
+                if fixtures is not None and case.get("timing") is not None:
+                    timing = case["timing"]
+                    if set(timing) != {"Actor_age_ms", "target_delay_ms", "wheel_delay_ms"}:
+                        raise ValueError("Explicit independent delay sweep fields required")
+                    if (
+                        timing["Actor_age_ms"] not in (0, 10, 20)
+                        or not 0 <= timing["target_delay_ms"] <= 20
+                    ):
+                        raise ValueError("Delay sweep outside existing queue contract")
+                    if len(timing["wheel_delay_ms"]) != 2 or any(
+                        not 0 <= v <= 20 for v in timing["wheel_delay_ms"]
+                    ):
+                        raise ValueError("Wheel delay sweep outside existing queue contract")
+                    self.draws[i].update(timing)
                 self.draws[i]["friction"] *= self.cfg.ground_dynamic_friction / 0.5
             # A real episode reset only. Continuous prefix->student change
             # never calls this method, clears a queue, or overwrites q/dq.

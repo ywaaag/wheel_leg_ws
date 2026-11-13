@@ -120,9 +120,15 @@ def label(teachers, observation, conditions, student_codec, *, student_kind=None
     for index, teacher in sorted(enumerate(teachers), key=lambda row: -row[1].priority):
         mask = (owner < 0) & teacher.eligible(conditions, len(observation), observation.device)
         if bool(mask.any()):
-            physical = teacher.codec.physical(
-                teacher.model.mean(observation[mask]), observation[mask]
+            selected = observation[mask]
+            device = next(teacher.model.actor.parameters()).device
+            values = torch.cat(
+                [
+                    teacher.model.mean(chunk.to(device)).to(observation.device)
+                    for chunk in selected.split(4096)
+                ]
             )
+            physical = teacher.codec.physical(values, selected)
             converted = student_codec.labels(physical, observation[mask])
             if student_kind == "tanh" and bool((converted.abs() > 1).any()):
                 raise ValueError("Teacher target outside Student Tanh image; no clipping")
