@@ -119,3 +119,21 @@ def resolve_path(value: str | Path, base: str | Path) -> Path:
     """按显式基准解析路径，不依赖调用者的当前目录。"""
     path = Path(value).expanduser()
     return path if path.is_absolute() else (Path(base) / path).resolve()
+
+
+def identified_digest(value: Any) -> str:
+    """SHA-bound reference relocation preserves semantics; unbound paths do not."""
+
+    def identity(item):
+        if isinstance(item, dict):
+            bound = (
+                isinstance(item.get("path"), str)
+                and isinstance(item.get("sha256"), str)
+                and len(item["sha256"]) == 64
+            )
+            return {k: identity(v) for k, v in item.items() if not (bound and k == "path")}
+        if isinstance(item, list | tuple):
+            return [identity(v) for v in item]
+        return item
+
+    return json_digest(identity(value))

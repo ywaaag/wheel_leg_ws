@@ -1,6 +1,7 @@
 """Readback and real-observation export boundaries without physical integration."""
 
 import numpy as np
+import torch
 from test_public_migration import model_file
 
 from native_stand.artifacts.checkpoint import load_actor_source
@@ -47,3 +48,120 @@ def test_export_uses_supplied_actual_rows_and_rejects_rebound_source(tmp_path):
         export_package(
             load_actor_source(path), spec, output, execution={}, golden=dict(golden, indices=[0])
         )
+
+
+def test_sha_bound_teacher_contract_can_move_but_cannot_change(tmp_path):
+    import dataclasses
+
+    import pytest
+
+    from native_stand.learning.inference import InferenceSpec, build_actor, from_source
+
+    contract = dict(
+        action_version="recovery_cubic_physical_Gaussian_v2",
+        center_rad=[0.0] * 4,
+        leg_lower_rad=[-1.5] * 4,
+        leg_upper_rad=[1.5] * 4,
+        center_source=dict(path="/original/contract.json", sha256="a" * 64),
+    )
+    spec = InferenceSpec("recovery_physical", 31, (8,), 6, {"version": "31"}, contract)
+    source = tmp_path / "teacher.pt"
+    torch.save(dict(actor=build_actor(spec).state_dict(), contract=contract), source)
+    moved = dataclasses.replace(
+        spec,
+        output_contract={
+            **contract,
+            "center_source": dict(path="/moved/contract.json", sha256="a" * 64),
+        },
+    )
+    from_source(load_actor_source(source), moved)
+    changed = dataclasses.replace(
+        moved,
+        output_contract={
+            **moved.output_contract,
+            "center_source": dict(path="/moved/contract.json", sha256="b" * 64),
+        },
+    )
+    with pytest.raises(ValueError, match="output contract differs"):
+        from_source(load_actor_source(source), changed)
+
+
+def test_formal_flow_compares_separate_closed_loops_and_final_does_not_reselect(
+    tmp_path, monkeypatch
+):
+    import dataclasses
+
+    from test_public_migration import supervision_job
+
+    from native_stand.artifacts.io import read_json
+    from native_stand.experiments.supervision import PhaseConfig
+    from native_stand.experiments.supervision_flow import execute
+    from native_stand.simulation import collection
+
+    base = supervision_job(tmp_path)
+    recipe = dataclasses.replace(
+        base.supervision,
+        phases=(
+            PhaseConfig("label"),
+            PhaseConfig("fit", rounds=1),
+            PhaseConfig("compare", steps=4),
+            PhaseConfig("compare", steps=4, final=True),
+        ),
+    )
+
+    class IO:
+        num_envs = 2
+
+        def __init__(self):
+            self.tick = 0
+            self.seeds = []
+            self.closed = False
+
+        def observations(self):
+            return {"student_actor": torch.zeros(2, 31)}
+
+        def reset_collection(self, *, fresh=False, seed_offset=0):
+            self.tick = 0
+            self.seeds.append(seed_offset)
+
+        def step(self, action):
+            self.tick += 1
+            return dict(
+                terminated=torch.full((2,), self.tick == 2),
+                truncated=torch.zeros(2, dtype=torch.bool),
+                extras=dict(
+                    actual_physics_steps=[10, 10],
+                    control_owner=torch.zeros(2, dtype=torch.long),
+                    collection_conditions=dict(
+                        entered=torch.ones(2),
+                        dual_contact=torch.ones(2),
+                        continuous_hold_s=torch.full((2,), 10.0),
+                        HF_peak=torch.zeros(2),
+                        initial_Swing=torch.ones(2),
+                        validation_cohort=torch.zeros(2),
+                    ),
+                ),
+            )
+
+        def close(self):
+            self.closed = True
+
+    env = IO()
+    monkeypatch.setattr(collection, "make_environment", lambda job: env)
+    charged = []
+    state, done = execute(
+        dataclasses.replace(base, supervision=recipe),
+        tmp_path / "flow",
+        stop_requested=lambda: False,
+        on_round_complete=lambda row: None,
+        on_round_saved=lambda row: None,
+        on_physical_steps=charged.append,
+    )
+    assert done and env.closed and sum(charged) == 320
+    assert env.seeds == [0, 0, 100000, 100000]
+    dev = read_json(tmp_path / "flow/phase_002_compare/closed_loop.json")
+    final = read_json(tmp_path / "flow/phase_003_compare/closed_loop.json")
+    assert dev["partition"] == "development" and final["partition"] == "final_holdout"
+    assert final["reports"]["student"]["continuous_10s_rate"] == 1
+    assert state["closed_loop_candidate"] == state["selected"] and state["no_improvement"] == 0
+    assert len(state["collections"]) == 1  # independent comparisons never feed BC
