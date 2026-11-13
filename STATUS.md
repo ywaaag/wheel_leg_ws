@@ -2,7 +2,7 @@
 
 ## Motion少量变高度接续（2026-11-13）
 
-用户要求当前加入0.20～0.40m站立与平地运动。独立`motion/height-small-dose`分支准备10%变高度、28%转弯、7%地形和55%基础复习；六目标高度0.20/0.24/0.28/0.32/0.36/0.40m，各自站立/±0.25m/s，复用原rate-limited高度优先时序及SplitCourse。不改PPO/奖励/KL/执行合同。新增完整课程接续记录只结转原10000授权的实际剩余，累计上限16738不变，真实停止点与云端结果以数据根`motion_height_small_dose_20261113/`收据为准；本条准备阶段不表示已切换。CPU相关38 passed（5.98s），portable1988 passed/31既有skip/10warning（134.00s）；架构212/0、Ruff0.8.4 CI范围check/format及零额度dry-run通过。
+用户要求当前加入0.20～0.40m站立与平地运动。独立`motion/height-small-dose`分支准备10%变高度、28%转弯、7%地形和55%基础复习；六目标高度0.20/0.24/0.28/0.32/0.36/0.40m，各自站立/±0.25m/s，复用原rate-limited高度优先时序及SplitCourse。不改PPO/奖励/KL/执行合同。新增完整课程接续记录只结转原10000授权的实际剩余，累计上限16738不变，真实停止点与云端结果以数据根`motion_height_small_dose_20261113/`收据为准；旧远端Motion已通过公共stop request-only正常STOPPED_BOUNDED于500，failure=null，完整u500 SHA `1ad4a858baebffa1a0cad2e989c57e054934940372a593be9842f4a7e6801e89`；保存点差额0。本授权剩余9500，历史累计7238、模型进度7097，累计上限16738保持。远端新冻结`candidate_revisions/motion_height_small_dose_v2/src`599模块摘要`c408dc029ae2036dd9233f5d98e3f8d54b88e67a6a6710b6ac21d3521460c81e`，配置`height_small_dose_v2_20261113/cloud_config.json`；78cohort/407高度槽位，最小11槽。完整PPO双Adam CPU装配与dry-run通过；首版预检曾拒绝重复877→881路径，修正并保留拒绝现场，新run `motion_height_small_dose_remaining9500`唯一提交成功，worker1485身份OK，启动快照RUNNING/0更新/failure=null，首个PPO更新尚未确认，未新增watcher。最终相关54 passed（6.62s），portable1988 passed/31既有skip/10warning（131.70s），架构212/0、Ruff0.8.4 CI范围check/format通过。
 
 
 ## Motion网页前端与键盘（2026-11-13）
