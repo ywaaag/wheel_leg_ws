@@ -79,9 +79,9 @@ def plan(c):
         ):
             raise ValueError("Unique safe nonempty variant/case names required")
     for variant in c["variants"]:
-        if variant["kind"] not in ("motion_standing", "recovery_only", "fixed", "gated"):
+        if variant["kind"] not in ("motion_standing", "recovery_only", "fixed", "gated", "posture"):
             raise ValueError("Unknown handoff variant")
-        if variant["kind"] == "gated" and (
+        if variant["kind"] in ("gated", "posture") and (
             type(variant.get("dwell_ms")) is not int or not 1 <= variant["dwell_ms"] <= 1000
         ):
             raise ValueError("Positive bounded dwell_ms required")
@@ -162,6 +162,21 @@ def run(c, output):
             ar,
         ]
         gate.RLHandoffCanCommit.restype = ctypes.c_int
+        posture = any(v["kind"] == "posture" for v in c["variants"])
+        if posture:
+            gate.RLHandoffObservePosture.argtypes = [
+                ctypes.POINTER(GateState),
+                ctypes.POINTER(GateConfig),
+                ctypes.c_uint32,
+                ctypes.c_int,
+                ar,
+                ar,
+                ar,
+                ar,
+                ar,
+                ctypes.c_float,
+            ]
+            gate.RLHandoffObservePosture.restype = ctypes.c_int
         recovery = load_model(
             c["recovery"]["path"],
             InferenceSpec.from_record(c["recovery_spec"]),
@@ -250,7 +265,7 @@ def run(c, output):
                                     [1.5, 1.5, 100.0, 1.5, 1.5, 100.0]
                                 )
                             if owner == "recovery":
-                                ready = variant["kind"] == "gated" and state.requested
+                                ready = variant["kind"] in ("gated", "posture") and state.requested
                                 if variant["kind"] == "fixed":
                                     ready = t * 0.01 >= variant["switch_s"]
                                 if ready:
@@ -302,6 +317,7 @@ def run(c, output):
                         trace = result["extras"]["collection_trace"]
                         s = trace["state_1kHz"][0].numpy()
                         dq = trace["dq_1kHz"][0].numpy()
+                        q = trace["q_1kHz"][0].numpy()
                         for i in range(10):
                             # Source gyro is CAD-body angular velocity; norm is frame-invariant.
                             angular = float(np.linalg.norm(received[0, :3].numpy() * 4))
@@ -315,9 +331,46 @@ def run(c, output):
                                 (ctypes.c_float * 2)(float(s[i, 9]), float(s[i, 10])),
                                 float(abs(dq[i, [0, 1, 3, 4]]).max()),
                             )
-                            gate.RLHandoffObserve(
-                                ctypes.byref(state), ctypes.byref(g), ctypes.byref(sample)
-                            )
+                            if variant["kind"] == "posture":
+                                # Same instantaneous encoder/IMU readiness as MCU; no
+                                # ground height/contact force is used by this gate.
+                                from native_stand.simulation.control_core import ControlCore, build
+
+                                if not hasattr(motion, "physical_decoder"):
+                                    motion.physical_decoder = ControlCore(
+                                        build(output / "motion_decoder.so"),
+                                        c["motion_spec"]["output_contract"],
+                                    )
+                                center = motion.physical_decoder.decode(
+                                    np.zeros(6, np.float32), 0.34
+                                )[[0, 1, 3, 4]].copy()
+                                roll, pitch = float(s[i, 5]), float(s[i, 4])
+                                gravity = np.asarray(
+                                    [
+                                        np.sin(roll) * np.cos(pitch),
+                                        -np.cos(roll) * np.cos(pitch),
+                                        np.sin(pitch),
+                                    ],
+                                    dtype=np.float32,
+                                )
+                                # Gate only needs gyro norm; record this approximation.
+                                gyro = np.asarray([angular, 0.0, 0.0], dtype=np.float32)
+                                gate.RLHandoffObservePosture(
+                                    ctypes.byref(state),
+                                    ctypes.byref(g),
+                                    t * 10 + i + 1,
+                                    1,
+                                    q[i, [0, 1, 3, 4]].copy(),
+                                    dq[i].copy(),
+                                    gyro,
+                                    gravity,
+                                    center,
+                                    variant.get("maximum_center_error_rad", 0.25),
+                                )
+                            else:
+                                gate.RLHandoffObserve(
+                                    ctypes.byref(state), ctypes.byref(g), ctypes.byref(sample)
+                                )
                         rows["observation"].append(received[0].numpy())
                         rows["requested"].append(action[0].numpy())
                         rows["network_mean"].append(mean[0].numpy())
