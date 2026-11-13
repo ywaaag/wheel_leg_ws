@@ -89,3 +89,37 @@ def test_transition_does_not_loosen_same_run_or_implicit_initialization(tmp_path
         env.initialize_from_training_state(state)
     assert env.reset_calls == 0
     assert not (tmp_path / "physics_transition.json").exists()
+
+
+@pytest.mark.parametrize("declared", [False, True])
+def test_expanding_envs_requires_explicit_mapping_and_preserves_existing_course_rng(
+    tmp_path, declared
+):
+    env, state = transition_env(tmp_path)
+    env.num_envs = 4
+    env.job.runtime = SimpleNamespace(seed=19)
+    env.courses = [AdaptiveCourse(seed=19 + i, plant_id="new", DR_id="nominal") for i in range(4)]
+    initial_new_rng = [copy.deepcopy(c.rng.bit_generator.state) for c in env.courses[2:]]
+    if not declared:
+        with pytest.raises(ValueError, match="full-state Jump physics transition"):
+            env.initialize_from_training_state(state)
+        assert env.reset_calls == 0
+        return
+    env.job.assets["jump_physics_transition"]["environment_expansion"] = dict(
+        source_envs=2,
+        target_envs=4,
+        existing_rows="preserve_course_rng_and_counters",
+        added_rows="job_seed_plus_row_index",
+        seed=19,
+    )
+    env.initialize_from_training_state(state)
+    for i, c in enumerate(env.courses):
+        assert c.level == 0 and not c.pending and not any(c.windows.values())
+        if i < 2:
+            assert c.rng.bit_generator.state == state["courses"][i]["rng"]
+            assert c.episodes == state["courses"][i]["episodes"]
+        else:
+            assert c.rng.bit_generator.state == initial_new_rng[i - 2]
+            assert c.episodes == c.serial == 0
+    with pytest.raises(ValueError, match="restore identity"):
+        env.load_runtime_state(state)

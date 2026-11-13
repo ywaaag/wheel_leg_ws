@@ -71,6 +71,40 @@ class NormalizedCritic:
         )
 
 
+class PackedCritic(NormalizedCritic):
+    """Same encoding with one finite scan for large immutable field layouts."""
+
+    def __init__(self, fields):
+        super().__init__(fields)
+        self._names = {f.name for f in self.fields}
+        self._slices = []
+        offset = 0
+        for f in self.fields:
+            end = offset + int(np.prod(f.shape))
+            self._slices.append((f, slice(offset, end)))
+            offset = end
+        self._size = offset
+        self._scales = np.concatenate(
+            [np.broadcast_to(f.scale, f.shape).reshape(-1) for f in self.fields]
+        )
+
+    def encode(self, values):
+        if values.keys() != self._names:
+            raise ValueError("causal field missing/extra; reject schema drift")
+        out = np.empty(self._size, dtype=float)
+        for f, target in self._slices:
+            value = np.asarray(values[f.name], float)
+            if value.shape != f.shape:
+                raise ValueError("critic shape/finite " + f.name)
+            out[target] = value.reshape(-1)
+        if not np.isfinite(out).all():
+            # Preserve the useful field name without a per-field hot-path scan.
+            for f, target in self._slices:
+                if not np.isfinite(out[target]).all():
+                    raise ValueError("critic shape/finite " + f.name)
+        return (out / self._scales).astype("float32")
+
+
 def controller_fields(state, inputs, *, fault_count=13, phase_count=9, layout=None):
     """All C values that can change next control/event; no privileged Actor data."""
     now = int(inputs.now)

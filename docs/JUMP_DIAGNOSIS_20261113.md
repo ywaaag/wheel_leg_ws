@@ -96,3 +96,15 @@ C修复后的第一次联合回归为146通过/7失败，7项均由两份现用�
 Isaac执行identity加入reward与request调度语义，同run不允许旧版本直接恢复。新run采用既有显式full transition保留学习状态、课程RNG与累计身份，开启新证据cohort，物理仍fresh_reset；本轮物理参数未变。候选比较域包含reward版本。两份现用配方显式改为v2，旧run/spec与远端ready_support_v44保留，不得继续拿旧配方作新版启动包。
 
 真实C回归覆盖请求在busy窗口保留、回BALANCE消费一次、合法进入CROUCH及reset重新资格；奖励回归覆盖意外下落低高度有代价、站高改善代价下降、时间切分一致、无伪造落地/跳跃成功。Jump相关CPU83项通过（24.46s）。新版正常PPO32次有界验收待执行，拟先30次保存、同run恢复2次，全部从原9585余额扣减。远端本轮再次核实Torch2.11.0+cu130、CUDA=False/count0，未启动远端训练。
+
+## 并行度与采样性能（后续增量）
+
+用户要求尽量利用机器。32×64是诊断配置，不是最大并行度。新版v2正常PPO先在14次更新边界保存，再从完整u14同run恢复2次，实际16次均正常STOPPED_BOUNDED/failure=null，累计431/10000、剩9569。原32次局部上限的未用16次退役，不能再与余额叠加；原定30+2改为14+2，是为转入用户要求的大并行测量。原16s完整任务时长未跑到；当前active仍多为SETTLE阶段超时、请求未发，没有站稳/起跳证书。
+
+32×64原计时约32s/update，rollout约31.7s、学习约0.11s。观测打包约12.9s；物理推进约7.6s、读回约3.7s，子区间有包含关系，不能相加。GPU利用率同时包含另一owner的Recovery，不能据整卡利用率判断Jump已吃满GPU。
+
+新增优化仅用于Isaac Critic：按dtype合并V4/response的全部行读回，再按原字段顺序切行；PackedCritic保留全部5591列、float64归一化后float32输出及name/shape/finite检查，只把多次finite扫描合并。没有减少物理tick、奖励频率、队列或历史。首次CPU对照发现按dtype分组造成字段重排，已修复并保留失败收据v50；v51逐位对照通过。批量snapshot只在一次pack操作内使用，不跨同tick的observe/reset缓存。真实GPU两环境320步I/O v53通过，16次direct-vs-batched Critic逐位一致，含partial reset及fresh-reset恢复；PPO=0，非能力评估。
+
+显式full transition新增环境扩容声明：原行保留课程RNG/累计身份，新增行以job.seed+row独立播种，没有伪造旧成绩；全部从新cohort开始。只允许声明后的扩容，不开放隐式缩容或同run变更环境数。Actor/Critic/双Adam/std/global RNG仍走原完整加载。
+
+相关CPU92通过（27.62s）、portable1925通过/31历史skip/10warning（136.74s），Ruff0.8.4及架构通过。拟同一完整u16源、32/128/256环境各2次正常PPO，属于原余额内6次互斥运行，不并发启动Jump；实测吞吐和显存后决定长训并行度，不能把CPU微基准3.8倍收益外推整段训练。

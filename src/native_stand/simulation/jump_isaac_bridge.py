@@ -91,6 +91,41 @@ class InverseFeedback:
         )
 
 
+def critic_execution(execution):
+    """Read all V4 rows once per dtype, then slice owned CPU tensor views.
+
+    No event, packet, RNG or actuator state advances here. Call after observe
+    or at a terminal snapshot, rather than caching across same-tick changes.
+    """
+    source = (execution.v4, execution.v4.leg)
+    values = [{}, {}]
+    groups = {}
+    for owner, obj in enumerate(source):
+        for name, value in vars(obj).items():
+            if torch.is_tensor(value):
+                groups.setdefault((value.device, value.dtype), []).append((owner, name, value))
+    for entries in groups.values():
+        packed = torch.cat([v.detach().reshape(-1) for _, _, v in entries]).cpu()
+        offset = 0
+        for owner, name, value in entries:
+            end = offset + value.numel()
+            values[owner][name] = packed[offset:end].view(value.shape)
+            offset = end
+    # Field traversal order defines Critic columns. Dtype grouping must never
+    # reorder that original layout, even though the copies are batched.
+    values = [
+        {name: data[name] for name in vars(obj) if name in data}
+        for obj, data in zip(source, values, strict=True)
+    ]
+    values[0].update(n=execution.v4.n, leg=SimpleNamespace(**values[1]))
+    return SimpleNamespace(
+        tick=execution.tick,
+        c=execution.c,
+        v4=SimpleNamespace(**values[0]),
+        transfer_batches=len(groups),
+    )
+
+
 def execution_row(execution, index):
     """Views of one batch row, retaining every C/V4/response history field."""
     v = execution.v4

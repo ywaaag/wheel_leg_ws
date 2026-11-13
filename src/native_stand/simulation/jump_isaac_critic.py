@@ -6,12 +6,12 @@ import numpy as np
 
 from native_stand.simulation import jump_direct_critic
 from native_stand.simulation.jump_isaac_bridge import execution_row
-from native_stand.tasks.jump.controller_critic import NormalizedCritic, extend_fields
+from native_stand.tasks.jump.controller_critic import PackedCritic, extend_fields
 from native_stand.tasks.jump.isaac_contract import CRITIC, engine_fields
 from native_stand.tasks.jump.pretraining import TaskMemory
 
 
-class BaseCritic(jump_direct_critic.FullCritic):
+class BaseCritic(PackedCritic):
     def contract(self):
         return {
             **super().contract(),
@@ -20,7 +20,7 @@ class BaseCritic(jump_direct_critic.FullCritic):
         }
 
 
-class IsaacCritic(NormalizedCritic):
+class IsaacCritic(PackedCritic):
     def contract(self):
         return {
             **super().contract(),
@@ -56,6 +56,6 @@ class RowCritic:
             engine_fields=values,
         )
         tail, fields = extend_fields({}, [], reward.critic_fields())
-        self.tail_schema = NormalizedCritic.reuse(fields, self.tail_schema)
+        self.tail_schema = PackedCritic.reuse(fields, self.tail_schema)
         self.schema = IsaacCritic.reuse(list(self.base.schema.fields) + fields, self.schema)
         return np.concatenate((head, self.tail_schema.encode(tail)))

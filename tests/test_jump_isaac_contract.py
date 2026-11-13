@@ -88,3 +88,53 @@ def test_inverse_feedback_uses_measured_state_and_no_contact_signal():
     assert np.isfinite(actual.support_J).all()
     assert np.linalg.norm(actual.accel) == pytest.approx(9.81)
     assert actual.leg_length[:] == pytest.approx([0.28, 0.28], abs=1e-8)
+
+
+def test_actual_C_V4_critic_snapshot_all_rows_and_ring_fields_are_exact(tmp_path):
+    from test_jump_unified import packet
+
+    from native_stand.artifacts.io import read_json
+    from native_stand.simulation.jump_build import build
+    from native_stand.simulation.jump_isaac_bridge import critic_execution
+    from native_stand.simulation.jump_isaac_critic import RowCritic
+    from native_stand.simulation.jump_response import Response
+    from native_stand.simulation.jump_unified import UnifiedV4Execution
+    from native_stand.tasks.jump.dense_reward import TaskSpec
+    from native_stand.tasks.jump.isaac_contract import engine_fields
+    from native_stand.tasks.jump.unified_reward import UnifiedReward
+
+    job = mapped_job(ROOT, DATA, name="jump_isaac_raw37_wheel48")
+    binding = build(tmp_path / "ABI4.so")
+    execution = UnifiedV4Execution(
+        binding["path"],
+        read_json(job.assets["jump_bindings"]["V4"]["path"]),
+        Response,
+        3,
+        library_sha=binding["sha256"],
+    )
+    execution.reset(torch.arange(3), torch.zeros(3, 6), torch.zeros(3, 6))
+    joints = len(
+        read_json(job.assets["jump_bindings"]["mechanics"]["path"])["mechanics"]["joint_names"]
+    )
+    physical = {k: np.zeros(shape) for k, (shape, _, _) in engine_fields(joints).items()}
+    reward = UnifiedReward.start(TaskSpec("ground_active_jump", 16, 21), packet(dt_s=0.0))
+    execution.tick = 139
+    # Distinct row/ring values exercise the chronological transforms and pairing.
+    execution.v4.targets.copy_(
+        torch.arange(execution.v4.targets.numel()).reshape(execution.v4.targets.shape)
+    )
+    execution.v4.leg.qhist.copy_(
+        torch.arange(execution.v4.leg.qhist.numel()).reshape(execution.v4.leg.qhist.shape)
+    )
+    rng = torch.get_rng_state().clone()
+    snapshot = critic_execution(execution)
+    assert torch.equal(rng, torch.get_rng_state()) and snapshot.transfer_batches <= 4
+    for row in range(3):
+        first, second = RowCritic(joints), RowCritic(joints)
+        args = (row, np.zeros(37), physical, reward, dict(kind="ground_active_jump", seconds=16.0))
+        np.testing.assert_array_equal(first.pack(execution, *args), second.pack(snapshot, *args))
+        assert first.schema.contract() == second.schema.contract()
+    before = snapshot.v4.targets.clone()
+    execution.v4.targets.add_(1)
+    assert torch.equal(snapshot.v4.targets, before)
+    assert not torch.equal(critic_execution(execution).v4.targets, before)

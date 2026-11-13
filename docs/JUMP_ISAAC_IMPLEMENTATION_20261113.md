@@ -66,3 +66,5 @@ C支撑修正执行版本为`jump_PhysX_tiled_flat_ground_support_valid_v3`。�
 ## 当前训练语义修订
 
 `UnifiedReward` v2对SETTLE独立应用站高惩罚，不再以成功起跳来源作为站高约束前提；所有正事件和成功门控保留。Isaac主动任务在1.5s后首次BALANCE向C发送一次请求，request_id消费后不重试。此调度只安排任务请求，不控制电机或放宽C进入条件。执行identity包含reward和调度语义，候选比较域包含reward版本；旧版本只可经显式full初始化进入新证据cohort，同run拒绝混用。
+
+Isaac Critic现按dtype批量读回全体V4/response行，保持原字段顺序和全部5591列；PackedCritic与原归一化编码逐位一致。snapshot只覆盖一次观测或终态打包，不跨observe/reset复用。扩容必须在既有full transition中声明environment_expansion，保留旧行课程RNG/计数、新行独立seed；同run仍不能改变环境数。性能验收以正常PPO的有效样本/s、整轮墙钟和峰值显存为准，不以GPU利用率或单个CPU组件收益替代。

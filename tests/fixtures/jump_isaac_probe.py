@@ -23,6 +23,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--steps", type=int, default=40)
     parser.add_argument("--envs", type=int, default=2)
+    parser.add_argument("--verify-critic-readback", action="store_true")
     args = parser.parse_args()
     job = load_job_config(args.config)
     job = replace(job, runtime=replace(job.runtime, envs=args.envs))
@@ -42,8 +43,17 @@ def main():
         actor.load_state_dict(source.payload["actor"])
         actor.to(job.runtime.device).eval()
         rows = []
+        critic_comparisons = 0
         for index in range(args.steps):
             obs = env.observations()
+            if args.verify_critic_readback and index % 40 == 0:
+                # Compare the optimized snapshot path with direct live tensor
+                # reads at the same tick. This does not advance any physics.
+                host = env.host()
+                for row in range(env.num_envs):
+                    direct = env.row_observation(row, host, obs["student_actor"][row].cpu().numpy())
+                    assert torch.equal(torch.from_numpy(direct), obs["student_critic"][row].cpu())
+                    critic_comparisons += 1
             with torch.inference_mode():
                 raw = actor.mean(obs["student_actor"])
             out = env.step(raw)
@@ -75,6 +85,7 @@ def main():
             C_PD_calls=env.execution.C_PD_calls,
             Actor_sha256=source.sha256,
             torch_peak_allocated_bytes=torch.cuda.max_memory_allocated(),
+            direct_vs_batched_critic_bitwise_comparisons=critic_comparisons,
         )
     except BaseException as exc:
         receipt.update(status="FAILED", error=repr(exc))

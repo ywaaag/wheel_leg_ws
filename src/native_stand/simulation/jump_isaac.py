@@ -21,7 +21,7 @@ from tensordict import TensorDict
 from native_stand.artifacts.io import json_digest, read_json, write_json
 from native_stand.learning.ppo.performance import Measurement
 from native_stand.simulation.jump_build import build
-from native_stand.simulation.jump_isaac_bridge import InverseFeedback
+from native_stand.simulation.jump_isaac_bridge import InverseFeedback, critic_execution
 from native_stand.simulation.jump_isaac_critic import RowCritic
 from native_stand.simulation.jump_response import Response
 from native_stand.simulation.jump_unified import UnifiedV4Execution
@@ -283,25 +283,25 @@ class IsaacJump:
             self.prepared_tick = e.tick
             return
         indices = range(self.num_envs) if reset_ids is None else reset_ids
-        rows = []
-        for i in indices:
-            request = self.requests[i]
-            elapsed = e.tick - self.starts[i]
-            key = scheduled_request(request, elapsed, e.c.states[i])
-            rows.append(
-                self.inverse.input(
-                    tick=e.tick,
-                    state=e.c.states[i],
-                    root=host["root"][i],
-                    joint=host["joint"][i],
-                    acceleration=host["acceleration"][i],
-                    motor=host["motor"][i],
-                    NET=host["NET"][i],
-                    command=[0.0, 0.0, 0.34],
-                    request=key,
-                )
-            )
         with self.measurement.section("jump_inverse_C_feedback", synchronize=False):
+            rows = []
+            for i in indices:
+                request = self.requests[i]
+                elapsed = e.tick - self.starts[i]
+                key = scheduled_request(request, elapsed, e.c.states[i])
+                rows.append(
+                    self.inverse.input(
+                        tick=e.tick,
+                        state=e.c.states[i],
+                        root=host["root"][i],
+                        joint=host["joint"][i],
+                        acceleration=host["acceleration"][i],
+                        motor=host["motor"][i],
+                        NET=host["NET"][i],
+                        command=[0.0, 0.0, 0.34],
+                        request=key,
+                    )
+                )
             if reset_ids is None:
                 e.update(rows)
             else:
@@ -366,10 +366,21 @@ class IsaacJump:
             ),
         )
 
-    def row_observation(self, i, h, actor):
+    def row_observation(self, i, h, actor, *, execution=None):
         return self.critics[i].pack(
-            self.execution, i, actor, self.physical(i, h), self.rewards[i], self.requests[i]
+            self.execution if execution is None else execution,
+            i,
+            actor,
+            self.physical(i, h),
+            self.rewards[i],
+            self.requests[i],
         )
+
+    def critic_snapshot(self):
+        with self.measurement.section("jump_critic_readback", synchronize=False):
+            result = critic_execution(self.execution)
+            self.measurement.count("jump_critic_batch_transfers", result.transfer_batches)
+            return result
 
     def observations(self):
         if self._obs is not None:
@@ -378,7 +389,13 @@ class IsaacJump:
             h = self.host()
             self.prepare(h)
             actor, valid = self.execution.observe()
-            critic = np.stack([self.row_observation(i, h, actor[i]) for i in range(self.num_envs)])
+            execution = self.critic_snapshot()
+            critic = np.stack(
+                [
+                    self.row_observation(i, h, actor[i], execution=execution)
+                    for i in range(self.num_envs)
+                ]
+            )
             schema = self.critics[0].schema.contract()
             if json_digest(schema) != json_digest(self.job.assets["jump_critic_schema"]):
                 raise ValueError("Actual Isaac Critic schema differs from frozen job")
@@ -502,9 +519,10 @@ class IsaacJump:
                     ended.append(i)
             if ended:
                 actor, _ = self.execution.c.observe()
+                execution = self.critic_snapshot()
                 for i in ended:
                     terminal[i] = dict(
-                        critic=self.row_observation(i, h, actor[i]).copy(),
+                        critic=self.row_observation(i, h, actor[i], execution=execution).copy(),
                         actor=actor[i].copy(),
                         phase=int(self.execution.c.states[i].phase),
                         owner=int(self.execution.c.states[i].owner),
@@ -629,6 +647,22 @@ class IsaacJump:
     def initialize_from_training_state(self, value):
         if value["identity"] != self.identity:
             transition = self.job.assets.get("jump_physics_transition", {})
+            source_envs = len(value["courses"])
+            expansion = transition.get("environment_expansion")
+            count_matches = source_envs == self.num_envs
+            if not count_matches:
+                count_matches = (
+                    0 < source_envs < self.num_envs
+                    and isinstance(expansion, dict)
+                    and expansion
+                    == dict(
+                        source_envs=source_envs,
+                        target_envs=self.num_envs,
+                        existing_rows="preserve_course_rng_and_counters",
+                        added_rows="job_seed_plus_row_index",
+                        seed=self.job.runtime.seed,
+                    )
+                )
             if (
                 self.job.initialization.mode != "full"
                 or transition.get("source_checkpoint_sha256") != self.job.initialization.sha256
@@ -640,7 +674,7 @@ class IsaacJump:
                 != "fresh_physics_cohort_preserve_rng_and_counters"
                 or value["version"] != TRAINING
                 or value["restore"] != "fresh_reset"
-                or len(value["courses"]) != self.num_envs
+                or not count_matches
                 or any(c["level"] != 0 for c in value["courses"])
             ):
                 raise ValueError("Explicit full-state Jump physics transition required")
@@ -651,7 +685,7 @@ class IsaacJump:
                 self.output / "physics_transition.json",
                 dict(**transition, target_execution_identity=self.identity, restore="fresh_reset"),
             )
-            for course, prior in zip(self.courses, value["courses"], strict=True):
+            for course, prior in zip(self.courses[:source_envs], value["courses"], strict=True):
                 # Old failed-plant windows cannot certify the corrected plant.
                 # Preserve scheduling RNG and cumulative episode identities,
                 # while starting explicit new-plant evidence at level zero.
@@ -660,6 +694,10 @@ class IsaacJump:
                 course.episodes = prior["episodes"]
                 course.generation = prior["generation"] + 1
                 course.pending.clear()
+            for course in self.courses[source_envs:]:
+                # Constructor seeded these independent rows with job.seed+i.
+                # They have no invented source episode history or success.
+                course.generation = max(c["generation"] for c in value["courses"]) + 1
             self.requests = [None] * self.num_envs
             self.reset()
         else:
