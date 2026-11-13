@@ -1,0 +1,39 @@
+# Jump 失败排查
+
+实际轮地接触异常尚未修复，不能继续原长训期待网络消除它。独立Jump已通过统一CLI的request-only协议在更新边界保存退出：407/10000次、833536策略样本、剩9593次，状态STOPPED_BOUNDED、failure=null。最终u407 SHA `fa1a51169c3048260e720077a71ff41dd0fda359a11c9be26b1bd9025f4f5296`，74803819字节。没有退款、刷新额度或新增PPO更新；Motion/Recovery没有被修改或停止。
+
+本轮范围是冻结训练统计、原始资产与源码核对、两环境有界物理I/O和CPU工程修复。不做独立PPO能力评估，不用诊断回合晋级课程或发布候选。远端原candidate与run证据保持原样；实验改动分别放candidate_v2/v3，没有热改600261c的冻结源码。
+
+## 轮地接触异常，根因待确认
+
+最近u400统计窗口3734回合全部在第0档，1829主动跳/1905下落均为0成功；1687次终止码为5（support unknown）。有界诊断继续记录首次失败后的物理状态以区分原因，不能把这段额外时间算作旧回合或Actor样本。
+
+原蒸馏Actor、固定初始腿目标、零motor/NET自由下落都出现“名义半径60mm的轮心下降至约22mm，轮接触读数仍为0”的现象，随后由lower_leg等非轮部位接地。以实际关节与root姿态重新计算全部轮FK，两环境最大位置残差分别`4.889e-7m/3.834e-7m`，轮胎净空残差均小于`3e-7m`，排除简单的关节顺序/四元数顺序/轮半径读回错误。用同一几何、质量、V4质量缩放和机械参数作MuJoCo自由下落参考：无落差轮心最低约59.96mm，28.24mm落差最低约58.10mm，没有远端约38mm的穿入。
+
+将地面显式加入global collision group、关闭replicate_physics的对照均未消除异常，不能将这两项称为根因。原USD实际轮CollisionAPI开启，半径0.06m、轴向Z、厚度0.033m；没有发现过滤轮地配对的显式关系。C估计在部分真正接触时接近力传感读数（例如约265.9N对265.0N），因此也不能把所有支撑未知简单归咎于一个固定力符号错误。
+
+根因仍需远端6.2实际碰撞体/readback一致性验证：核对ContactSensor的rigid-body view与contact view行顺序、原生碰撞形状/局部变换、相同轮圆柱的独立自由落体；对比未修改质量/COM之前、之后与reset之后的结果。必须保持原碰撞尺寸/质量/闭链/限矩，先证明接触正确，再重新考虑控制学习。不得用接触真值替代C支撑观测、放松非轮碰撞终止或直接增加“补偿弹簧”掩盖差异。
+
+## Partial reset 的加速度串行污染，已完成CPU修复
+
+实际表现：一个环境reset会增加reset epoch，导致同一物理tick重新读取全部环境。旧`IsaacScene.measured()`每次都将`(velocity-previous_velocity)/0.001`作为新值，并更新所有行的previous；未reset行此时速度未变，会被改成0加速度。`scene.update(dt)`还会在未积分时推进SDK的joint_acc时间，因此只保留root导数仍不充分。该值参与C逆动力学支撑估计与Critic；但尚未实测其对本次零成功的贡献，不能把它当成轮穿入的已证根因。
+
+修复在`src/native_stand/simulation/jump_isaac_scene.py`的`TickDerivatives`、`IsaacScene.reset`与`measured`：只按实际physics tick求root和全部joint速度导数，同tick复读复用；partial reset只初始化选中行，保持其他行的导数和基线。没有推进物理、清空其他环境、增添滤波或改变1/5/10ms控制节拍。地面`collision_group=-1`同时显式表达全局地面；replicate_physics仍为原True，对照实验参数没有进入正式配置。
+
+新增`tests/test_jump_isaac_derivatives.py`覆盖同tick复读、跨128tick边界的partial reset、连续reset epoch、全量reset、真实tick间隔、时钟倒退和实际Scene.reset方法的行选择。相关CPU回归34 passed in22.22s；架构212/0，Ruff0.8.4 check/format通过。修复未同步到任何活动/历史远端candidate，真实PhysX修复验收NOT_RUN。
+
+## 蒸馏能力和阶段覆盖，不能假定已继承
+
+真实来源为Actor-only SHA `2a4d94517943559eaed51841e27be51e4672162a862ff07cd06979efc2e685fb`。原始refined/fit.json明确`phase_columns_untrained=true`；离线目标RMSE约0.0083～0.0195rad（腿）和1.68～2.27rad/s（轮），不等于当前C/FSM/PhysX闭环认证。历史完整参考中，蒸馏模型可以完成10s受控记录，但站高最低约0.249m、期间经过FLIGHT/LAND/SETTLE，仍标`trained_jump_accepted=false`；不得将“完成记录”称为标称站立通过。
+
+当前主动任务在1.5s才发跳跃请求（`jump_isaac.py:249`），u400窗口主动任务平均Jump控制时长仅0.553s；大量回合在请求前结束。BALANCE约15～21ms后进入FLIGHT会很快访问蒸馏未训练阶段。因此必须先修复物理接触/支撑输入，再从正常PPO结束回合核对站立保持和完整阶段覆盖；单看value loss下降不足以证明学习有效。此前8次有界检查证明真实优化/双Adam/恢复接线，但缺少这项物理一致性门槛，验收范围不充分。
+
+## 资源状态与证据
+
+远端最后一次可连接时已确认STOPPED_BOUNDED/407、worker已退出。随后`183.147.142.40:31193`持续Connection refused，用户已确认实例关机；远端物理验收待实例恢复。本机4080仍有Recovery owner PID2917966，公共资源前检拒绝本机诊断；没有绕过前检或发送信号。本机Isaac6.0.1与远端6.2不同，也不能互相冒充通过。
+
+本轮远端共6个两环境、200world-tick的有界I/O诊断，即1200world-tick/2400env-tick、240次C PD batch调用；SDK构造warmup未逐步计数，不能声称准备物理总量精确为上述数字。本地MuJoCo参考400个物理步。本机Isaac两次尝试分别在配置检查、资源前检退出，AppLauncher和物理步均未执行。PPO新增0。
+
+本地证据目录`artifacts/jump_diagnosis_20261113`含已取回的actor_v1/contacts_v1原始轨迹、FK_vs_native_readback.json、CPU_free_drop_reference.json、CPU_regression.txt、local_free_v4/v5失败日志和诊断脚本。远端六份trace位于preflight的`diagnose_actor_v1`、`diagnose_hold_v1`、`diagnose_contacts_v1`、`diagnose_global_floor_v2`、`diagnose_free_v2`、`diagnose_no_replicate_v3`；断线前尚未全部取回，保留这一缺口。
+
+余9593次PPO保持未使用；本次不创建新训练run、不用历史已完成更新反推或改写账本。远端恢复后先完成原生轮接触与修复后partial reset验证，保留旧失败证据，再以新冻结源码安排正常训练中的有界接续，不再次申请已经授予的训练额度。

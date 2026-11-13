@@ -14,6 +14,33 @@ def tensor(value):
     return value.torch
 
 
+class TickDerivatives:
+    """Differentiate only physical time; a partial reset changes selected rows."""
+
+    def __init__(self, dt):
+        self.dt = dt
+        self.tick = None
+        self.previous = self.acceleration = None
+
+    def sample(self, tick, velocity):
+        if self.tick is not None and tick < self.tick:
+            raise ValueError("Physical tick moved backwards")
+        if tick != self.tick:
+            self.acceleration = (
+                torch.zeros_like(velocity)
+                if self.tick is None
+                else (velocity - self.previous) / ((tick - self.tick) * self.dt)
+            )
+            self.previous = velocity.clone()
+            self.tick = tick
+        return self.acceleration
+
+    def reset_rows(self, ids, tick, velocity):
+        self.sample(tick, velocity)
+        self.previous[ids] = velocity[ids]
+        self.acceleration[ids] = 0
+
+
 class IsaacScene:
     def __init__(self, job, description, springs, mechanics, V4, initial):
         import isaaclab.sim as sim_utils
@@ -36,6 +63,7 @@ class IsaacScene:
         class SceneCfg(InteractiveSceneCfg):
             ground = AssetBaseCfg(
                 prim_path="/World/ground",
+                collision_group=-1,
                 spawn=sim_utils.CuboidCfg(
                     size=(128.0, 128.0, 0.1),
                     rigid_props=sim_utils.RigidBodyPropertiesCfg(
@@ -189,7 +217,7 @@ class IsaacScene:
         )
         self.forces = torch.zeros(self.num_envs, len(self.body_ids), 3, device=self.device)
         self.torques = torch.zeros_like(self.forces)
-        self.previous_velocity = None
+        self.derivatives = TickDerivatives(self.dt)
         self.actual_ticks = 0
         self.reset_epoch = 0
         self._cached = None
@@ -224,14 +252,18 @@ class IsaacScene:
         self.scene.write_data_to_sim()
         self.sim.forward()
         self.scene.update(self.dt)
-        if self.previous_velocity is not None:
-            self.previous_velocity[device_ids.long()] = torch.cat(
+        self.derivatives.reset_rows(
+            device_ids.long(),
+            self.actual_ticks,
+            torch.cat(
                 (
                     tensor(self.robot.data.root_link_lin_vel_w),
                     tensor(self.robot.data.root_link_ang_vel_w),
+                    tensor(self.robot.data.joint_vel)[:, self.all_ids],
                 ),
                 -1,
-            )[device_ids.long()]
+            ),
+        )
 
     def apply_effort(self, motor, NET):
         q = tensor(self.robot.data.joint_vel)[:, self.ids]
@@ -269,17 +301,11 @@ class IsaacScene:
             ),
             -1,
         )
-        velocity = root[:, 7:13]
-        acceleration = (
-            torch.zeros_like(velocity)
-            if self.previous_velocity is None
-            else (velocity - self.previous_velocity) / self.dt
-        )
-        self.previous_velocity = velocity.clone()
         q = tensor(d.joint_pos)[:, self.all_ids]
         v = tensor(d.joint_vel)[:, self.all_ids]
-        a = tensor(d.joint_acc)[:, self.all_ids]
-        joint = torch.stack((q, v, a), 1)
+        derivatives = self.derivatives.sample(self.actual_ticks, torch.cat((root[:, 7:13], v), -1))
+        acceleration = derivatives[:, :6]
+        joint = torch.stack((q, v, derivatives[:, 6:]), 1)
         lengths = []
         swings = []
         for k, (parent, local) in enumerate(self.leg_anchors):
