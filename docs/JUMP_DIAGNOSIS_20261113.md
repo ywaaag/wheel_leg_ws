@@ -53,3 +53,7 @@
 本地证据目录`artifacts/jump_diagnosis_20261113`含已取回的actor_v1/contacts_v1原始轨迹、FK_vs_native_readback.json、CPU_free_drop_reference.json、CPU_regression.txt、local_free_v4/v5失败日志和诊断脚本。远端六份trace位于preflight的`diagnose_actor_v1`、`diagnose_hold_v1`、`diagnose_contacts_v1`、`diagnose_global_floor_v2`、`diagnose_free_v2`、`diagnose_no_replicate_v3`；断线前尚未全部取回，保留这一缺口。
 
 余9593次PPO保持未使用；本次不创建新训练run、不用历史已完成更新反推或改写账本。远端恢复后先完成原生轮接触与修复后partial reset验证，保留旧失败证据，再以新冻结源码安排正常训练中的有界接续，不再次申请已经授予的训练额度。
+
+## 完整u407恢复的std逐位校验缺陷
+
+本机首个新run `2026_11_13__jump_tiled_u407_local8_v2`在PPO之前FAILED，已耗0；失败与旧run保持只读。真实u407保存的GPU exp(log_std)与CPU重算在3通道各差1 ULP（7.45e-9），`learning/ppo/jump_unified.py::restore_state`原逐位比较将其误判为std冲突。现在允许派生exp值最多2 ULP舍入差异，仍严格检查shape/dtype/有限正值；完整恢复使用原始log_std，不重建或替换std/Adam。实际u407验证通过，新增分布被改、NaN/Inf/零、shape/dtype冲突仍拒绝的CPU回归。后继本机v3仍只占用原8次工程划分，不因失败增加总预算。
