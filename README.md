@@ -19,6 +19,12 @@ PYTHONPATH=src /home/kellen/anaconda3/envs/issaclab/bin/python -B -m native_stan
 
 确认manifest与包身份后去掉dry-run只恢复依赖，不建run、预留额度或训练。原始spec/checkpoint不改；派生配置显式加入assets.path_mapping的path/SHA，source_root指向本次检出的src。新领域增量所需但旧包未含的依赖仍需其独立SHA清单，不能冒充已全部脱离旧目录。干净clone使用自己的PYTHONPATH=src，不借旧仓editable install；不要重装共享训练环境。
 
+## 迁移前历史文档
+
+迁移时保留的192份未跟踪文档及附件已归档到数据根 `history/docs_pre_refactor/`，正文保留原`docs/...`结构。`manifest.json`逐项记录原绝对路径、归档路径、SHA、大小及与旧仓的比较；`difference_review.json`和`review/`保留5份差异，`references.json`保留历史引用位置。归档原文不是当前用法；正式入口仍以本README、ARCHITECTURE和`--help`为准。
+
+5份差异没有候选独有的新功能说明：4份为缺少旧仓后续追加段落，1份仅多空行；不将旧监督/播放入口重新提升为正式能力。两份历史design配置的`documentation`及旧脚本报告字符串保持原身份；需要查阅时按manifest的`original_path`／`relative_path`查到`archived_path`，不能将已移出的路径当现有输入。旧仓同名资料保持只读。后续新文档正常进入Git审阅，不忽略整个docs，也不以`git add .`收录历史材料。
+
 ## 环境与入口
 
 Python3.12。安装使用已有环境，或从仓库设置 `PYTHONPATH=src` 后使用 `python -m native_stand`，与wheel-leg同一解析器。离线BC不要求Isaac运行环境。`scripts/test_portable_cpu.py`启用执行保护，真实mj_step、CUDA初始化或AppLauncher调用会失败而非静默跳过；历史物理用例不得借portable名称自动执行。
