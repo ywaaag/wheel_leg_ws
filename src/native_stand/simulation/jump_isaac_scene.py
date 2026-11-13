@@ -34,7 +34,8 @@ def physical_contract(envs, wheel_collision=None):
         if wheel_collision != "wheel_convex30_v1":
             raise ValueError("Unsupported Jump wheel collision contract")
         result.update(
-            version="jump_PhysX_wheel_convex30_v5",
+            version="jump_PhysX_wheel_convex30_guard_v6",
+            clearance_reference="minimum_original_cylinder_and_convex30",
             wheel_collision="circumscribed_convex30",
             wheel_radial_envelope_error_bound_m=0.000331,
         )
@@ -78,6 +79,13 @@ def wheel_convex_geometry(radius, half, axis):
     faces = [list(reversed(range(sides))), list(range(sides, 2 * sides))]
     faces += [[k, (k + 1) % sides, (k + 1) % sides + sides, k + sides] for k in range(sides)]
     return points, faces
+
+
+def wheel_convex_body_points(shape):
+    """The explicit collision vertices in the unchanged rigid-link frame."""
+    points, _ = wheel_convex_geometry(shape["radius"], shape["half_height"], shape["axis"])
+    frame = np.asarray(shape["body_frame"])
+    return points @ frame[:3, :3].T + frame[:3, 3]
 
 
 def author_wheel_convex_collision(stage, root):
@@ -361,6 +369,17 @@ class IsaacScene:
             for j in description["loops"]
         ]
         self.geometry = description
+        self.wheel_convex_points = {}
+        if self.physical_contract.get("wheel_collision"):
+            for body in self.wheel_ids:
+                shape = next(
+                    g
+                    for g in description["collision_shapes"]
+                    if g["body"] == self.robot.body_names[body] and g["kind"] == "Cylinder"
+                )
+                self.wheel_convex_points[body] = torch.tensor(
+                    wheel_convex_body_points(shape), dtype=torch.float32, device=self.device
+                )
         from native_stand.simulation.recovery_isaac.physics import PhysicalParameters
         from native_stand.tasks.recovery.cubic_randomization import draw
 
@@ -531,6 +550,19 @@ class IsaacScene:
                     + radius * torch.sqrt((1 - vertical.square()).clamp_min(0))
                 )
             )
+            if body in self.wheel_convex_points:
+                local_up = self.inverse(
+                    tensor(d.body_quat_w)[:, body],
+                    root.new_tensor([0, 0, 1.0]).expand(self.num_envs, -1),
+                )
+                # The cooked vertex set was verified within 65 nm on this
+                # runtime. Reserve 0.1 um for cooking/readback roundoff.
+                convex = (
+                    tensor(d.body_pos_w)[:, body, 2]
+                    + (local_up @ self.wheel_convex_points[body].T).amin(-1)
+                    - 1e-7
+                )
+                clearance[-1] = torch.minimum(clearance[-1], convex)
             local_bottom = center.clone()
             local_bottom[:, 2] -= radius
             velocity_at = tensor(d.body_com_lin_vel_w)[:, body] + torch.cross(

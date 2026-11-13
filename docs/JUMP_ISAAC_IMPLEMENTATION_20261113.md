@@ -4,6 +4,8 @@
 
 最终候选零PPO4096环境6400tick通过，6634个正常结束行，Critic54次逐位对照、inverse48次容差对照、fresh reset通过。CPU/GPU各两环境400tick，partial reset未reset行全部测量差0；最大闭链分别0.185/0.141mm，GPU最小解析净空-1.628um，冲量竖向余额最大0.0268Ns。仍逐1ms执行1mm穿入/2mm闭链门禁，不改变奖励/控制/限矩。证据`artifacts/jump_diagnosis_20261113/convex30_acceptance_v150.json`。这是物理接线验收，未认证站稳/跳跃；当前正在完成正常PPO与完整恢复验收。以下旧版本结论按各自冻结身份读取。
 
+补充`jump_PhysX_wheel_convex30_guard_v6`将原圆柱与凸包净空取较小值，额外预留0.1um cooking/readback数值余量，继续原1mm穿入门。运行时复用缓存body-frame顶点和设备矩阵运算，无额外host逐行拷贝。每面数据读回最多30顶点；GPU限制应区分总面数与单面顶点，不将32个总面误称官方限制。CPU/GPU400tick验证通过，严格门4096环境6400tick自然PASS，6634正常结束行、54次Critic逐位与48次inverse对照、fresh reset通过（v157）。
+
 当前执行修复冻结`ab6dc16`，合同`jump_PhysX_tiled_flat_ground_support_valid_v3`。接替后新增8次PPO含真实同run完整resume，累计415/10000、余9585，最终完整模型已搬迁远端并核对SHA。新版本本机CPU/GPU与远端6.2 CPU工程通过；远端无GPU，GPU复验和有界窗口尚未执行。0.34m站稳与主动跳能力未认证。最新收据及原始失败见`JUMP_DIAGNOSIS_20261113.md`末节和`artifacts/jump_diagnosis_20261113/DELIVERY_20261113.md`。下方旧长训RUNNING等为各自日期历史快照。
 
 

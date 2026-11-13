@@ -155,3 +155,12 @@ Packet仍在同一构造边界检查每个字段长度、contact类型、phase/o
 128侧候选虽6400tick通过，但cooking实际62顶点/33面，support差-0.493～+1.028mm，已废弃，不能沿用18um声明。最终30侧CPU/GPU cooked均60顶点/32面，支撑差0～0.331mm；新合同jump_PhysX_wheel_convex30_v5。最终4096x6400tick独立通过，6634正常结束行；CPU/GPU冲量与partial reset均完成，原门禁不放宽，完整收据convex30_acceptance_v150.json。v134保存的是全局最坏行样本，涉及5行不代表4096全量超限行普查。fresh replay未恢复隐藏solver，不反证原门禁。
 
 slip仍用轮心下方半径处速度作为既有奖励代理，倾斜时不是精确接触点。此项与正确的解析净空分开，不以它解释或放宽穿入；本次碰撞修复不改变奖励定义。GPU全面计算实现db0fcf9/1d26cdc保持，预算已耗452、剩9548；准备统一CLI有界正常PPO与保存恢复，不另建训练循环。
+
+
+## 跨任务只读审查经验（2026-11-14）
+
+Motion/Recovery负责人回传：两者此前训练没有同Jump的1ms、任一行1mm轮穿入全局门，因此“未停训”不等于“从未出现”。Motion校准PVD实际轮为PxConvexCoreCylinder、60mm/33mm，TGS12/6、轮contactOffset约0.66mm、地面20mm/rest0；地面最多9组共享静态Plane，2560环境，主要持续支撑/自转。Recovery配置12/6、128m Plane、1024环境，合法Swing起身；实际cooking/offset未读回，没有轮穿入检查，其clearance是机身角点。不能将其视为Jump腾空/倾斜落地验收。
+
+可复用经验是实际形状与参数读回、完整执行历史/延迟队列reset、保留连续轨迹对照；不复制没有相同检测的“无报错”，也不将更低solver迭代或Plane直接当修复。只读来源：旧仓artifacts/2026_11_11__motion200_physics_calibration/actual_PhysX_runtime_latest_summary.json；旧仓isolated/2026_11_05__motion_supported2048_dqgain_ppo/slope_tiles.py；recovery worktree simulation/recovery_isaac/environment.py。
+
+严格凸包门将原Cylinder与凸包顶点支撑净空取min并减0.1um数值余量，同1mm阈值；缓存是本SDK已cooking校核的生成顶点代理，跨SDK必须重新核实。v155 GPU探针脚本正文沿用CPU PhysX标签，实际命令device=cuda:0；旧trace保留，后续综合收据显式记录实际device。本次单面数据读回证明60顶点/32面/单面最多30顶点，计数不单独证明GPU contact generation、也不宣称无CPU fallback。

@@ -108,3 +108,24 @@ def test_formal_host_consumer_rejects_physical_failure_before_caching(
     assert failure["actual_engine_tick"] == 21
     assert message in failure["error"]
     assert failure["minimum_clearance_row"] == 0
+
+
+def test_convex_guard_uses_full_frame_and_catches_outer_rim_penetration():
+    from native_stand.simulation.jump_isaac_scene import wheel_convex_body_points
+
+    shape = dict(radius=0.06, half_height=0.0165, axis=2, body_frame=np.eye(4))
+    vertices = wheel_convex_body_points(shape)
+    # A horizontal wheel radial vertex is lower than the nominal cylinder.
+    direction = vertices[0].copy()
+    direction[2] = 0.0
+    direction /= np.linalg.norm(direction)
+    actual_extent = (vertices @ direction).max()
+    center_height = 0.0592
+    assert center_height - 0.06 > -0.001
+    assert center_height - actual_extent < -0.001
+    frame = np.eye(4)
+    frame[:3, :3] = [[0, 0, 1], [1, 0, 0], [0, 1, 0]]
+    frame[:3, 3] = [0.003, -0.004, 0.005]
+    shape["body_frame"] = frame
+    transformed = wheel_convex_body_points(shape)
+    assert np.allclose(transformed, vertices @ frame[:3, :3].T + frame[:3, 3])

@@ -1,5 +1,7 @@
 # 当前任务
 
+严格凸包门v6后续覆盖：独立worktree开发，未热改v14。min(圆柱,凸包)净空、同1mm门，CPU43/portable1954通过、Ruff/架构通过；GPU4096x6400tick自然PASS、Critic54/inverse48及fresh reset通过。v14有界16次STOPPED_BOUNDED/failure=null，u16完整学习状态/双Adam/RNG/预测精确复验通过；累计468、剩9532。下一版本从u16接续，旧run余款退役，不叠加额度。Motion/Recovery没有相同1ms/1mm门，未停训不等于从未发生。
+
 ## Jump 最终轮凸包验收（2026-11-14）
 
 显式wheel_convex30_v1已完成本机CPU/GPU cooked读回（60顶点/32面，support差0～0.331mm）；4096环境6400tick零PPO随机闭环通过，6634正常结束行，Critic54次逐位、inverse48次对照、fresh reset通过。两环境CPU/GPU各400tick冲量/reset通过，未reset行全部测量差0。保留1mm穿入/2mm闭链门禁，不改奖励/限矩/时序；原Cylinder动态倾斜接触内部根因未确认，未声称几何完全等价。实际入口仍CLI→owner/worker→公共driver。
