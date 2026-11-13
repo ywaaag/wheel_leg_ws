@@ -545,13 +545,27 @@ def cmd_diagnose(args) -> int:
 def cmd_play(args):
     from native_stand.simulation.playback import plan, run
 
-    prepared = plan(_run_dir(args.run), args.checkpoint)
+    prepared = plan(
+        _run_dir(args.run),
+        args.checkpoint,
+        path_mapping=args.path_mapping,
+        checkpoint_sha256=args.checkpoint_sha256,
+        terrain_map=args.terrain_map,
+        solver_profile=args.solver_profile,
+    )
     if args.headless and (args.steps is None or args.steps < 1):
         raise CommandError("headless必须声明正整数--steps", EXIT_INVALID)
     payload = (
         prepared.record()
         if args.dry_run
-        else run(prepared, headless=args.headless, steps=args.steps)
+        else run(
+            prepared,
+            headless=args.headless,
+            steps=args.steps,
+            panel_port=args.panel_port,
+            panel_host=args.panel_host,
+            no_save=args.no_save,
+        )
     )
     _emit(args, payload)
     return EXIT_OK
@@ -765,6 +779,25 @@ def build_parser() -> argparse.ArgumentParser:
     play.add_argument("--headless", action="store_true")
     play.add_argument("--steps", type=int, default=None)
     play.add_argument("--dry-run", action="store_true")
+    play.add_argument("--path-mapping", help="本机RuntimePaths映射JSON；只读派生视图")
+    play.add_argument("--checkpoint-sha256", help="加载时核对实际checkpoint SHA256")
+    play.add_argument("--terrain-map", action="store_true", help="Motion平地＋四种H1真实碰撞地图")
+    play.add_argument(
+        "--panel-port", type=int, help="本机网页独占控制端口，始终不保存；断线保持最后命令"
+    )
+    play.add_argument(
+        "--panel-host",
+        default="127.0.0.1",
+        help="网页监听地址；局域网需显式填写本机IP，0.0.0.0监听所有接口",
+    )
+    play.add_argument(
+        "--no-save", action="store_true", help="不写轨迹/结果/日志；临时编译仅在内存盘并清理"
+    )
+    play.add_argument(
+        "--solver-profile",
+        default="legacy_xml_v1",
+        help="显式MuJoCo求解器profile；closure_tight_v1改变闭链柔度，不是PhysX标定",
+    )
     play.set_defaults(func=cmd_play)
 
     handoff = sub.add_parser(
