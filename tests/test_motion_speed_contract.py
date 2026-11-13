@@ -60,6 +60,17 @@ def test_report_only_diagnostics_keep_raw_logprob_rewards_optimizer_and_RNG_iden
             standing_snapshot = torch.zeros(4, 6)
             wheel_geometry_snapshot = torch.zeros(4, 9)
             motion_action_command = torch.tensor([[0.0, 0.0, 0.34]]).expand(4, -1)
+            supported_requested_target_post = torch.zeros(4, 6)
+            supported_adopted_target_post = torch.zeros(4, 6)
+            supported_saturation_post = {
+                name: torch.zeros(4, 6)
+                for name in (
+                    "request_over_cap",
+                    "driver_at_cap",
+                    "motor_at_cap",
+                    "motor_capacity_fraction",
+                )
+            }
             ticks = 0
 
             def step(self, raw):
@@ -133,6 +144,10 @@ def test_report_only_diagnostics_keep_raw_logprob_rewards_optimizer_and_RNG_iden
     assert nonreport["scope"]["stats"] is None and nonreport["scope"]["diagnostics"] == {}
     assert report["scope"]["stats"].export()["controlled"]["cohort_0"]["samples"] > 0
     assert report["scope"]["diagnostics"]["rows"][0]["samples"] > 0
+    assert nonreport["scope"]["execution_stats"] is None
+    execution = report["scope"]["execution_stats"].export()
+    assert execution["rows"][0]["samples"] == 4 * job.runtime.steps_per_env
+    assert execution["policy_steps"] == job.runtime.steps_per_env
     for key in ("storage", "actor", "critic", "optimizer", "rng"):
         equal_tree(nonreport[key], report[key])
     for key in ("reward_mean", "actor_steps", "critic_only", "value_loss", "surrogate", "entropy"):

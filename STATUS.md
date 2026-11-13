@@ -1,5 +1,13 @@
 # 当前任务
 
+## Motion开训前审阅与欠转诊断（2026-11-13）
+
+在独立`motion/pretrain-gate-audit`分支复核保留的15个训练统计窗口。正式SplitCourse.advance的基础保留门槛：u100失败（DR±2rad/s自转），u200～u1500全部通过；近期连续6窗未见结构性晋级阻断。新75%行进转向评分缺逐回合记录，重评UNKNOWN。逐cohort结果及来源SHA位于数据根`motion_pretrain_audit/20261113_turn_focus_v3/`。
+
+生产adapter接入`tasks/motion/execution_statistics.py`，仅在报告更新累计Student六通道执行目标差、raw越界和请求/driver/motor饱和，按cohort导出。非100更新窗口、非1ms积分，不改变评分/奖励/控制/PPO；原最后步physical_control保留。调用链和边界见ARCHITECTURE及Motion能力矩阵末节。远端冻结版本尚未更新，本轮无远端连接、GPU、物理或真实训练；待用户通知GPU后再核实现场，不自动启动或监测。
+
+验证：新增/报告时序联合50 passed（7.00s），fixture消费者回归50 passed（5.51s）；portable最终1968 passed/31既有skip/10warning，完整耗时见数据根portable_final.log；架构210/0，固定Ruff0.8.4 CI范围check及209文件format通过。首次portable因4个旧fixture缺新增scope字段失败，补齐后重跑；原失败日志保留。
+
 ## Motion新10000次云端接线（2026-11-13）
 
 用户明确授权从完整u1500按转弯重点配方开始新的10000次在线更新、训练墙钟不限，允许共享GPU。旧累计消耗6738保留，旧阶段8429余额退役，不与新额度叠加，不退款55次。旧r15已通过公共owner.reconcile结算FAILED/worker exited without terminal state，实际1555次不变；原始结算前快照仍保留。新run身份`motion_u1500_turn_focus_v3_10000`，正式配置`configs/jobs/motion_u1500_turn_focus_v3_cloud10000.json`，沿既有分支/分配/owner/worker接线，不新增生命周期。

@@ -384,6 +384,7 @@ def test_formal_adapter_first_candidate_publish_save_and_recovery(tmp_path, monk
         episodes.response_groups[active, 4:6] = 16
         adapter._update_scope = dict(
             stats=NS(export=lambda: {}),
+            execution_stats=NS(export=lambda: {"scope": "scripted fixture"}),
             diagnostics={},
             detail={},
             channel_clips=torch.zeros(6),

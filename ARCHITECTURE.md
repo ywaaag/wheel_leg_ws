@@ -143,6 +143,8 @@ Motion目标与能力证据的共同入口为[Motion能力矩阵](docs/MOTION_CA
 
 配方复用`configs/jobs`，课程/统计/候选复用`tasks/motion`，执行复用生产adapter，逐模型成绩和引用复用`artifacts`及ModelIndex；不新增平行训练、评估或模型索引。目标按配方及实际消费者逐项接线，不回写冻结训练；当前范围见下述v3准备配方。
 
+`tasks/motion/execution_statistics.py`累计Student有效样本的六通道执行诊断；生产adapter仅在每100更新的报告更新采集，并写入同一`diagnostics/update_*.json`的`cohort_execution_statistics`。cohort_index与同文件onpolicy.rows/阶段cohort顺序一致，用于区分命令、DR和方向。统计覆盖该更新rollout的策略步末reset前快照，非100更新窗口、非1ms积分；设备端固定形状归约，导出时统一读回。不接课程/候选评分，不改变PPO、执行缓存或保存恢复状态；原physical_control保留为最后策略步的全环境读回。
+
 `motion48_turn_focus_branch_v3`复用SplitCourse，增加显式focus权重、初始档位、基础保留晋级门槛；stage将75%行进转弯响应门槛传给同一maneuver_statistics，原地自转和旧课程默认不变。未实现全矩阵自动调度或高度前置门槛。u1500的`full_motion_course_preparation_v1`由既有artifacts.branch_initialization读取真实run/state/budget快照及SHA，在完整来源边界只重建课程证据，保留学习状态和独立模型进度；生产adapter复用同一依赖登记、课程、保存恢复，不增加owner或worker。该记录仅支持零额度准备，require_allocated始终拒绝，不能替代终态结算与正式接续。
 
 `full_motion_course_allocated_v2`沿同一边界接真实终态和新授权，只允许已终止旧任务、原消耗保留、旧余额退役及SHA绑定的唯一新分配。它允许完整881D/现有高度合同继续，不重复877→881或高度扩展；新目标仅重建课程证据，不重建Actor/Critic/双Adam/RNG。准备版仍拒绝训练。GPU由用户通知后走一次正式CLI提交，不增加后台监测、资源抢占、owner预处理hook或另一套launcher。

@@ -719,6 +719,7 @@ def _course_adapter(tmp_path, *, revision=False):
     adapter.course_strategy = CourseStrategy(adapter.modules["course"], (), legacy=True)
     adapter._update_scope = {
         "stats": types.SimpleNamespace(export=lambda: {}),
+        "execution_stats": types.SimpleNamespace(export=lambda: {"scope": "scripted fixture"}),
         "diagnostics": {},
         "detail": {"actor_optimizer_steps": 1},
         "channel_clips": torch.zeros(6),

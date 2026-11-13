@@ -317,6 +317,7 @@ def test_real_course_advance_reports_rebuild_inputs_before_save_without_early_re
     adapter.modules = {"build_environment_spec": build_environment_spec}
     adapter._update_scope = dict(
         stats=NS(export=lambda: {}),
+        execution_stats=NS(export=lambda: {"scope": "scripted fixture"}),
         diagnostics={},
         detail={},
         channel_clips=torch.zeros(6),

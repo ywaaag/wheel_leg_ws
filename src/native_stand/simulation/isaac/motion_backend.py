@@ -789,6 +789,11 @@ class MotionProductionAdapter:
             if report_due
             else None
         )
+        from native_stand.tasks.motion.execution_statistics import ExecutionStatistics
+
+        execution_stats = (
+            ExecutionStatistics(stage_spec["commands"], env.device) if report_due else None
+        )
         reward_sum = torch.zeros((), device=env.device)
         nonzero = torch.zeros((), device=env.device, dtype=torch.long)
         ended = torch.zeros((), device=env.device, dtype=torch.long)
@@ -855,6 +860,15 @@ class MotionProductionAdapter:
                         ),
                         gamma=algorithm.gamma,
                     )
+                if execution_stats is not None:
+                    execution_stats.observe(
+                        ids,
+                        valid,
+                        raw_action,
+                        env.supported_requested_target_post,
+                        env.supported_adopted_target_post,
+                        env.supported_saturation_post,
+                    )
                 if stats is not None:
                     stats.observe(
                         ids,
@@ -906,6 +920,7 @@ class MotionProductionAdapter:
         detail = algorithm.mask_summary
         self._update_scope = {
             "stats": stats,
+            "execution_stats": execution_stats,
             "diagnostics": diagnostics,
             "detail": detail,
             "channel_clips": channel_clips,
@@ -1030,6 +1045,7 @@ class MotionProductionAdapter:
                 "onpolicy": review,
                 "decision": decision,
                 "cohort_statistics": scope["stats"].export(),
+                "cohort_execution_statistics": scope["execution_stats"].export(),
                 "cohort_value_diagnostics": scope["diagnostics"],
                 "PPO": scope["detail"],
                 "raw_clip_fraction_by_channel": (
