@@ -188,3 +188,44 @@ def test_mapped_asset_module_uses_its_actual_package_root(tmp_path):
     module.write_text("CHANGED=1\n")
     with pytest.raises(ValueError, match="identity differs"):
         asset_module_root(template)
+
+
+def test_actual_collector_separates_recovery_mean_and_raw_target(tmp_path, monkeypatch):
+    from test_public_migration import supervision_job
+    from test_supervision_consumers import ScriptedCollectionIO
+
+    from native_stand.learning.inference import InferenceSpec, build_actor
+    from native_stand.simulation import collection
+
+    job = supervision_job(tmp_path)
+    contract = dict(
+        action_version="recovery_cubic_physical_Gaussian_v2",
+        center_rad=[0.0] * 4,
+        leg_lower_rad=[-1.5] * 4,
+        leg_upper_rad=[1.5] * 4,
+    )
+    spec = InferenceSpec("recovery_physical", 31, (8,), 6, {"version": "31"}, contract)
+    actor = build_actor(spec)
+    with torch.no_grad():
+        actor.mlp[-1].weight.zero_()
+        actor.mlp[-1].bias.fill_(0.5493061443340548)
+    source = tmp_path / "physical.pt"
+    torch.save(dict(actor=actor.state_dict(), contract=contract), source)
+    env = ScriptedCollectionIO()
+    monkeypatch.setattr(collection, "make_environment", lambda job: env)
+    ref = collection.collect(
+        job,
+        dict(path=str(source), sha256=file_sha256(source)),
+        spec.record(),
+        2,
+        tmp_path / "col",
+        None,
+    )
+    from native_stand.artifacts.io import read_json
+
+    chunk = read_json(ref["path"])["sources"][0]
+    with np.load(chunk["path"], allow_pickle=False) as raw:
+        np.testing.assert_allclose(raw["trace_network_mean"], 0.5, atol=1e-6)
+        np.testing.assert_allclose(raw["trace_raw_action"][:, [0, 1, 3, 4]], 0.24375, atol=1e-6)
+        np.testing.assert_allclose(raw["trace_raw_action"][:, [2, 5]], 50.0, atol=1e-5)
+    assert env.closed

@@ -114,4 +114,4 @@ PPO更新、监督round、实际监督优化步和物理子步分别记账。com
 
 在已确认持久盘解包后，按manifest逐条生成`runtime_path_mapping_v1.files`，将每个原path映射到解包根/archive_path；候选源码旧根可用prefixes映射。派生配置只加入assets.path_mapping(path/SHA)、实际source_root和执行资源，不改原始文件。GPU UUID、CUDA映射、输出runs-root与缓存必须按新机器实际填写，不照抄本机授权。保留指定IsaacSim6.2/IsaacLab3镜像、PhysX、uv及LD_LIBRARY_PATH。顺序为环境身份→持久盘/依赖SHA→dry-run→单链有界工程运行→保存恢复→分段计时；本侧不连接、上传或启动。
 
-Recovery 2100 小模型蒸馏使用 `configs/jobs/recovery2100_distillation.json`：复用监督生命周期，固定2100教师、三次物理输出、按回合/阶段均衡的归一化Huber、学生真实闭环补教和独立延迟比较。运行前先 `wheel-leg distill --config configs/jobs/recovery2100_distillation.json --dry-run`。参数、来源、预算与部署边界见 [蒸馏说明](docs/RECOVERY2100_DISTILLATION.md)。
+Recovery 2100 小模型蒸馏当前使用 `configs/jobs/recovery2100_delay_dagger.json`（长延迟学生补教）；初始 `recovery2100_distillation.json`仅保留首轮复现。当前配方：复用监督生命周期，固定2100教师、三次物理输出、按回合/阶段均衡的归一化Huber、学生真实闭环补教和独立延迟比较。运行前先 `wheel-leg distill --config configs/jobs/recovery2100_delay_dagger.json --dry-run`。参数、来源、预算与部署边界见 [蒸馏说明](docs/RECOVERY2100_DISTILLATION.md)。
