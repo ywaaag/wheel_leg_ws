@@ -56,6 +56,10 @@ class RowCritic:
             engine_fields=values,
         )
         tail, fields = extend_fields({}, [], reward.critic_fields())
-        self.tail_schema = PackedCritic.reuse(fields, self.tail_schema)
-        self.schema = IsaacCritic.reuse(list(self.base.schema.fields) + fields, self.schema)
+        if self.tail_schema is None:
+            # Versioned source defines units/scales, not changing physical
+            # values. Freeze that layout at the first actual observation.
+            # encode below still validates every dynamic name/shape/value.
+            self.tail_schema = PackedCritic(fields)
+            self.schema = IsaacCritic(list(self.base.schema.fields) + fields)
         return np.concatenate((head, self.tail_schema.encode(tail)))

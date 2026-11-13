@@ -130,3 +130,11 @@ v59离线微基准：256份真实C输入逐字节相同；1000份扰动腿长flo
 等价FK实现后的CPU联合102项通过（32.14s）；source在独立worktree，实际4096运行仍cd24127，不存在热改。跨引擎显式新cohort回归已覆盖SHA拒绝、旧行RNG/累计计数保留与成功窗口清空。
 
 独立性能补丁portable1933通过/31历史skip/10warning（150.16s）、Ruff0.8.4与当前main架构检查通过。正式入口仍CLI/owner/worker/公共driver，新增文件仅实际消费者CPU回归，没有新增trainer、watcher或独立PPO评估。
+
+## 高频packet与schema重复检查（独立性能增量）
+
+Packet仍在同一构造边界检查每个字段长度、contact类型、phase/owner/dt、normal/slip符号及全部数值finite，只把13次NumPy finite扫描合并成一次；异常时再定位具体字段。10000包CPU微基准0.194s→0.092s，正常payload相同；新增逐字段NaN/Inf/shape/布尔与负force/slip回归。Isaac Critic首个实际观测冻结版本化字段的单位/尺度，encode仍逐次验证动态字段名/shape/finite；不再每行重复对226列静态scale做array_equal，256行剖析0.414s→0.268s。没有改变Actor、奖励、成功/故障或物理计算周期。
+
+正式4096首更已正常STOPPED_BOUNDED/failure=null：262144样本，Actor/Critic各256个Adam步，warmup保持5；完整checkpoint SHA `197c84743987de0d497576d3482b2e2e93928aaec297c25de7b1a535318a5b49`，173305601字节。整轮1673.86s、rollout1611.90s、inverse706.88s、learning59.14s。仅0.64s物理时间不能覆盖1.5s请求；30个active短故障、请求/accepted均0，其余回合未结束；没有能力accepted。累计436/10000，剩9564。
+
+首更perf新增allocator/mask字段曾在adapter产生却被公共MetricsWriter的白名单过滤，不能声称该run已记录峰值/有效样本。已改用既有peak_memory_allocated_bytes/peak_memory_reserved_bytes和performance_counters，并补实际writer回归；不扩大公共writer白名单。NVML观察到11.55GiB左右为当时进程占用，不是峰值证书。v65联合117通过、portable1948通过/31历史skip/10warning（143.76s）；writer修复后实际消费者42项通过（13.53s），Ruff/架构通过。旧缺失收据如实保留。

@@ -72,3 +72,5 @@ Isaac Critic现按dtype批量读回全体V4/response行，保持原字段顺序�
 当前用户指定4096环境：Isaac配方4096×64，minibatches64。物理合同v4按3m间距的clone网格扩展ground，保持每侧至少32m出生点余量；4096对应256m方形、8m tiles，实际最小33.5m，地面Z/材质与机器人不变。构造时核对实际origins余量。performance_measurement同时记录既有mask有效/无效数及Torch allocator峰值（不含全部PhysX显存）。远端仍需GPU恢复后的真实6.2复验，不把本机4096通过冒充远端通过。
 
 逆动力学桥的腿长采用`ClosedChain.leg_lengths`，与完整measure相同的轮心FK，仅消除未消费的弹簧/碰撞/COM计算及非祖先关节。宽角度腿长与随机完整C输入字节回归比较，完整物理/支撑模型及周期不变。跨本机/远端引擎版本可显式full transition声明force_new_cohort，即使张量布局identity相同也不能沿用能力窗口；保留学习状态和课程RNG/累计计数。
+
+高频奖励包保留原有全部外部边界校验，finite合并单次扫描，异常时定位字段。Isaac Critic静态字段单位/尺度只在首个实际观测构造，动态name/shape/finite每次保留。allocator峰值使用公共MetricsWriter已有peak_memory_*字段，mask样本数进入performance_counters，不使用会被writer丢弃的自定义标量名。

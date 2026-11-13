@@ -132,6 +132,7 @@ class Packet:
     external_takeoff_assist: bool = False
 
     def __post_init__(self):
+        finite = [self.COM_height_m, self.root_height_m]
         sizes = dict(
             COM_velocity_m_s=3,
             tilt_rad=2,
@@ -149,17 +150,22 @@ class Packet:
         )
         for name, size in sizes.items():
             value = tuple(getattr(self, name))
-            if len(value) != size or not np.isfinite(value).all():
+            if len(value) != size:
                 raise ValueError("finite explicitly aligned packet field " + name)
             if name != "contact":
                 value = tuple(float(x) for x in value)
             object.__setattr__(self, name, value)
+            finite.extend(value)
         if self.phase not in self.valid_phases:
             raise ValueError("未知C阶段")
         if self.owner not in range(5) or not 0 <= self.dt_s <= 0.02:
             raise ValueError("known owner and actual interval <=20ms required")
-        if not np.isfinite([self.COM_height_m, self.root_height_m]).all():
-            raise ValueError("finite measured heights required")
+        if not np.isfinite(finite).all():
+            if not np.isfinite([self.COM_height_m, self.root_height_m]).all():
+                raise ValueError("finite measured heights required")
+            for name in sizes:
+                if not np.isfinite(getattr(self, name)).all():
+                    raise ValueError("finite explicitly aligned packet field " + name)
         if any(type(x) not in (bool, np.bool_) for x in self.contact):
             raise ValueError("contact truth must be explicit booleans")
         object.__setattr__(self, "contact", tuple(bool(x) for x in self.contact))

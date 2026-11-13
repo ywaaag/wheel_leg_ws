@@ -78,8 +78,23 @@ def test_performance_receipt_reuses_existing_mask_and_allocator_metadata(monkeyp
     assert calls == ["cuda:0", "cuda:0"]
     assert result == dict(
         reward_mean=0.25,
-        valid_actor_samples=17,
-        invalid_actor_samples=3,
-        torch_peak_allocated_bytes=1234,
-        torch_peak_reserved_bytes=1234,
+        peak_memory_allocated_bytes=1234,
+        peak_memory_reserved_bytes=1234,
     )
+    assert adapter.measurement.counters == dict(
+        jump_valid_actor_samples=17, jump_invalid_actor_samples=3
+    )
+    from native_stand.artifacts.metrics import MetricsWriter
+
+    # Production writer filters scalars; use its existing public field names.
+    import tempfile
+
+    target = Path(tempfile.mkdtemp()) / "metrics.jsonl"
+    result["update"] = 1
+    result["performance_counters"] = adapter.measurement.counters
+    writer = MetricsWriter(target, every_updates=1, tensorboard=False)
+    assert writer.write(result)
+    saved = json.loads(target.read_text())
+    assert saved["peak_memory_allocated_bytes"] == 1234
+    assert saved["peak_memory_reserved_bytes"] == 1234
+    assert saved["performance_counters"]["jump_valid_actor_samples"] == 17
