@@ -349,3 +349,268 @@ def test_baseline_identity_includes_full_ast_and_symbol(tmp_path):
         "import subprocess\ndef spawn():\n    return subprocess.Popen(['rm', '-rf'])\n"
     )
     assert run_checker(root).returncode == 1
+
+
+# Incremental script review uses real, self-contained Git repositories. It never
+# imports inspected code, creates engines, or executes training commands.
+def git_fixture(tmp_path, scripts=None):
+    root = _fixture(tmp_path, {WORKER_STUB[0]: WORKER_STUB[1], **(scripts or {})})
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
+    subprocess.run(["git", "add", "--all"], cwd=root, check=True)
+    commit_fixture(root)
+    subprocess.run(["git", "tag", "refactor-migration-v1"], cwd=root, check=True)
+    return root
+
+
+def commit_fixture(root):
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=CPU Fixture",
+            "-c",
+            "user.email=fixture@example.invalid",
+            "commit",
+            "--allow-empty",
+            "-qm",
+            "fixture",
+        ],
+        cwd=root,
+        check=True,
+    )
+
+
+def incremental(root, base="refactor-migration-v1"):
+    return subprocess.run(
+        [sys.executable, "-B", str(CHECKER), "--root", str(root), "--base", base],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+
+
+def test_incremental_factory_analysis_compiler_and_test_tools_pass_without_execution(tmp_path):
+    root = git_fixture(tmp_path)
+    _fixture(
+        root,
+        {
+            "src/native_stand/simulation/factory.py": "def make(factory, config):\n return factory(config)\n",
+            "scripts/analyze.py": (
+                "import subprocess\n"
+                "subprocess.run(['cc', '-shared', 'control.c'])\n"
+                "subprocess.run(['python', '-m', 'pytest', 'tests'])\n"
+                "subprocess.run(['python', '-m', 'build'])\n"
+                "raise RuntimeError('must not execute target script')\n"
+            ),
+        },
+    )
+    done = incremental(root)
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert "增量脚本 1 个" in done.stdout
+    assert "Traceback" not in done.stderr
+
+
+def test_incremental_worker_subprocess_alias_and_assigned_command_fail(tmp_path):
+    root = git_fixture(tmp_path)
+    _fixture(
+        root,
+        {
+            "scripts/bypass.py": (
+                "import sys as runtime\nfrom subprocess import Popen as launch\n"
+                "command = [runtime.executable, '-m', 'native_stand.experiments.worker']\n"
+                "launch(command)\n"
+            )
+        },
+    )
+    done = incremental(root)
+    assert done.returncode == 1 and "R4-script-training" in done.stdout
+
+
+def test_incremental_script_invokes_owner_worker_or_legacy_supervisor_fail(tmp_path):
+    root = git_fixture(tmp_path)
+    cases = {
+        "owner": "from native_stand.experiments import owner as o\no.submit(job)\n",
+        "worker": "from native_stand.experiments.worker import main as run\nrun()\n",
+        "legacy": "from native_stand.command_v6 import supervisor as s\ns.main()\n",
+        "mp": "from multiprocessing import Process as P\nfrom native_stand.experiments.worker import main\nP(target=main)\n",
+        "train": "import subprocess\nsubprocess.run(['python', '-m', 'native_stand', 'train', '--config', 'x'])\n",
+        "oldtrain": "import subprocess\nsubprocess.run(['python', 'train_new.py'])\n",
+        "cli": "from native_stand.cli import main\nmain(['distill', '--config', 'x'])\n",
+        "shell": "#!/bin/sh\npython -m native_stand.experiments.worker --run-dir x\n",
+    }
+    for name, code in cases.items():
+        folder = root / "scripts"
+        folder.mkdir(exist_ok=True)
+        path = folder / (name + (".sh" if name == "shell" else ".py"))
+        path.write_text(code)
+        done = incremental(root)
+        assert done.returncode == 1 and "R4-script-training" in done.stdout, (
+            name,
+            done.stdout,
+            done.stderr,
+        )
+        path.unlink()
+
+
+def test_incremental_cli_dry_run_and_import_without_launch_are_legal(tmp_path):
+    root = git_fixture(tmp_path)
+    _fixture(
+        root,
+        {
+            "scripts/inspect_plan.py": (
+                "from native_stand.cli import main\n"
+                "from native_stand.experiments import owner\n"
+                "main(['train', '--dry-run', '--config', 'x'])\n"
+            )
+        },
+    )
+    assert incremental(root).returncode == 0
+
+
+def test_incremental_formal_scripts_import_still_fails(tmp_path):
+    root = git_fixture(tmp_path)
+    _fixture(root, {"src/native_stand/learning/bad.py": "import scripts.analyze\n"})
+    done = incremental(root)
+    assert done.returncode == 1 and "R2-imports" in done.stdout
+    # Relative package import cannot hide behind the exact package name.
+    (root / "src/native_stand/learning/bad.py").write_text("from ..scripts import analyze\n")
+    assert incremental(root).returncode == 1
+
+
+def test_incremental_base_missing_invalid_empty_and_non_git_fail_closed(tmp_path):
+    root = git_fixture(tmp_path)
+    for base in ("missing-tag", "HEAD:no-such-file", ""):
+        done = incremental(root, base)
+        assert done.returncode == 2 and "错误" in done.stderr
+    no_git = _fixture(tmp_path / "plain", {WORKER_STUB[0]: WORKER_STUB[1]})
+    assert incremental(no_git).returncode == 2
+
+
+def test_incremental_history_rename_spaces_deletion_and_persisted_new_script(tmp_path):
+    root = git_fixture(
+        tmp_path,
+        {
+            "scripts/historical.py": "import subprocess\nsubprocess.run(['python', 'train.py'])\n",
+            "scripts/old name.py": "import subprocess\nsubprocess.run(['python', 'train.py'])\n",
+            "scripts/deleted.py": "this was never valid Python !\n",
+        },
+    )
+    assert incremental(root).returncode == 0  # untouched history is not retroactively governed
+    subprocess.run(
+        ["git", "mv", "scripts/old name.py", "scripts/new name.py"], cwd=root, check=True
+    )
+    subprocess.run(["git", "rm", "-q", "scripts/deleted.py"], cwd=root, check=True)
+    commit_fixture(root)
+    done = incremental(root)
+    assert done.returncode == 1 and "scripts/new name.py" in done.stdout
+    assert "scripts/historical.py" not in done.stdout and "deleted.py" not in done.stdout
+    # This script is already committed, not changed in the latest working tree.
+    assert subprocess.check_output(["git", "status", "--porcelain"], cwd=root) == b""
+    assert incremental(root).returncode == 1
+
+
+def test_incremental_modified_and_untracked_scripts_both_checked(tmp_path):
+    root = git_fixture(tmp_path, {"scripts/tool.py": "print('old')\n"})
+    _fixture(
+        root,
+        {
+            "scripts/tool.py": "import subprocess\nsubprocess.run(['wheel-leg', 'resume', '--run', 'x'])\n",
+            "scripts/untracked name.py": "import subprocess\nsubprocess.run(['python', '-m', 'native_stand.experiments.worker'])\n",
+        },
+    )
+    done = incremental(root)
+    assert done.returncode == 1 and done.stdout.count("R4-script-training") == 2
+
+
+def test_incremental_dynamic_process_reports_review_without_fake_certification(tmp_path):
+    root = git_fixture(tmp_path)
+    _fixture(root, {"scripts/dynamic.py": "import subprocess\nsubprocess.run(command_from_user)\n"})
+    done = incremental(root)
+    assert done.returncode == 0 and "REVIEW scripts/dynamic.py:2" in done.stdout
+    assert "无法确认" in done.stdout
+
+
+def test_incremental_public_surface_requires_content_review_even_with_doc_touch(tmp_path):
+    root = git_fixture(tmp_path)
+    _fixture(
+        root,
+        {
+            "src/native_stand/cli.py": "def register(parser):\n parser.add_parser('new')\n",
+            "README.md": "one arbitrary changed line\n",
+        },
+    )
+    done = incremental(root)
+    assert done.returncode == 0 and "PUBLIC-REVIEW" in done.stdout
+    assert "文档改动不是内容正确的证明" in done.stdout
+
+
+def test_incremental_target_syntax_error_is_not_silently_ignored(tmp_path):
+    root = git_fixture(tmp_path)
+    _fixture(root, {"scripts/bad.py": "def invalid(\n"})
+    done = incremental(root)
+    assert done.returncode == 2 and "静态解析失败" in done.stderr
+
+
+def test_incremental_analysis_printing_training_names_is_not_a_launcher(tmp_path):
+    root = git_fixture(tmp_path)
+    _fixture(
+        root,
+        {
+            "scripts/analyze_names.py": (
+                "import subprocess\n"
+                "subprocess.run(['echo', 'native_stand.experiments.worker'])\n"
+                "subprocess.run(['python', 'analyze.py', '--source', 'train.py'])\n"
+                "subprocess.run(['python', '-m', 'pytest', 'train.py'])\n"
+                "subprocess.run(['wheel-leg', 'inspect', '--run', 'train'])\n"
+            ),
+            "scripts/analyze.sh": "#!/bin/sh\necho 'native_stand.experiments.worker'\ncc -shared core.c\n",
+        },
+    )
+    assert incremental(root).returncode == 0
+
+
+def test_incremental_shell_sequence_cannot_hide_explicit_worker_launch(tmp_path):
+    root = git_fixture(tmp_path)
+    _fixture(
+        root,
+        {"scripts/launch.sh": "#!/bin/sh\necho ready; python -m native_stand.experiments.worker\n"},
+    )
+    done = incremental(root)
+    assert done.returncode == 1 and "scripts/launch.sh:2" in done.stdout
+
+
+def test_closeout_ci_fetches_baseline_history_and_uses_same_static_command():
+    root = CHECKER.parents[1]
+    workflow = (root / ".github/workflows/cpu.yml").read_text()
+    assert "fetch-depth: 0" in workflow and "fetch-tags: true" in workflow
+    assert "python scripts/check_architecture.py --base refactor-migration-v1" in workflow
+    template = (root / ".github/PULL_REQUEST_TEMPLATE.md").read_text()
+    for topic in ("消费者", "复用", "替代", "文档", "验证", "尚未验证"):
+        assert topic in template
+
+
+def test_current_navigation_documents_exist_in_the_committed_source_boundary():
+    import re
+
+    root = CHECKER.parents[1]
+    for name in ("AGENTS.md", "README.md", "ARCHITECTURE.md"):
+        text = (root / name).read_text()
+        # Only explicit document navigation, not runtime manifests or history inventory.
+        references = re.findall(r"`([^`\n]+\.md)`", text)
+        references += re.findall(r"\]\(([^)]+\.md)(?:#[^)]*)?\)", text)
+        for reference in references:
+            assert (root / reference).is_file(), (name, reference)
+            tracked = subprocess.run(
+                ["git", "ls-files", "--error-unmatch", "--", reference],
+                cwd=root,
+                capture_output=True,
+            )
+            assert tracked.returncode == 0, (name, reference, "document not staged/tracked")
+
+
+def test_incremental_other_script_languages_are_reviewed_not_silently_certified(tmp_path):
+    root = git_fixture(tmp_path)
+    _fixture(root, {"scripts/new.js": "throw new Error('not executed');\n"})
+    done = incremental(root)
+    assert done.returncode == 0 and "REVIEW scripts/new.js:1" in done.stdout
+    assert "未支持的脚本语言" in done.stdout
