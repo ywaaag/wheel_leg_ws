@@ -24,7 +24,7 @@
 
 比较使用相同重置seed和明确case的新回合；每批均报告教师与学生。连续两次闭环成功率/起身率没有改善则持久化`review_required`并停止重复BC，检查覆盖、教师适用性、物理误差和时序。成功指标不得由BC损失推断。
 
-用户授权任务总预算不限，配置记录null；本执行块仍限定60round、明确采集/比较步数、7200秒与8GiB输出边界，每round保存。可用统一`wheel-leg stop --run RUN --after-round N`（参数以当前help为准）和`resume --run RUN`；有review_required时必须先完成诊断，不无条件续堆BC。没有额外watcher或外部通知。
+用户授权任务总预算不限，配置记录null；本执行块仍限定60round、明确采集/比较步数、7200秒与8GiB输出边界，每round保存。可用统一`wheel-leg stop --run RUN --request-only`请求轮边界停止，使用`wheel-leg resume --run RUN`恢复；有review_required时必须先完成诊断，不无条件续堆BC。没有额外watcher或外部通知。
 
 ## 比较与部署
 
