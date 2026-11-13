@@ -417,9 +417,17 @@ def execute(
                             dict(path=recipe.teachers[0].path, sha256=recipe.teachers[0].sha256),
                             recipe.teachers[0].inference,
                         ),
-                        ("student", state["selected"], recipe.student),
+                        (
+                            "student",
+                            state.get("closed_loop_candidate", state["selected"])
+                            if phase.final
+                            else state["selected"],
+                            recipe.student,
+                        ),
                     ]:
-                        environment.reset_collection(fresh=True)
+                        environment.reset_collection(
+                            fresh=True, seed_offset=100000 if phase.final else 0
+                        )
                         ref = collect(
                             job,
                             source,
@@ -444,9 +452,17 @@ def execute(
                             return state, False
                     # Fidelity is measured on real student states, without advancing Teacher execution caches.
                     model = load_model(
-                        state["selected"]["path"],
+                        (
+                            state.get("closed_loop_candidate", state["selected"])
+                            if phase.final
+                            else state["selected"]
+                        )["path"],
                         InferenceSpec.from_record(recipe.student),
-                        sha256=state["selected"]["sha256"],
+                        sha256=(
+                            state.get("closed_loop_candidate", state["selected"])
+                            if phase.final
+                            else state["selected"]
+                        )["sha256"],
                     )
                     residuals = []
                     teacher = teachers[0]
@@ -467,7 +483,8 @@ def execute(
                                 wheel_MAE_rad_s=float(np.abs(error[:, [2, 5]]).mean()),
                             ),
                             hardware="OFF",
-                            independent_delay_sweep="NOT_RUN",
+                            independent_delay_sweep="RUN same-reset cohorts with per-step actual delay readback",
+                            partition="final_holdout" if phase.final else "development",
                         ),
                     )
                     score = (
@@ -475,11 +492,11 @@ def execute(
                         reports["student"]["rise_success_rate"] or 0,
                     )
                     best = tuple(state.get("best_closed_loop", [-1, -1]))
-                    if score > best:
+                    if not phase.final and score > best:
                         state["best_closed_loop"] = list(score)
                         state["closed_loop_candidate"] = state["selected"]
                         state["no_improvement"] = 0
-                    else:
+                    elif not phase.final:
                         state["no_improvement"] = state.get("no_improvement", 0) + 1
                     if state["no_improvement"] >= 2:
                         state["review_required"] = (
@@ -496,7 +513,11 @@ def execute(
                     folder / "comparison.json",
                     dict(
                         validation_loss=value["validation_loss"],
-                        extra_simulation_steps=0,
+                        extra_simulation_steps=sum(
+                            read_json(ref["path"]).get("physical_steps", 0) for ref in refs.values()
+                        )
+                        if phase.steps
+                        else 0,
                         independent_certificate=False,
                     ),
                 )
@@ -504,8 +525,18 @@ def execute(
                 value = torch.load(state["latest"]["path"], map_location="cpu", weights_only=False)
                 actor = folder / "selected.pt"
                 if not actor.exists():
+                    weights = value["best"]["state"]
+                    if recipe.objective and state.get("closed_loop_candidate"):
+                        weights = load_actor_source(state["closed_loop_candidate"]["path"]).payload[
+                            "actor"
+                        ]
                     torch.save(
-                        dict(actor=value["best"]["state"], inference_spec=recipe.student), actor
+                        dict(
+                            actor=weights,
+                            inference_spec=recipe.student,
+                            output_contract=recipe.student["output_contract"],
+                        ),
+                        actor,
                     )
                 from native_stand.artifacts.deployment import job_dependencies
 
