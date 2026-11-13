@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass
 import torch
 
 from native_stand.artifacts.checkpoint import LoadedSource, load_actor_source
-from native_stand.artifacts.io import json_digest
+from native_stand.artifacts.io import identified_digest
 from native_stand.learning.ppo.networks import StudentNetwork
 
 
@@ -100,10 +100,12 @@ class InferenceModel:
 
 def from_source(source, spec):
     declared = source.payload.get("inference_spec")
-    if declared is not None and json_digest(declared) != json_digest(spec.record()):
+    if declared is not None and identified_digest(declared) != identified_digest(spec.record()):
         raise ValueError("Loaded Actor inference contract differs")
     contract = source.payload.get("output_contract", source.payload.get("contract"))
-    if contract is not None and json_digest(contract) != json_digest(spec.output_contract):
+    if contract is not None and identified_digest(contract) != identified_digest(
+        spec.output_contract
+    ):
         raise ValueError("Loaded Actor output contract differs")
     rng = torch.get_rng_state()
     try:

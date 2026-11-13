@@ -754,7 +754,7 @@ class IsaacRecovery:
             return self.initialize_from_training_state(state, same_run=True)
         return self.restore_execution(state["execution"])
 
-    def reset_collection(self, *, fresh=False):
+    def reset_collection(self, *, fresh=False, seed_offset=0):
         self.env.cfg.recovery_collection_cases = (
             self.job.assets.get("recovery_distillation_validation_cases") if fresh else None
         )
@@ -764,9 +764,12 @@ class IsaacRecovery:
             from native_stand.tasks.recovery.swing_priority_course import RecoveryCourse
 
             e = self.env
-            e.courses = [RecoveryCourse(self.job.runtime.seed + i) for i in range(self.num_envs)]
+            e.courses = [
+                RecoveryCourse(self.job.runtime.seed + seed_offset + i)
+                for i in range(self.num_envs)
+            ]
             e.DR_rng = [
-                np.random.default_rng(self.job.runtime.seed + 170000 + i)
+                np.random.default_rng(self.job.runtime.seed + seed_offset + 170000 + i)
                 for i in range(self.num_envs)
             ]
             e.episode_spec = [None] * self.num_envs

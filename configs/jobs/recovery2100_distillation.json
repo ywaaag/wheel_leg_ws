@@ -2589,9 +2589,9 @@
         "action_version": "recovery_cubic_physical_Gaussian_v2",
         "actor_dimensions": [
           31,
-          2048,
-          1024,
-          512,
+          256,
+          128,
+          64,
           6
         ],
         "hidden_activation": "ELU(alpha=1)",
@@ -2730,7 +2730,12 @@
       },
       {
         "operation": "compare",
-        "steps": 4600
+        "steps": 2300
+      },
+      {
+        "operation": "compare",
+        "steps": 4600,
+        "final": true
       },
       {
         "operation": "export"
