@@ -55,3 +55,11 @@ r3在20round/1000次监督更新后，开发比较中教师起身/10秒保持均
 本阶段明确用既有学生Actor初始化新数据域实验，Adam重新建立，不称完整BC状态恢复。旧逻辑任务已耗1000次监督更新、13,479,680个Isaac物理步另记不退款；另有3个学生MuJoCo基线共138,000子步、正式adapter smoke46,000子步。误建旧回归数据的offline r1在标签条件检查失败，监督优化0；其数据隔离，不用于本配方。累计任务不限额，当前块40轮、4小时、8GiB边界，沿统一停止/恢复/预算机制结算。
 
 部署依赖同时绑定教师SHA、三次合同、完整V4张量、名义时序、实际previous、PD与限矩、真实留出状态golden及C源码。ONNX内含decoder，仅执行一次。导出额外提供`recovery_actor.c/.h`，FP32 ELU/Tanh全网络调用共享`RLPolicyDecode`一次；真实golden同时核对C mean与物理输出。测本机C调用中位数/P95与权重/工作数组字节。主机全网络核对不代表MCU时序实测；硬件写出关闭。
+
+## 教师行为保留与导出修复
+
+用户明确不要求完成教师失败的任务。新配方选模配置为`teacher_rise_retention`、`teacher_hold_retention`；逐同条件比较，教师失败上的额外成功不能抵消教师成功条件中的丢失，未完成回合仍UNKNOWN。物理目标Huber仍是唯一学习损失，不增加任务奖励。后续补教优先采用已发布的闭环候选，full latest只作为Adam/RNG完整继续来源；两者分别留痕，不把未选中的末轮权重冒充已验证候选。
+
+840d3d1冻结run已完成40轮/2000优化及独立最终闭环，最后在ONNX导出处FAILED。原始失败产物和账本保留。当前导出器将Recovery高级索引原地回填导成空输入Add节点，ONNX checker确认非法；改用六通道显式stack后检查通过，原/新PyTorch逐元素完全一致，网络权重未变。Mean wrapper注册Actor，并在ReferenceEvaluator前执行ONNX完整checker。新增真实golden导出参数，Recovery时序显式保存1/5/10ms及原延迟，硬件输出OFF。
+
+旧run不能热改或伪造COMPLETED。从同一冻结selected.pt经新版本`wheel-leg export --run RUN --checkpoint SELECTED.pt --output NEW_PACKAGE --onnx --golden GOLDEN.json`只做部署导出；golden为同一真实留出状态引用，不重训、不改最终候选、不据最终结果重选。C源码保留原文件名及manifest于control_core_source，生成网络依赖包内同一C decoder，可脱离原工作区重编译。

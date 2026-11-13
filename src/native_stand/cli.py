@@ -328,6 +328,12 @@ def cmd_export(args) -> int:
     if contract is None:
         raise CommandError("部署来源缺少明确输出合同", EXIT_INVALID)
     index = ModelIndex(record.get("model_index", run_dir.parent / "models.json"))
+    timing = job.assets.get("delayed_execution")
+    if job.action.version == "recovery_cubic_physical_Gaussian_v2":
+        from native_stand.simulation.recovery_isaac.execution import nominal_timing
+
+        timing = nominal_timing()
+    golden = read_json(args.golden) if getattr(args, "golden", None) else None
     result = export_package(
         source,
         spec_for_job(job, contract),
@@ -335,13 +341,14 @@ def cmd_export(args) -> int:
         execution={
             "control": job.as_run_record()["control"],
             "observation": job.as_run_record()["observation"],
-            "timing": job.assets.get("delayed_execution"),
+            "timing": timing,
             "hardware_output": "OFF",
             "C_core": "jump_ABI4" if job.task == "jump" else "rl_policy_core_v1",
         },
         dependencies=job_dependencies(job),
         onnx=args.onnx,
         index=index,
+        golden=golden,
     )
     _emit(
         args,
@@ -751,6 +758,9 @@ def build_parser() -> argparse.ArgumentParser:
     export.add_argument("--output", default=None)
     export.add_argument("--dry-run", action="store_true")
     export.add_argument("--onnx", action="store_true", help="同时导出ONNX；不授予ORT或ARM验证")
+    export.add_argument(
+        "--golden", help="真实观测golden JSON：path、sha256、indices；导出前验证来源"
+    )
     export.set_defaults(func=cmd_export)
 
     inspect = sub.add_parser("inspect", help="只读查看run", parents=[json_flag])

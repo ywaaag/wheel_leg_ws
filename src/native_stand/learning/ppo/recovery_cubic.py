@@ -36,9 +36,11 @@ class PhysicalActor(StudentNetwork):
         v = a[..., LEGS]
         reach = torch.where(v >= 0, self.upper - self.center, self.center - self.lower)
         q = self.center + 0.15 * v + (reach - 0.15) * v.pow(3)
-        out = a * 100.0
-        out = out.clone()
-        out[..., list(LEGS)] = q
+        # Explicit channels avoid ONNX advanced-index assignment/ScatterND export.
+        out = torch.stack(
+            (q[..., 0], q[..., 1], a[..., 2] * 100.0, q[..., 2], q[..., 3], a[..., 5] * 100.0),
+            dim=-1,
+        )
         if not bool(torch.isfinite(out).all()):
             raise ValueError("Nonfinite physical mean")
         return out

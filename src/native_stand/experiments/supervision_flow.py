@@ -104,7 +104,13 @@ def execute(
                     from native_stand.simulation.collection import collect
 
                     collector = collect
-                source = state.get("latest") or recipe.initial_student
+                # Roll out the published incumbent; latest remains the full Adam/RNG continuation.
+                source = (
+                    state.get("closed_loop_candidate")
+                    or state.get("selected")
+                    or state.get("latest")
+                    or recipe.initial_student
+                )
                 behavior_spec = recipe.student
                 if phase.policy != "student":
                     behavior = next(t for t in recipe.teachers if t.name == phase.policy)
@@ -408,7 +414,10 @@ def execute(
                 if phase.steps:
                     from native_stand.artifacts.dataset import expand_sources
                     from native_stand.simulation.collection import collect, make_environment
-                    from native_stand.tasks.recovery.distillation_metrics import summarize
+                    from native_stand.tasks.recovery.distillation_metrics import (
+                        paired_retention,
+                        summarize,
+                    )
 
                     if environment is None:
                         environment = make_environment(job)
@@ -475,10 +484,12 @@ def execute(
                         target = teacher.model.mean(x.to(job.runtime.device)).cpu()
                         residuals.append((model.mean(x) - target).numpy())
                     error = np.concatenate(residuals)
+                    paired = paired_retention(reports["teacher"], reports["student"])
                     write_json(
                         folder / "closed_loop.json",
                         dict(
                             reports=reports,
+                            paired_retention=paired,
                             collections=refs,
                             complete=True,
                             teacher_fidelity=dict(
@@ -491,7 +502,8 @@ def execute(
                         ),
                     )
                     score = tuple(
-                        reports["student"][metric] or 0 for metric in recipe.selection_metrics
+                        (paired[metric] if metric in paired else reports["student"][metric]) or 0
+                        for metric in recipe.selection_metrics
                     )
                     best = tuple(state.get("best_closed_loop", [-1, -1]))
                     if not phase.final and score > best:

@@ -3,7 +3,7 @@
 from pathlib import Path
 
 
-def export_recovery_actor(actor, directory, inputs, expected):
+def export_recovery_actor(actor, directory, inputs, expected, *, core_source=None):
     import ctypes
     import time
 
@@ -71,7 +71,11 @@ int RecoveryActorPhysical(const float *input, float *mean, float *physical);
     (directory / "recovery_actor.c").write_text(code)
     (directory / "recovery_actor.h").write_text(header)
     library = directory / "recovery_actor_host.so"
-    build(library, additional_sources=(directory / "recovery_actor.c",))
+    build(
+        library,
+        additional_sources=(directory / "recovery_actor.c",),
+        **({"source": core_source} if core_source is not None else {}),
+    )
     lib = ctypes.CDLL(str(library))
     array = np.ctypeslib.ndpointer(dtype=np.float32, ndim=1, flags="C_CONTIGUOUS")
     lib.RecoveryActorPhysical.argtypes = [array, array, array]

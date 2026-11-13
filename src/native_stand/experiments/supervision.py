@@ -68,10 +68,11 @@ class SupervisionConfig:
         from native_stand.learning.distillation.objective import validate_objective
 
         validate_objective(self.objective, self.student.get("kind"))
-        if (
-            set(self.selection_metrics) != {"continuous_10s_rate", "rise_success_rate"}
-            or len(self.selection_metrics) != 2
-        ):
+        allowed = (
+            {"continuous_10s_rate", "rise_success_rate"},
+            {"teacher_rise_retention", "teacher_hold_retention"},
+        )
+        if len(self.selection_metrics) != 2 or set(self.selection_metrics) not in allowed:
             raise ValueError("Explicit rise/hold closed-loop selection priority required")
         names = {t.name for t in self.teachers}
         if any(p.policy != "student" and p.policy not in names for p in self.phases):
