@@ -76,8 +76,15 @@ def continued(tmp_path):
     return replace(job, assets=assets, limits=replace(job.limits, formal_updates=4945)), source, obs
 
 
-def test_remaining_only_keeps_full_learning_state_and_no_refund(tmp_path):
+def test_remaining_only_keeps_full_learning_state_and_no_refund(tmp_path, monkeypatch):
     job, source, _ = continued(tmp_path)
+    from native_stand.tasks.motion import contact_randomization, height_extension
+
+    def forbidden(*args):
+        raise AssertionError("complete 881 continuation must not repeat any extension")
+
+    monkeypatch.setattr(contact_randomization, "extend_source", forbidden)
+    monkeypatch.setattr(height_extension, "extend_source", forbidden)
     validate_job(job)
     assert require_allocated(job)["formal_updates"] == 4945
     loaded = _resolve_source(job, None).payload
