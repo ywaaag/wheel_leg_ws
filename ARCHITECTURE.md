@@ -143,3 +143,5 @@ sim2sim不是训练课程或另一套worker：显式协议经CLI直接顺序拥�
 ## Jump PhysX物理边界
 
 `simulation/jump_isaac_scene.py`拥有分块运动学平地与物理读回不变量；复用现有scene、ground actor及ContactSensor，不修改源USD。`jump_isaac.py`在已有host读回上验证，无额外设备同步；物理合同参与恢复身份。跨物理版本仅经配置声明的full初始化迁移，新物理证据与旧物理窗口分开，Actor-only不冒充完整学习恢复。正式训练仍经CLI→owner/worker→公共driver/JumpAdapter。
+
+Jump共享C控制器的controller revision及实际源码SHA由`jump_control_source/manifest.json`绑定，CPU/Isaac/部署复用同一源码。新鲜支撑估计与滞回未确认的接触分类分别判定；真不可用估计仍故障，未确认分类仍阻止相关FSM事件。ABI4布局不变，物理/控制行为版本进入完整恢复身份，不能混用旧C库。

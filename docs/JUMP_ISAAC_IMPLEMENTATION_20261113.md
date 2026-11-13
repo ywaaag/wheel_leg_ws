@@ -1,5 +1,8 @@
 # Jump Isaac GPU 执行链
 
+当前执行修复冻结`ab6dc16`，合同`jump_PhysX_tiled_flat_ground_support_valid_v3`。接替后新增8次PPO含真实同run完整resume，累计415/10000、余9585，最终完整模型已搬迁远端并核对SHA。新版本本机CPU/GPU与远端6.2 CPU工程通过；远端无GPU，GPU复验和有界窗口尚未执行。0.34m站稳与主动跳能力未认证。最新收据及原始失败见`JUMP_DIAGNOSIS_20261113.md`末节和`artifacts/jump_diagnosis_20261113/DELIVERY_20261113.md`。下方旧长训RUNNING等为各自日期历史快照。
+
+
 用户已取消此前设计限制，并独立授权10000次PPO、任务总墙钟不限时。CPU交付`148bcbc`和云端MuJoCo兼容修复`bc95acb`保持原身份；GPU工作在独立worktree/branch `wheel_leg_jump_gpu_ws` / `jump/isaac-training`。不修改或停止活动Motion。
 
 ## 实际实现

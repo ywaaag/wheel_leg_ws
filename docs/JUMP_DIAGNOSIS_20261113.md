@@ -6,13 +6,13 @@
 
 原始对照：`artifacts/jump_diagnosis_20261113/cpu_shapes_v15`、`cpu_swap_v20`、`cpu_axis_v21`、`cpu_small_floor_v22`。正式分块CPU/GPU对照分别为`cpu_tiled_floor_v23`、`gpu_tiled_floor_v24`：200 world ticks，最大轮净空穿入约1.1µm、闭链残差小于0.04mm、无非轮接触；tick128只reset行0，行1全部测量变化为0。独立轮体不同姿态/接触初态的`cpu_pose_v19`正常，保留全部失败证据。
 
-正式host消费者每个已有读回边界检查非有限值、轮穿入>1mm及闭链残差>2mm，失败抛出工程异常，不作为可学习回合继续优化；不增加GPU回读或物理积分。倒下、非轮接触、零成功仍按原任务终止处理。临时scene query开关已删除。物理合同为`jump_PhysX_tiled_flat_ground_v2`，完整恢复身份包含该合同。
+正式host消费者每个已有读回边界检查非有限值、轮穿入>1mm及闭链残差>2mm，失败抛出工程异常，不作为可学习回合继续优化；不增加GPU回读或物理积分。倒下、非轮接触、零成功仍按原任务终止处理。临时scene query开关已删除。地面修复阶段合同为`jump_PhysX_tiled_flat_ground_v2`，后续C修复升级为末节的v3；完整恢复身份包含该合同。
 
 `gpu_actor_tiled_v25`只诊断继承Actor的2秒控制：支撑估计接近实际接触力，但根高度降至约0.25m、长时间SETTLE，不证明已继承站稳/起跳。`gpu_normal_io_v26`沿正式环境完成3200 world ticks、真实1ms故障终态、partial reset和fresh reset，未做PPO或能力认证。
 
 远端以无GPU模式恢复后，u407完整checkpoint及预算/run/终态已取回数据根`jump_handoff_20261113/remote_u407`。SHA `fa1a51169c3048260e720077a71ff41dd0fda359a11c9be26b1bd9025f4f5296`、74803819字节匹配。原远端run与账本只读。新物理版本只能显式full初始化，保留Actor/Critic/双Adam/std/全局RNG及已完成warmup；物理fresh reset。新物理cohort保留课程RNG、累计episode/request计数，旧故障物理窗口不用于新物理晋级，新run重新累计候选证据。同run恢复不允许借迁移声明绕过身份检查。
 
-已消耗407/10000，余9593；本机有界工程配方单独划8次，非重发10000。实际新增消耗以新run账本及后续收据为准。远端无GPU，尚不能对修复后6.2的实际PhysX作通过声明。
+接替初始已耗407/10000、余9593；本机工程8次现已完成，累计415/10000、余9585，非重发10000。实际新增消耗由新run终态账本与后续收据绑定。远端无GPU，尚不能对修复后6.2的实际PhysX作通过声明。
 
 以下保留修复前历史排查记录；其“尚未修复”“本机未启动”等描述只代表当时状态。
 
@@ -69,3 +69,19 @@
 原8次工程划分余下4次从v3/u4完整学习状态启动新cohort；所有实际消耗继续累计。新物理证据不沿用旧失败域的课程窗口，课程RNG和累计episode/request计数保留。后续验收与预算以对应run/artifacts收据更新。
 
 C修复后的第一次联合回归为146通过/7失败，7项均由两份现用配方的execution_manifest仍绑定旧SHA触发身份拒绝；没有放宽校验。已原地将两份配方绑定当前worktree的新manifest，复跑155通过（50.16s）。历史run/spec及旧SHA证据保持原样。
+
+## 最终工程交付与远端剩余条件
+
+修复冻结`ab6dc16`，601个Python模块SHA `284a5706b91f7522ccd8a23506dffe4c60b1515228f05832dd28c97bcc40e854`本机/远端一致。四个修复提交为`ac64b8c`、`5cd213f`、`11a008d`、`ab6dc16`。最终主仓只读核对`fc29da3`，后两次主仓提交仅文档，不冒用main验收或合入声明。
+
+两段本机实际PPO各4次，第二段2+2经同run完整resume，均正常终态且failure=null。Actor/Critic双Adam累计6560/6640步、warmup仍5；完整模型、优化器、std、Python/NumPy/CPU/CUDA RNG和预测逐位恢复通过。最终完整checkpoint SHA `2ea1f5c9f42d2e7519e6daa41fc7850c8b1188679145fc536ec71c3c1c276f42`，72438785字节。**累计415/10000、剩9585**，原失败v2用0次、旧v3用4次，旧未用局部划分在任务结算中退役，不是额外预算。
+
+最终相关CPU155通过（50.16s）；portable1915通过/31历史skip/10warning（141.18s）；Ruff0.8.4 check及211文件format通过；当前main检查器按refactor-migration-v1检查212正式文件/0例外。旧7项manifest身份失败、旧C早故障和std恢复失败均保留，不删除证据。
+
+本机CPU/GPU逐tick自由落体冲量验收各200tick：轮净空最小约-2.02µm，闭链最大0.177mm；显式计入partial reset动量突变后竖直冲量平衡残差小于0.012Ns。落差行首次轮接触tick76，零落差行tick1；弹簧长度观测0.15339～0.18405m。独立气弹簧力辨识仍未知，不修改aggregate V4或增加补偿。
+
+远端实际IsaacSim6.2.0-rc.14无GPU下已完成200tick CPU PhysX，轮穿入约0.61µm、闭链0.038mm、partial reset未reset行0差；22项CPU回归通过（12.10s）。最终模型、33项job依赖、三段预算逐SHA核验，正式train dry-run通过，新long run尚不存在。材料位于`/root/gpufree-data/wheel_leg_jump/preflight/ready_support_v44`，代码位于`candidate_support_ab6dc16`。CPU只读收据中的physical_steps=0仅指该次静态preflight，不覆盖另存的200tick CPU物理probe。
+
+继承Actor仍主要SETTLE、约0.25m，没有站稳/主动跳证书。按原Stage0密集站立/落地奖励与raw Normal探索继续学习，不加入隐藏Teacher、滤波或新训练循环；原合同successful_teacher_required_for_PPO=false，零成功不单独否决未训练Stage0。候选仅消费正常PPO回合，当前三池accepted均0。
+
+**尚未通过的开训门槛**：远端GPU/真实UUID/驱动挂载恢复后，在新6.2版本做零PPO物理I/O与8次正常PPO有界完整学习复验；检查请求覆盖、系统性早故障及保存/恢复后，再在同一run续训，继续扣减9585。没有自动开GPU、创建watcher或启动远端训练。命令和边界见材料目录NEXT_STEPS.md。完整文件清单、证据表与机器摘要见`artifacts/jump_diagnosis_20261113/{DELIVERY_20261113.md,delivery_final_v46.json}`。
