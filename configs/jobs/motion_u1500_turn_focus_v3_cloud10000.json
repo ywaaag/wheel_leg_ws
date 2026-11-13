@@ -6,39 +6,18 @@
   "source_root": "../../src",
   "model": {
     "interface": "multiskill_mcu_v2",
-    "actor_hidden_dims": [
-      2048,
-      1024,
-      512
-    ],
-    "critic_hidden_dims": [
-      512,
-      512,
-      256
-    ],
+    "actor_hidden_dims": [2048, 1024, 512],
+    "critic_hidden_dims": [512, 512, 256],
     "actor_input": 31,
     "critic_input": 881,
     "critic_privileged_version": "motion48_height_bank_contact_causal881_v1",
     "action_version": "motion_multiheight020_support_center_015_80_v2",
     "kind": "mlp"
   },
-  "observation": {
-    "frame_dim": 22,
-    "actor_dim": 31,
-    "critic_dim": 881,
-    "leg_input_scale_rad": 1.5,
-    "wheel_input_scale_rad_s": 100.0
-  },
+  "observation": {"frame_dim": 22, "actor_dim": 31, "critic_dim": 881, "leg_input_scale_rad": 1.5, "wheel_input_scale_rad_s": 100.0},
   "action": {
     "dim": 6,
-    "order": [
-      "left_hip_pitch",
-      "left_active_link_pitch",
-      "left_wheel_spin",
-      "right_hip_pitch",
-      "right_active_link_pitch",
-      "right_wheel_spin"
-    ],
+    "order": ["left_hip_pitch", "left_active_link_pitch", "left_wheel_spin", "right_hip_pitch", "right_active_link_pitch", "right_wheel_spin"],
     "leg_scale_rad": 0.15,
     "wheel_scale_rad_s": 80.0,
     "version": "motion_multiheight020_support_center_015_80_v2"
@@ -50,14 +29,7 @@
     "leg_kp": 40.0,
     "leg_kd": 2.0,
     "wheel_kv": 0.2,
-    "effort_limits_nm": [
-      40.0,
-      40.0,
-      4.8,
-      40.0,
-      40.0,
-      4.8
-    ],
+    "effort_limits_nm": [40.0, 40.0, 4.8, 40.0, 40.0, 4.8],
     "height_command_m": 0.34
   },
   "initialization": {
@@ -68,22 +40,7 @@
   "reward": {
     "version": "motion48_bank_anchored_coarse_drift_reward_v2",
     "dt": 0.01,
-    "weights": [
-      0.5,
-      4.0,
-      2.0,
-      1.0,
-      2.0,
-      2.0,
-      -1.0,
-      -0.5,
-      -0.5,
-      -0.2,
-      -0.3,
-      -0.15,
-      -0.02,
-      -0.002
-    ],
+    "weights": [0.5, 4.0, 2.0, 1.0, 2.0, 2.0, -1.0, -0.5, -0.5, -0.2, -0.3, -0.15, -0.02, -0.002],
     "fields": {
       "scale_corrections": {
         "version": "motion_supported_physical_scale_corrections_v1",
@@ -99,19 +56,9 @@
         "yaw_tail_weight": -0.5,
         "narrow_mix": 0.25,
         "effort_normalization": "per_env_effective_motor_caps",
-        "motor_effort_excludes": [
-          "NET",
-          "passive_friction",
-          "external_pulse"
-        ],
-        "input_scales_unchanged": [
-          1.5,
-          100.0
-        ],
-        "output_scales": [
-          0.15,
-          80.0
-        ],
+        "motor_effort_excludes": ["NET", "passive_friction", "external_pulse"],
+        "input_scales_unchanged": [1.5, 100.0],
+        "output_scales": [0.15, 80.0],
         "policy_dt_s": 0.01
       },
       "maneuver": {
@@ -146,12 +93,7 @@
         "version": "motion48_turn_focus_branch_v3",
         "branch": "motion",
         "initial_DR_level": 1,
-        "DR_amplitudes": [
-          0.25,
-          0.5,
-          0.75,
-          1.0
-        ],
+        "DR_amplitudes": [0.25, 0.5, 0.75, 1.0],
         "DR_enabled": true,
         "confirmations": 2,
         "regression_confirmations": 3,
@@ -165,498 +107,121 @@
         "old_confirmations_are_history": true,
         "rough_terrain": "FOUR_STATIC_H1",
         "symmetry": "flat standing and straight only; banking may be asymmetric",
-        "height_range_m": [
-          0.2,
-          0.4
-        ],
+        "height_range_m": [0.2, 0.4],
         "height_020_decoder": "GEOMETRIC_SEED_PENDING_ISAAC",
         "evidence": "normal ended on-policy episodes only; no independent certificate",
         "source_retention_scope": "unchanged qualified .34 nominal [zero,+3.6,-3.6] bank; causal on-policy mask; not new DR/turn/spin labels",
-        "fractions": {
-          "clean": 0.1,
-          "combined": 0.1,
-          "modal": 0.1,
-          "anchors": 0.25,
-          "focus": 0.45
-        },
+        "fractions": {"clean": 0.1, "combined": 0.1, "modal": 0.1, "anchors": 0.25, "focus": 0.45},
         "anchors": {
-          "forward": [
-            3.6,
-            0,
-            0.34
-          ],
-          "backward": [
-            -3.6,
-            0,
-            0.34
-          ],
-          "yaw_positive": [
-            0,
-            2,
-            0.34
-          ],
-          "yaw_negative": [
-            0,
-            -2,
-            0.34
-          ]
+          "forward": [3.6, 0, 0.34],
+          "backward": [-3.6, 0, 0.34],
+          "yaw_positive": [0, 2, 0.34],
+          "yaw_negative": [0, -2, 0.34]
         },
         "targets": {
           "turn_fp": [
-            [
-              2,
-              0.5,
-              0.34
-            ],
-            [
-              2,
-              0.65,
-              0.34
-            ],
-            [
-              2,
-              0.8,
-              0.34
-            ],
-            [
-              2,
-              1,
-              0.34
-            ],
-            [
-              2.5,
-              0.5,
-              0.34
-            ],
-            [
-              2.5,
-              0.65,
-              0.34
-            ],
-            [
-              2.5,
-              0.8,
-              0.34
-            ],
-            [
-              3,
-              0.5,
-              0.34
-            ],
-            [
-              3,
-              0.65,
-              0.34
-            ],
-            [
-              3,
-              0.8,
-              0.34
-            ],
-            [
-              3.6,
-              0.5,
-              0.34
-            ],
-            [
-              3.6,
-              0.65,
-              0.34
-            ],
-            [
-              3.6,
-              0.75,
-              0.34
-            ]
+            [2, 0.5, 0.34],
+            [2, 0.65, 0.34],
+            [2, 0.8, 0.34],
+            [2, 1, 0.34],
+            [2.5, 0.5, 0.34],
+            [2.5, 0.65, 0.34],
+            [2.5, 0.8, 0.34],
+            [3, 0.5, 0.34],
+            [3, 0.65, 0.34],
+            [3, 0.8, 0.34],
+            [3.6, 0.5, 0.34],
+            [3.6, 0.65, 0.34],
+            [3.6, 0.75, 0.34]
           ],
           "turn_fn": [
-            [
-              2,
-              -0.5,
-              0.34
-            ],
-            [
-              2,
-              -0.65,
-              0.34
-            ],
-            [
-              2,
-              -0.8,
-              0.34
-            ],
-            [
-              2,
-              -1,
-              0.34
-            ],
-            [
-              2.5,
-              -0.5,
-              0.34
-            ],
-            [
-              2.5,
-              -0.65,
-              0.34
-            ],
-            [
-              2.5,
-              -0.8,
-              0.34
-            ],
-            [
-              3,
-              -0.5,
-              0.34
-            ],
-            [
-              3,
-              -0.65,
-              0.34
-            ],
-            [
-              3,
-              -0.8,
-              0.34
-            ],
-            [
-              3.6,
-              -0.5,
-              0.34
-            ],
-            [
-              3.6,
-              -0.65,
-              0.34
-            ],
-            [
-              3.6,
-              -0.75,
-              0.34
-            ]
+            [2, -0.5, 0.34],
+            [2, -0.65, 0.34],
+            [2, -0.8, 0.34],
+            [2, -1, 0.34],
+            [2.5, -0.5, 0.34],
+            [2.5, -0.65, 0.34],
+            [2.5, -0.8, 0.34],
+            [3, -0.5, 0.34],
+            [3, -0.65, 0.34],
+            [3, -0.8, 0.34],
+            [3.6, -0.5, 0.34],
+            [3.6, -0.65, 0.34],
+            [3.6, -0.75, 0.34]
           ],
           "turn_bp": [
-            [
-              -2,
-              0.5,
-              0.34
-            ],
-            [
-              -2,
-              0.65,
-              0.34
-            ],
-            [
-              -2,
-              0.8,
-              0.34
-            ],
-            [
-              -2,
-              1,
-              0.34
-            ],
-            [
-              -2.5,
-              0.5,
-              0.34
-            ],
-            [
-              -2.5,
-              0.65,
-              0.34
-            ],
-            [
-              -2.5,
-              0.8,
-              0.34
-            ],
-            [
-              -3,
-              0.5,
-              0.34
-            ],
-            [
-              -3,
-              0.65,
-              0.34
-            ],
-            [
-              -3,
-              0.8,
-              0.34
-            ],
-            [
-              -3.6,
-              0.5,
-              0.34
-            ],
-            [
-              -3.6,
-              0.65,
-              0.34
-            ],
-            [
-              -3.6,
-              0.75,
-              0.34
-            ]
+            [-2, 0.5, 0.34],
+            [-2, 0.65, 0.34],
+            [-2, 0.8, 0.34],
+            [-2, 1, 0.34],
+            [-2.5, 0.5, 0.34],
+            [-2.5, 0.65, 0.34],
+            [-2.5, 0.8, 0.34],
+            [-3, 0.5, 0.34],
+            [-3, 0.65, 0.34],
+            [-3, 0.8, 0.34],
+            [-3.6, 0.5, 0.34],
+            [-3.6, 0.65, 0.34],
+            [-3.6, 0.75, 0.34]
           ],
           "turn_bn": [
-            [
-              -2,
-              -0.5,
-              0.34
-            ],
-            [
-              -2,
-              -0.65,
-              0.34
-            ],
-            [
-              -2,
-              -0.8,
-              0.34
-            ],
-            [
-              -2,
-              -1,
-              0.34
-            ],
-            [
-              -2.5,
-              -0.5,
-              0.34
-            ],
-            [
-              -2.5,
-              -0.65,
-              0.34
-            ],
-            [
-              -2.5,
-              -0.8,
-              0.34
-            ],
-            [
-              -3,
-              -0.5,
-              0.34
-            ],
-            [
-              -3,
-              -0.65,
-              0.34
-            ],
-            [
-              -3,
-              -0.8,
-              0.34
-            ],
-            [
-              -3.6,
-              -0.5,
-              0.34
-            ],
-            [
-              -3.6,
-              -0.65,
-              0.34
-            ],
-            [
-              -3.6,
-              -0.75,
-              0.34
-            ]
+            [-2, -0.5, 0.34],
+            [-2, -0.65, 0.34],
+            [-2, -0.8, 0.34],
+            [-2, -1, 0.34],
+            [-2.5, -0.5, 0.34],
+            [-2.5, -0.65, 0.34],
+            [-2.5, -0.8, 0.34],
+            [-3, -0.5, 0.34],
+            [-3, -0.65, 0.34],
+            [-3, -0.8, 0.34],
+            [-3.6, -0.5, 0.34],
+            [-3.6, -0.65, 0.34],
+            [-3.6, -0.75, 0.34]
           ],
           "rough_steep_waves_H1": [
-            [
-              0.15,
-              0,
-              0.34
-            ],
-            [
-              0.25,
-              0,
-              0.34
-            ],
-            [
-              0.5,
-              0,
-              0.34
-            ],
-            [
-              1,
-              0,
-              0.34
-            ],
-            [
-              1.5,
-              0,
-              0.34
-            ],
-            [
-              2,
-              0,
-              0.34
-            ],
-            [
-              2.5,
-              0,
-              0.34
-            ],
-            [
-              3,
-              0,
-              0.34
-            ],
-            [
-              3.6,
-              0,
-              0.34
-            ]
+            [0.15, 0, 0.34],
+            [0.25, 0, 0.34],
+            [0.5, 0, 0.34],
+            [1, 0, 0.34],
+            [1.5, 0, 0.34],
+            [2, 0, 0.34],
+            [2.5, 0, 0.34],
+            [3, 0, 0.34],
+            [3.6, 0, 0.34]
           ],
           "rough_cobblestones_H1": [
-            [
-              0.15,
-              0,
-              0.34
-            ],
-            [
-              0.25,
-              0,
-              0.34
-            ],
-            [
-              0.5,
-              0,
-              0.34
-            ],
-            [
-              1,
-              0,
-              0.34
-            ],
-            [
-              1.5,
-              0,
-              0.34
-            ],
-            [
-              2,
-              0,
-              0.34
-            ],
-            [
-              2.5,
-              0,
-              0.34
-            ],
-            [
-              3,
-              0,
-              0.34
-            ],
-            [
-              3.6,
-              0,
-              0.34
-            ]
+            [0.15, 0, 0.34],
+            [0.25, 0, 0.34],
+            [0.5, 0, 0.34],
+            [1, 0, 0.34],
+            [1.5, 0, 0.34],
+            [2, 0, 0.34],
+            [2.5, 0, 0.34],
+            [3, 0, 0.34],
+            [3.6, 0, 0.34]
           ],
           "rough_broken_rubble_H1": [
-            [
-              0.15,
-              0,
-              0.34
-            ],
-            [
-              0.25,
-              0,
-              0.34
-            ],
-            [
-              0.5,
-              0,
-              0.34
-            ],
-            [
-              1,
-              0,
-              0.34
-            ],
-            [
-              1.5,
-              0,
-              0.34
-            ],
-            [
-              2,
-              0,
-              0.34
-            ],
-            [
-              2.5,
-              0,
-              0.34
-            ],
-            [
-              3,
-              0,
-              0.34
-            ],
-            [
-              3.6,
-              0,
-              0.34
-            ]
+            [0.15, 0, 0.34],
+            [0.25, 0, 0.34],
+            [0.5, 0, 0.34],
+            [1, 0, 0.34],
+            [1.5, 0, 0.34],
+            [2, 0, 0.34],
+            [2.5, 0, 0.34],
+            [3, 0, 0.34],
+            [3.6, 0, 0.34]
           ],
           "rough_pitted_road_H1": [
-            [
-              0.15,
-              0,
-              0.34
-            ],
-            [
-              0.25,
-              0,
-              0.34
-            ],
-            [
-              0.5,
-              0,
-              0.34
-            ],
-            [
-              1,
-              0,
-              0.34
-            ],
-            [
-              1.5,
-              0,
-              0.34
-            ],
-            [
-              2,
-              0,
-              0.34
-            ],
-            [
-              2.5,
-              0,
-              0.34
-            ],
-            [
-              3,
-              0,
-              0.34
-            ],
-            [
-              3.6,
-              0,
-              0.34
-            ]
+            [0.15, 0, 0.34],
+            [0.25, 0, 0.34],
+            [0.5, 0, 0.34],
+            [1, 0, 0.34],
+            [1.5, 0, 0.34],
+            [2, 0, 0.34],
+            [2.5, 0, 0.34],
+            [3, 0, 0.34],
+            [3.6, 0, 0.34]
           ]
         },
         "straight_limit_mps": 3.6,
@@ -665,39 +230,11 @@
         "DR_progression": "shared_strength_independent_of_task_axes",
         "DR_progression_basis": "preserve source uniform strength across dq/families; the DR axis advances independently of task directions; not per-family independent DR",
         "confirmation_execution_sha256": "5021b0fccaaf1f89587c42b090d6b3ba83e76956080431ba7245fcf3171f7f83",
-        "terrain_by_axis": {
-          "rough_steep_waves_H1": "steep_waves_H1",
-          "rough_cobblestones_H1": "cobblestones_H1",
-          "rough_broken_rubble_H1": "broken_rubble_H1",
-          "rough_pitted_road_H1": "pitted_road_H1"
-        },
-        "initial_levels": {
-          "turn_fp": 0,
-          "turn_fn": 0,
-          "turn_bp": 0,
-          "turn_bn": 0,
-          "rough_steep_waves_H1": 0,
-          "rough_cobblestones_H1": 0,
-          "rough_broken_rubble_H1": 1,
-          "rough_pitted_road_H1": 1
-        },
-        "focus_weights": {
-          "turn_fp": 0.2,
-          "turn_fn": 0.2,
-          "turn_bp": 0.2,
-          "turn_bn": 0.2,
-          "rough_steep_waves_H1": 0.05,
-          "rough_cobblestones_H1": 0.05,
-          "rough_broken_rubble_H1": 0.05,
-          "rough_pitted_road_H1": 0.05
-        },
+        "terrain_by_axis": {"rough_steep_waves_H1": "steep_waves_H1", "rough_cobblestones_H1": "cobblestones_H1", "rough_broken_rubble_H1": "broken_rubble_H1", "rough_pitted_road_H1": "pitted_road_H1"},
+        "initial_levels": {"turn_fp": 0, "turn_fn": 0, "turn_bp": 0, "turn_bn": 0, "rough_steep_waves_H1": 0, "rough_cobblestones_H1": 0, "rough_broken_rubble_H1": 1, "rough_pitted_road_H1": 1},
+        "focus_weights": {"turn_fp": 0.2, "turn_fn": 0.2, "turn_bp": 0.2, "turn_bn": 0.2, "rough_steep_waves_H1": 0.05, "rough_cobblestones_H1": 0.05, "rough_broken_rubble_H1": 0.05, "rough_pitted_road_H1": 0.05},
         "minimum_signed_yaw_gain": 0.75,
-        "retention_gate": {
-          "nominal_pass": 0.95,
-          "nominal_complete": 0.95,
-          "DR_pass": 0.5,
-          "DR_complete": 0.85
-        }
+        "retention_gate": {"nominal_pass": 0.95, "nominal_complete": 0.95, "DR_pass": 0.5, "DR_complete": 0.85}
       }
     ]
   },
@@ -709,13 +246,7 @@
     "protocol_version": "motion48_response_checked_shared_timing_v2",
     "conditions": []
   },
-  "runtime": {
-    "envs": 4096,
-    "steps_per_env": 64,
-    "seed": 2026111022,
-    "device": "cuda:0",
-    "headless": true
-  },
+  "runtime": {"envs": 4096, "steps_per_env": 64, "seed": 2026111022, "device": "cuda:0", "headless": true},
   "ppo": {
     "learning_rate": 3e-05,
     "critic_learning_rate": 9e-05,
@@ -745,28 +276,12 @@
     "tensorboard": false,
     "save_traces": false,
     "trace_max_bytes": 16777216,
-    "milestones": [
-      1,
-      500,
-      1000,
-      2000,
-      4000,
-      7000,
-      10000
-    ],
+    "milestones": [1, 500, 1000, 2000, 4000, 7000, 10000],
     "max_output_bytes": 3221225472,
     "terminal_reserve_bytes": 268435456
   },
-  "limits": {
-    "smoke_updates": 0,
-    "formal_updates": 10000,
-    "sample_limit": null,
-    "evaluation_wall_s": 0,
-    "chain_wall_s": null
-  },
-  "notifications": {
-    "enabled": false
-  },
+  "limits": {"smoke_updates": 0, "formal_updates": 10000, "sample_limit": null, "evaluation_wall_s": 0, "chain_wall_s": null},
+  "notifications": {"enabled": false},
   "assets": {
     "runtime_template": "/root/gpufree-data/wheel_leg_motion/dependencies/home/kellen/wheel_leg_native_train/configs/experiments/2026_11_5-16_51__motion_smoke12_supported015_dqgain_formal9988/spec.json",
     "runtime_template_sha256": "bce931ba337f694d9d616260d2a4b73bb618447d1337c7fefa65ef7b8316f288",
@@ -782,70 +297,22 @@
       "equivalent_lower_m": 0.25,
       "hip_zero_deg": 47.1033888,
       "active_zero_deg": 47.1080837,
-      "height_range_m": [
-        0.2,
-        0.4
-      ],
+      "height_range_m": [0.2, 0.4],
       "height_command_m": 0.34,
       "support_offset_table": {
-        "height_m": [
-          0.2,
-          0.22,
-          0.24,
-          0.26,
-          0.28,
-          0.3,
-          0.32,
-          0.34,
-          0.36,
-          0.38,
-          0.4
-        ],
+        "height_m": [0.2, 0.22, 0.24, 0.26, 0.28, 0.3, 0.32, 0.34, 0.36, 0.38, 0.4],
         "offset_rad": [
-          [
-            -0.34999398292359407,
-            -0.37872519076649647
-          ],
-          [
-            -0.3494817997850088,
-            -0.3782216827382334
-          ],
-          [
-            -0.3491564187176722,
-            -0.37790762516905463
-          ],
-          [
-            -0.348948829817821,
-            -0.37771180030381957
-          ],
-          [
-            -0.34882198437598766,
-            -0.37759639082806856
-          ],
-          [
-            -0.3487552522000352,
-            -0.37754057053821566
-          ],
-          [
-            -0.3435389986364944,
-            -0.3728135666205402
-          ],
-          [
-            -0.34415705961703547,
-            -0.36427784427970067
-          ],
-          [
-            -0.35197404473890415,
-            -0.35372561665494917
-          ],
-          [
-            -0.3467577911753633,
-            -0.34899861273727373
-          ],
-          [
-            -0.34154153761182243,
-            -0.3442716088195983
-          ]
+          [-0.34999398292359407, -0.37872519076649647],
+          [-0.3494817997850088, -0.3782216827382334],
+          [-0.3491564187176722, -0.37790762516905463],
+          [-0.348948829817821, -0.37771180030381957],
+          [-0.34882198437598766, -0.37759639082806856],
+          [-0.3487552522000352, -0.37754057053821566],
+          [-0.3435389986364944, -0.3728135666205402],
+          [-0.34415705961703547, -0.36427784427970067],
+          [-0.35197404473890415, -0.35372561665494917],
+          [-0.3467577911753633, -0.34899861273727373],
+          [-0.34154153761182243, -0.3442716088195983]
         ]
       }
     },
@@ -861,57 +328,28 @@
       "version": "motion48_v4_wheel_reported_delay_actor20_dr_v2",
       "actor_packet_nominal_ms": 20,
       "actor_leg_packet_nominal_ms": 20,
-      "actor_packet_DR_support_ms": [
-        0,
-        10,
-        20
-      ],
+      "actor_packet_DR_support_ms": [0, 10, 20],
       "target_nominal_ms": 5,
-      "wheel_channels": [
-        2,
-        5
-      ],
-      "wheel_transport_nominal_ms": [
-        7,
-        11
-      ],
-      "wheel_tau_ms": [
-        0.0,
-        0.0
-      ],
+      "wheel_channels": [2, 5],
+      "wheel_transport_nominal_ms": [7, 11],
+      "wheel_tau_ms": [0.0, 0.0],
       "wheel_transport_DR_halfwidth_ms": 4.0,
       "wheel_delay_semantics": "reported combined onset, represented once as post-PD transport; not an independently measured pure delay",
       "leg_response": "complete V4 tuple and existing DR; no additional20ms motor delay",
       "DR": "existing reset-only per-env curriculum, nominal anchors retained",
       "previous": "actual locally adopted physical target; not sensor-delayed",
-      "input_scales": [
-        1.5,
-        100.0
-      ],
+      "input_scales": [1.5, 100.0],
       "motor_limits_unchanged": false
     },
     "motor_limits": {
       "version": "motion_motor48_leg40_v1",
       "leg_nm": 40.0,
       "wheel_nm": 4.8,
-      "motor_caps_nm": [
-        40.0,
-        40.0,
-        4.8,
-        40.0,
-        40.0,
-        4.8
-      ],
+      "motor_caps_nm": [40.0, 40.0, 4.8, 40.0, 40.0, 4.8],
       "wheel_current_raw": 16069.65174129353,
       "NET_and_passive_force_inside_motor_cap": false,
-      "input_scales": [
-        1.5,
-        100.0
-      ],
-      "action_scales": [
-        0.15,
-        80.0
-      ]
+      "input_scales": [1.5, 100.0],
+      "action_scales": [0.15, 80.0]
     },
     "resource_mode": "shared",
     "source_policy_retention": {
@@ -919,18 +357,9 @@
       "coefficient": 0.02,
       "source_sha256": "642d9a841ee3e796b545dfb166c961c160d063c832500b5ed5da4e410842dbe4",
       "commands": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          3.6,
-          0.0
-        ],
-        [
-          -3.6,
-          0.0
-        ]
+        [0.0, 0.0],
+        [3.6, 0.0],
+        [-3.6, 0.0]
       ],
       "maximum_states_per_cohort": 64,
       "bank_states_per_command": 64,
@@ -951,22 +380,11 @@
       "path": "/root/gpufree-data/wheel_leg_motion/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking_training10000/source4300_motion48_actor_only.pt",
       "sha256": "642d9a841ee3e796b545dfb166c961c160d063c832500b5ed5da4e410842dbe4"
     },
-    "execution_limit_transition": {
-      "old_motor_limits_from_timing_note_are_historical": true,
-      "authority": "assets.motor_limits; same4.8 execution as compared source"
-    },
-    "support_center_policy_binding": {
-      "path": "/root/gpufree-data/wheel_leg_motion/candidate/configs/interfaces/motion_height020_u3000_center_binding.json",
-      "sha256": "fe197a77356feecc9530334edcff22a61791e63ccfda374197d20952f235758a"
-    },
+    "execution_limit_transition": {"old_motor_limits_from_timing_note_are_historical": true, "authority": "assets.motor_limits; same4.8 execution as compared source"},
+    "support_center_policy_binding": {"path": "/root/gpufree-data/wheel_leg_motion/candidate/configs/interfaces/motion_height020_u3000_center_binding.json", "sha256": "fe197a77356feecc9530334edcff22a61791e63ccfda374197d20952f235758a"},
     "terrain_scene": {
       "version": "motion_H1_periodic_grid_scene_v2",
-      "families": [
-        "steep_waves_H1",
-        "cobblestones_H1",
-        "broken_rubble_H1",
-        "pitted_road_H1"
-      ],
+      "families": ["steep_waves_H1", "cobblestones_H1", "broken_rubble_H1", "pitted_road_H1"],
       "length_m": 6.0,
       "width_m": 3.0,
       "cell_m": 0.02,
@@ -1023,32 +441,16 @@
       "boundary_margin_m": 0.12,
       "lateral_repetitions": 3,
       "seam_contract": "periodic_C0_edges_v1",
-      "horizon_guard": {
-        "episode_s": 30.0,
-        "forward_speed_mps": 3.6,
-        "distance_factor": 1.2
-      }
+      "horizon_guard": {"episode_s": 30.0, "forward_speed_mps": 3.6, "distance_factor": 1.2}
     },
-    "application_lifecycle": {
-      "fast_shutdown": false,
-      "worker_finalizes_after_close": true,
-      "owner": "worker_atexit"
-    },
+    "application_lifecycle": {"fast_shutdown": false, "worker_finalizes_after_close": true, "owner": "worker_atexit"},
     "wheel_contact_dr": {
       "version": "motion_wheel_contact_reset_DR_v1",
       "sampling": "reset_only",
-      "profiles": [
-        0
-      ],
+      "profiles": [0],
       "compliant_probability": 0.5,
-      "stiffness_n_m": [
-        100000.0,
-        1000000.0
-      ],
-      "damping_ns_m": [
-        500.0,
-        3000.0
-      ],
+      "stiffness_n_m": [100000.0, 1000000.0],
+      "damping_ns_m": [500.0, 3000.0],
       "units": "native force spring N/m and Ns/m per contact; not acceleration spring",
       "basis": "engineering hypothesis, not real wheel-ground identification",
       "nominal": "rigid; no compliant-contact sampling or policy RNG consumption",
@@ -1057,26 +459,15 @@
     },
     "framework_dependency": {
       "root": "/root/gpufree-data/wheel_leg_motion/sdk",
-      "manifest": {
-        "path": "/root/gpufree-data/wheel_leg_motion/sdk/full_manifest.json",
-        "sha256": "31f6d31060dab74f044ff2633c7da0deadb93cb0c24e6c6163ebcf03c54d5974"
-      },
+      "manifest": {"path": "/root/gpufree-data/wheel_leg_motion/sdk/full_manifest.json", "sha256": "31f6d31060dab74f044ff2633c7da0deadb93cb0c24e6c6163ebcf03c54d5974"},
       "reason": "remote image current API lacks clone_environments; fixed exact local smoke SDK, PhysX unchanged"
     },
-    "motion_execution_optimization": {
-      "version": "motion_v4_tensor_execution_v2",
-      "compile_tensor_tick": true
-    },
+    "motion_execution_optimization": {"version": "motion_v4_tensor_execution_v2", "compile_tensor_tick": true},
     "branch_course": {
       "version": "motion48_turn_focus_branch_v3",
       "branch": "motion",
       "initial_DR_level": 1,
-      "DR_amplitudes": [
-        0.25,
-        0.5,
-        0.75,
-        1.0
-      ],
+      "DR_amplitudes": [0.25, 0.5, 0.75, 1.0],
       "DR_enabled": true,
       "confirmations": 2,
       "regression_confirmations": 3,
@@ -1090,498 +481,121 @@
       "old_confirmations_are_history": true,
       "rough_terrain": "FOUR_STATIC_H1",
       "symmetry": "flat standing and straight only; banking may be asymmetric",
-      "height_range_m": [
-        0.2,
-        0.4
-      ],
+      "height_range_m": [0.2, 0.4],
       "height_020_decoder": "GEOMETRIC_SEED_PENDING_ISAAC",
       "evidence": "normal ended on-policy episodes only; no independent certificate",
       "source_retention_scope": "unchanged qualified .34 nominal [zero,+3.6,-3.6] bank; causal on-policy mask; not new DR/turn/spin labels",
-      "fractions": {
-        "clean": 0.1,
-        "combined": 0.1,
-        "modal": 0.1,
-        "anchors": 0.25,
-        "focus": 0.45
-      },
+      "fractions": {"clean": 0.1, "combined": 0.1, "modal": 0.1, "anchors": 0.25, "focus": 0.45},
       "anchors": {
-        "forward": [
-          3.6,
-          0,
-          0.34
-        ],
-        "backward": [
-          -3.6,
-          0,
-          0.34
-        ],
-        "yaw_positive": [
-          0,
-          2,
-          0.34
-        ],
-        "yaw_negative": [
-          0,
-          -2,
-          0.34
-        ]
+        "forward": [3.6, 0, 0.34],
+        "backward": [-3.6, 0, 0.34],
+        "yaw_positive": [0, 2, 0.34],
+        "yaw_negative": [0, -2, 0.34]
       },
       "targets": {
         "turn_fp": [
-          [
-            2,
-            0.5,
-            0.34
-          ],
-          [
-            2,
-            0.65,
-            0.34
-          ],
-          [
-            2,
-            0.8,
-            0.34
-          ],
-          [
-            2,
-            1,
-            0.34
-          ],
-          [
-            2.5,
-            0.5,
-            0.34
-          ],
-          [
-            2.5,
-            0.65,
-            0.34
-          ],
-          [
-            2.5,
-            0.8,
-            0.34
-          ],
-          [
-            3,
-            0.5,
-            0.34
-          ],
-          [
-            3,
-            0.65,
-            0.34
-          ],
-          [
-            3,
-            0.8,
-            0.34
-          ],
-          [
-            3.6,
-            0.5,
-            0.34
-          ],
-          [
-            3.6,
-            0.65,
-            0.34
-          ],
-          [
-            3.6,
-            0.75,
-            0.34
-          ]
+          [2, 0.5, 0.34],
+          [2, 0.65, 0.34],
+          [2, 0.8, 0.34],
+          [2, 1, 0.34],
+          [2.5, 0.5, 0.34],
+          [2.5, 0.65, 0.34],
+          [2.5, 0.8, 0.34],
+          [3, 0.5, 0.34],
+          [3, 0.65, 0.34],
+          [3, 0.8, 0.34],
+          [3.6, 0.5, 0.34],
+          [3.6, 0.65, 0.34],
+          [3.6, 0.75, 0.34]
         ],
         "turn_fn": [
-          [
-            2,
-            -0.5,
-            0.34
-          ],
-          [
-            2,
-            -0.65,
-            0.34
-          ],
-          [
-            2,
-            -0.8,
-            0.34
-          ],
-          [
-            2,
-            -1,
-            0.34
-          ],
-          [
-            2.5,
-            -0.5,
-            0.34
-          ],
-          [
-            2.5,
-            -0.65,
-            0.34
-          ],
-          [
-            2.5,
-            -0.8,
-            0.34
-          ],
-          [
-            3,
-            -0.5,
-            0.34
-          ],
-          [
-            3,
-            -0.65,
-            0.34
-          ],
-          [
-            3,
-            -0.8,
-            0.34
-          ],
-          [
-            3.6,
-            -0.5,
-            0.34
-          ],
-          [
-            3.6,
-            -0.65,
-            0.34
-          ],
-          [
-            3.6,
-            -0.75,
-            0.34
-          ]
+          [2, -0.5, 0.34],
+          [2, -0.65, 0.34],
+          [2, -0.8, 0.34],
+          [2, -1, 0.34],
+          [2.5, -0.5, 0.34],
+          [2.5, -0.65, 0.34],
+          [2.5, -0.8, 0.34],
+          [3, -0.5, 0.34],
+          [3, -0.65, 0.34],
+          [3, -0.8, 0.34],
+          [3.6, -0.5, 0.34],
+          [3.6, -0.65, 0.34],
+          [3.6, -0.75, 0.34]
         ],
         "turn_bp": [
-          [
-            -2,
-            0.5,
-            0.34
-          ],
-          [
-            -2,
-            0.65,
-            0.34
-          ],
-          [
-            -2,
-            0.8,
-            0.34
-          ],
-          [
-            -2,
-            1,
-            0.34
-          ],
-          [
-            -2.5,
-            0.5,
-            0.34
-          ],
-          [
-            -2.5,
-            0.65,
-            0.34
-          ],
-          [
-            -2.5,
-            0.8,
-            0.34
-          ],
-          [
-            -3,
-            0.5,
-            0.34
-          ],
-          [
-            -3,
-            0.65,
-            0.34
-          ],
-          [
-            -3,
-            0.8,
-            0.34
-          ],
-          [
-            -3.6,
-            0.5,
-            0.34
-          ],
-          [
-            -3.6,
-            0.65,
-            0.34
-          ],
-          [
-            -3.6,
-            0.75,
-            0.34
-          ]
+          [-2, 0.5, 0.34],
+          [-2, 0.65, 0.34],
+          [-2, 0.8, 0.34],
+          [-2, 1, 0.34],
+          [-2.5, 0.5, 0.34],
+          [-2.5, 0.65, 0.34],
+          [-2.5, 0.8, 0.34],
+          [-3, 0.5, 0.34],
+          [-3, 0.65, 0.34],
+          [-3, 0.8, 0.34],
+          [-3.6, 0.5, 0.34],
+          [-3.6, 0.65, 0.34],
+          [-3.6, 0.75, 0.34]
         ],
         "turn_bn": [
-          [
-            -2,
-            -0.5,
-            0.34
-          ],
-          [
-            -2,
-            -0.65,
-            0.34
-          ],
-          [
-            -2,
-            -0.8,
-            0.34
-          ],
-          [
-            -2,
-            -1,
-            0.34
-          ],
-          [
-            -2.5,
-            -0.5,
-            0.34
-          ],
-          [
-            -2.5,
-            -0.65,
-            0.34
-          ],
-          [
-            -2.5,
-            -0.8,
-            0.34
-          ],
-          [
-            -3,
-            -0.5,
-            0.34
-          ],
-          [
-            -3,
-            -0.65,
-            0.34
-          ],
-          [
-            -3,
-            -0.8,
-            0.34
-          ],
-          [
-            -3.6,
-            -0.5,
-            0.34
-          ],
-          [
-            -3.6,
-            -0.65,
-            0.34
-          ],
-          [
-            -3.6,
-            -0.75,
-            0.34
-          ]
+          [-2, -0.5, 0.34],
+          [-2, -0.65, 0.34],
+          [-2, -0.8, 0.34],
+          [-2, -1, 0.34],
+          [-2.5, -0.5, 0.34],
+          [-2.5, -0.65, 0.34],
+          [-2.5, -0.8, 0.34],
+          [-3, -0.5, 0.34],
+          [-3, -0.65, 0.34],
+          [-3, -0.8, 0.34],
+          [-3.6, -0.5, 0.34],
+          [-3.6, -0.65, 0.34],
+          [-3.6, -0.75, 0.34]
         ],
         "rough_steep_waves_H1": [
-          [
-            0.15,
-            0,
-            0.34
-          ],
-          [
-            0.25,
-            0,
-            0.34
-          ],
-          [
-            0.5,
-            0,
-            0.34
-          ],
-          [
-            1,
-            0,
-            0.34
-          ],
-          [
-            1.5,
-            0,
-            0.34
-          ],
-          [
-            2,
-            0,
-            0.34
-          ],
-          [
-            2.5,
-            0,
-            0.34
-          ],
-          [
-            3,
-            0,
-            0.34
-          ],
-          [
-            3.6,
-            0,
-            0.34
-          ]
+          [0.15, 0, 0.34],
+          [0.25, 0, 0.34],
+          [0.5, 0, 0.34],
+          [1, 0, 0.34],
+          [1.5, 0, 0.34],
+          [2, 0, 0.34],
+          [2.5, 0, 0.34],
+          [3, 0, 0.34],
+          [3.6, 0, 0.34]
         ],
         "rough_cobblestones_H1": [
-          [
-            0.15,
-            0,
-            0.34
-          ],
-          [
-            0.25,
-            0,
-            0.34
-          ],
-          [
-            0.5,
-            0,
-            0.34
-          ],
-          [
-            1,
-            0,
-            0.34
-          ],
-          [
-            1.5,
-            0,
-            0.34
-          ],
-          [
-            2,
-            0,
-            0.34
-          ],
-          [
-            2.5,
-            0,
-            0.34
-          ],
-          [
-            3,
-            0,
-            0.34
-          ],
-          [
-            3.6,
-            0,
-            0.34
-          ]
+          [0.15, 0, 0.34],
+          [0.25, 0, 0.34],
+          [0.5, 0, 0.34],
+          [1, 0, 0.34],
+          [1.5, 0, 0.34],
+          [2, 0, 0.34],
+          [2.5, 0, 0.34],
+          [3, 0, 0.34],
+          [3.6, 0, 0.34]
         ],
         "rough_broken_rubble_H1": [
-          [
-            0.15,
-            0,
-            0.34
-          ],
-          [
-            0.25,
-            0,
-            0.34
-          ],
-          [
-            0.5,
-            0,
-            0.34
-          ],
-          [
-            1,
-            0,
-            0.34
-          ],
-          [
-            1.5,
-            0,
-            0.34
-          ],
-          [
-            2,
-            0,
-            0.34
-          ],
-          [
-            2.5,
-            0,
-            0.34
-          ],
-          [
-            3,
-            0,
-            0.34
-          ],
-          [
-            3.6,
-            0,
-            0.34
-          ]
+          [0.15, 0, 0.34],
+          [0.25, 0, 0.34],
+          [0.5, 0, 0.34],
+          [1, 0, 0.34],
+          [1.5, 0, 0.34],
+          [2, 0, 0.34],
+          [2.5, 0, 0.34],
+          [3, 0, 0.34],
+          [3.6, 0, 0.34]
         ],
         "rough_pitted_road_H1": [
-          [
-            0.15,
-            0,
-            0.34
-          ],
-          [
-            0.25,
-            0,
-            0.34
-          ],
-          [
-            0.5,
-            0,
-            0.34
-          ],
-          [
-            1,
-            0,
-            0.34
-          ],
-          [
-            1.5,
-            0,
-            0.34
-          ],
-          [
-            2,
-            0,
-            0.34
-          ],
-          [
-            2.5,
-            0,
-            0.34
-          ],
-          [
-            3,
-            0,
-            0.34
-          ],
-          [
-            3.6,
-            0,
-            0.34
-          ]
+          [0.15, 0, 0.34],
+          [0.25, 0, 0.34],
+          [0.5, 0, 0.34],
+          [1, 0, 0.34],
+          [1.5, 0, 0.34],
+          [2, 0, 0.34],
+          [2.5, 0, 0.34],
+          [3, 0, 0.34],
+          [3.6, 0, 0.34]
         ]
       },
       "straight_limit_mps": 3.6,
@@ -1590,53 +604,19 @@
       "DR_progression": "shared_strength_independent_of_task_axes",
       "DR_progression_basis": "preserve source uniform strength across dq/families; the DR axis advances independently of task directions; not per-family independent DR",
       "confirmation_execution_sha256": "5021b0fccaaf1f89587c42b090d6b3ba83e76956080431ba7245fcf3171f7f83",
-      "terrain_by_axis": {
-        "rough_steep_waves_H1": "steep_waves_H1",
-        "rough_cobblestones_H1": "cobblestones_H1",
-        "rough_broken_rubble_H1": "broken_rubble_H1",
-        "rough_pitted_road_H1": "pitted_road_H1"
-      },
-      "initial_levels": {
-        "turn_fp": 0,
-        "turn_fn": 0,
-        "turn_bp": 0,
-        "turn_bn": 0,
-        "rough_steep_waves_H1": 0,
-        "rough_cobblestones_H1": 0,
-        "rough_broken_rubble_H1": 1,
-        "rough_pitted_road_H1": 1
-      },
-      "focus_weights": {
-        "turn_fp": 0.2,
-        "turn_fn": 0.2,
-        "turn_bp": 0.2,
-        "turn_bn": 0.2,
-        "rough_steep_waves_H1": 0.05,
-        "rough_cobblestones_H1": 0.05,
-        "rough_broken_rubble_H1": 0.05,
-        "rough_pitted_road_H1": 0.05
-      },
+      "terrain_by_axis": {"rough_steep_waves_H1": "steep_waves_H1", "rough_cobblestones_H1": "cobblestones_H1", "rough_broken_rubble_H1": "broken_rubble_H1", "rough_pitted_road_H1": "pitted_road_H1"},
+      "initial_levels": {"turn_fp": 0, "turn_fn": 0, "turn_bp": 0, "turn_bn": 0, "rough_steep_waves_H1": 0, "rough_cobblestones_H1": 0, "rough_broken_rubble_H1": 1, "rough_pitted_road_H1": 1},
+      "focus_weights": {"turn_fp": 0.2, "turn_fn": 0.2, "turn_bp": 0.2, "turn_bn": 0.2, "rough_steep_waves_H1": 0.05, "rough_cobblestones_H1": 0.05, "rough_broken_rubble_H1": 0.05, "rough_pitted_road_H1": 0.05},
       "minimum_signed_yaw_gain": 0.75,
-      "retention_gate": {
-        "nominal_pass": 0.95,
-        "nominal_complete": 0.95,
-        "DR_pass": 0.5,
-        "DR_complete": 0.85
-      }
+      "retention_gate": {"nominal_pass": 0.95, "nominal_complete": 0.95, "DR_pass": 0.5, "DR_complete": 0.85}
     },
     "historical_online_updates": 6738,
     "original_online_limit": 16738,
     "source_online_updates": 6683,
     "new_independent_authorization": true,
     "preparation_only": false,
-    "path_mapping": {
-      "path": "/home/kellen/wheel_leg_training_data/motion_recipe_preparation/20261113_turn_focus_v3/runtime_paths.json",
-      "sha256": "1e62acc1507f3c91b4b743acb73cf19541ee0e8a65c35a93536739366b8ef299"
-    },
-    "branch_initialization": {
-      "path": "/home/kellen/wheel_leg_training_data/motion_authorization_20261113/allocated_branch_initialization.json",
-      "sha256": "efdb63176829f1a9a38355f3a6440cd991f21c6374d55fcfeda50cedf2296789"
-    }
+    "path_mapping": {"path": "/home/kellen/wheel_leg_training_data/motion_recipe_preparation/20261113_turn_focus_v3/runtime_paths.json", "sha256": "1e62acc1507f3c91b4b743acb73cf19541ee0e8a65c35a93536739366b8ef299"},
+    "branch_initialization": {"path": "/home/kellen/wheel_leg_training_data/motion_authorization_20261113/allocated_branch_initialization.json", "sha256": "efdb63176829f1a9a38355f3a6440cd991f21c6374d55fcfeda50cedf2296789"}
   },
   "diagnostics": {
     "independent_evaluation": false,
@@ -1646,10 +626,7 @@
       "version": "motion48_split_training_candidates_v1",
       "every_updates": 100,
       "maximum_candidates": 8,
-      "objectives": [
-        "motion",
-        "standing"
-      ],
+      "objectives": ["motion", "standing"],
       "primary_objective": "motion",
       "minimum_ended": 16,
       "minimum_complete_fraction": 0.9,
@@ -1670,9 +647,7 @@
     "status": "AUTHORIZED_GPU_START_ON_USER_NOTICE",
     "execution_allowed": true,
     "capability_matrix_version": "motion_capability_matrix_v1",
-    "pending": [
-      "GPU resource preflight on user notice"
-    ],
+    "pending": ["GPU resource preflight on user notice"],
     "scope": "Motion turn focus; new10000 replaces old balance; no watcher"
   }
 }
