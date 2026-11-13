@@ -1,8 +1,4 @@
-"""ABI4 PhysX consumer with the common owner/driver/PPO and existing task math.
-
-The first version deliberately uses an explicit CPU C/inverse-model bridge.
-It measures its synchronization cost and never claims that C is a CUDA kernel.
-"""
+"""ABI4 PhysX consumer; explicit CPU or CUDA firmware/inverse implementations."""
 
 from __future__ import annotations
 
@@ -37,6 +33,23 @@ TRAINING_SEMANTICS = dict(
     reward=REWARD_VERSION,
     request="single_request_first_BALANCE_at_or_after_1500ms",
 )
+
+
+def execution_readback(execution, inverse):
+    """Describe constructed consumers rather than infer them from device=cuda."""
+    device_control = hasattr(execution, "gpu")
+    device_inverse = getattr(inverse, "version", None) == "jump_PhysX_Warp_inverse_float32_v1"
+    return dict(
+        C_execution="CUDA firmware C consumer" if device_control else "batched CPU C bridge",
+        support=(
+            "PhysX state->Warp device inverse model; simulation hypothesis, no contact observation"
+            if device_inverse
+            else "PhysX state->CPU inverse model; simulation hypothesis, no contact observation"
+        ),
+        control_implementation=type(execution).__module__ + "." + type(execution).__qualname__,
+        inverse_implementation=type(inverse).__module__ + "." + type(inverse).__qualname__,
+        contact_generation_device="See collision_readback; independent from C/inverse placement",
+    )
 
 
 def scheduled_request(request, elapsed_ms, state):
@@ -110,7 +123,9 @@ class IsaacJump:
         self.serial = 0
         from native_stand.simulation.jump_isaac_scene import physical_contract
 
-        self.physical_contract = physical_contract(self.num_envs, job.assets.get("jump_wheel_collision"))
+        self.physical_contract = physical_contract(
+            self.num_envs, job.assets.get("jump_wheel_collision")
+        )
         self.training_semantics = dict(TRAINING_SEMANTICS)
         if self.job.assets.get("jump_compute") == "cuda_firmware_warp_inverse_v1":
             self.training_semantics["compute"] = "cuda_firmware_warp_inverse_v1"
@@ -248,11 +263,17 @@ class IsaacJump:
         write_json(
             self.output / "construction.json",
             dict(
+                version="jump_construction_readback_v2",
                 status="CONSTRUCTED",
                 resource_readback=readback,
                 backend="Isaac PhysX GPU",
-                C_execution="batched CPU C bridge",
-                support="PhysX state->CPU inverse model; simulation hypothesis, no contact observation",
+                **execution_readback(self.execution, getattr(self, "device_inverse", self.inverse)),
+                collision_readback=self.scene.collision_readback,
+                initial_geometric_gaps={
+                    name: self.scene.measured()[name].detach().cpu().tolist()
+                    for name in ("clearance", "collision_clearance")
+                    if name in self.scene.measured()
+                },
                 actual_runtime_schema=self.critics[0].schema.contract(),
                 physics_restore="fresh_reset",
                 startup_engine_ticks=self.scene.actual_ticks,
@@ -287,6 +308,7 @@ class IsaacJump:
                 row = packed[:, start : start + width].reshape(tuple(value.shape))
                 host[name] = row.astype(bool) if value.dtype == torch.bool else row
                 start += width
+        from native_stand.simulation.jump_collision_readback import guarded_clearance
         from native_stand.simulation.jump_isaac_scene import validate_physical_measurement
 
         try:
@@ -294,7 +316,7 @@ class IsaacJump:
         except RuntimeError as exc:
             # Keep the actual rejected packet: the optimizer checkpoint cannot
             # reconstruct PhysX's hidden contact state after a fresh reset.
-            row = int(np.argmin(host["clearance"]) // 2)
+            row = int(np.argmin(guarded_clearance(host)) // 2)
             try:
                 write_json(
                     self.output / "physical_failure.json",
@@ -406,6 +428,7 @@ class IsaacJump:
 
     def validate_device_measurement(self):
         """Same physical gate, reducing on device instead of copying all rows."""
+        from native_stand.simulation.jump_collision_readback import guarded_clearance
         from native_stand.simulation.jump_isaac_scene import PHYSICAL_CONTRACT
 
         measured = self.scene.measured()
@@ -414,7 +437,7 @@ class IsaacJump:
             torch.stack(
                 (
                     torch.isfinite(packed).all().float(),
-                    measured["clearance"].amin(),
+                    guarded_clearance(measured).amin(),
                     measured["closure"].amax(),
                     torch.isfinite(torch.stack((self.motor, self.NET, self.passive))).all().float(),
                 )

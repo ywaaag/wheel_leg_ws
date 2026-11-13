@@ -8,6 +8,8 @@ import torch
 
 from native_stand.tasks.jump.geometry import CHANNELS
 
+from .jump_collision_readback import convex_clearance, guarded_clearance
+
 PHYSICAL_CONTRACT = {
     "version": "jump_PhysX_tiled_flat_ground_grid_coverage_v4",
     "support_timeout": "unavailable_estimate; undecided_contact_blocks_events",
@@ -34,9 +36,10 @@ def physical_contract(envs, wheel_collision=None):
         if wheel_collision != "wheel_convex30_v1":
             raise ValueError("Unsupported Jump wheel collision contract")
         result.update(
-            version="jump_PhysX_wheel_convex30_v5",
+            version="jump_PhysX_wheel_convex30_cooked_guard_v6",
             wheel_collision="circumscribed_convex30",
             wheel_radial_envelope_error_bound_m=0.000331,
+            collision_guard="analytic_cylinder_and_actual_cooked_hull; unchanged_1mm_limit",
         )
     return result
 
@@ -50,7 +53,7 @@ def validate_physical_measurement(measured):
     for name, values in measured.items():
         if not np.isfinite(values).all():
             raise RuntimeError(f"Jump PhysX nonfinite readback: {name}")
-    penetration = -float(np.min(measured["clearance"]))
+    penetration = -float(np.min(guarded_clearance(measured)))
     closure = float(np.max(measured["closure"]))
     if penetration > PHYSICAL_CONTRACT["maximum_wheel_penetration_m"]:
         raise RuntimeError(f"Jump PhysX wheel penetration {penetration:.9g}m")
@@ -186,6 +189,7 @@ class IsaacScene:
 
         self.apply, self.inverse = quat_apply, quat_apply_inverse
         self.device, self.num_envs = job.runtime.device, job.runtime.envs
+        self.job_asset = dict(job.assets["jump_bindings"]["asset"])
         self.physical_contract = physical_contract(
             self.num_envs, job.assets.get("jump_wheel_collision")
         )
@@ -376,6 +380,9 @@ class IsaacScene:
         self.actual_ticks = 0
         self.reset_epoch = 0
         self._cached = None
+        from .jump_collision_readback import capture_collision_readback
+
+        self.collision_readback, self.cooked_wheel_vertices = capture_collision_readback(self)
 
     def anchor(self, body, local):
         d = self.robot.data
@@ -555,6 +562,13 @@ class IsaacScene:
             clearance=torch.stack(clearance, -1),
             slip=torch.stack(slip, -1),
         )
+        if self.cooked_wheel_vertices:
+            result["collision_clearance"] = convex_clearance(
+                tensor(d.body_link_pos_w)[:, self.wheel_ids],
+                tensor(d.body_link_quat_w)[:, self.wheel_ids],
+                self.cooked_wheel_vertices,
+                self.inverse,
+            )
         self._cached = (key, result)
         return result
 
