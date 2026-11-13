@@ -111,3 +111,11 @@ M07的最终目标是高度覆盖。除0.34m已明确的±3.6m/s核心目标外�
 完整准备材料位于本机数据根`motion_recipe_preparation/20261113_turn_focus_v3/`；配置通过SHA引用准备记录和RuntimePaths映射。原始u1500及run/state/budget快照在`motion_preservation/20261113_r15_u1500/`。准备记录版本`full_motion_course_preparation_v1`明确不是终态结算或额度分配，只允许smoke/formal均为0；改成正额度也会在正式边界拒绝。
 
 账本1555与checkpoint1500的55次差额保留。项目累计已耗6738与checkpoint累计6683分开，模型实际进度6597也不混用；本阶段此前16加1555为1571，余8429。正式接续仍需公共生命周期按真实终态/资源完成结算和分配，不能修改旧RUNNING快照伪造停止，不能把准备记录当作可执行handoff。此处数字仅绑定2026-11-13保留快照，提交前重新核实。
+
+## 新10000次云端授权
+
+用户于2026-11-13另行授权新10000次Motion在线更新、训练墙钟不限；GPU由用户手动开启并通知，不持续监测、不新增watcher、不自动重试启动。新正式配置`configs/jobs/motion_u1500_turn_focus_v3_cloud10000.json`与上述零额度准备版分开；`full_motion_course_allocated_v2`在原分支加载边界绑定真实终态、实际账本、新授权与唯一分配，复用同一owner/worker。
+
+旧r15经公共`owner.reconcile`结算为FAILED，原因为worker退出但未写终态；已耗1555次不变，原失败证据保留。旧阶段余额8429退役，不叠加到新额度；历史累计消耗6738保留，新任务累计上限16738。完整u1500的模型进度6597、checkpoint计费计数6683与已耗6738继续分别记录，不重复warmup，不退款55次。
+
+本次是0.34m转弯重点块10000次授权，不保证完成整个高度/地形能力矩阵。新run为`motion_u1500_turn_focus_v3_10000`，smoke=0、formal=10000、chain_wall_s=null，保持checkpoint每100次及现有里程碑/空间边界。共享GPU允许，但启动前仍检查实际UUID、显存和其他任务；当前14GiB空闲显存门槛保留，不抢占、不自动换卡。GPU出现后仍需一次实际物理/优化/保存恢复工程核验；CPU_READY不等于能力通过。

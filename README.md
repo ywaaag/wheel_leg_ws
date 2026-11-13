@@ -8,6 +8,8 @@ Motion后续配方、评分、选模和交互测试先读[Motion能力矩阵](do
 
 第二轮第一块的准备配置为`configs/jobs/motion_u1500_turn_focus_v3_prepared.json`：约36%转弯、9%地形和55%基础复习，0.34m固定高度，细化yaw阶梯并检查基础保留。完整u1500来源和准备记录通过数据根SHA引用，缺材料不能直接运行。正式CLI计划检查：`PYTHONPATH=src /home/kellen/anaconda3/envs/issaclab/bin/python -B -m native_stand train --config configs/jobs/motion_u1500_turn_focus_v3_prepared.json --dry-run --json`。配置为零额度，正式提交仍被拒绝；不代表已有GPU或能力验证。具体设计和接续边界见矩阵末节。
 
+后续已获用户新10000次/不限训练墙钟授权，正式配置为`configs/jobs/motion_u1500_turn_focus_v3_cloud10000.json`；旧8429余额退役，历史消耗保留，允许共享GPU。授权及结算依赖在数据根`motion_authorization_20261113/`，旧终态快照在`motion_cloud10000_20261113/round2_handoff_20261113/`。远端冻结源码及启动说明部署到`/root/gpufree-data/wheel_leg_motion/candidate_revisions/motion_turn_focus_v3_10000`与`round2_handoff_20261113/START.txt`。GPU由用户手动开启并通知后再核实UUID/资源、沿正式CLI唯一提交；本配置不监测、不自动启动。材料缺失或资源不符时拒绝；已存在run不得重复train。
+
 后续源码开发以 `/home/kellen/wheel_leg_refactor_ws` 为主仓，Git独立于旧生产仓。旧仓 `/home/kellen/wheel_leg_native_train` 原路径保留，保存历史模型、账本和冻结依赖；不交换目录、不建立旧路径转发软链接。
 
 本地依赖根为 `/home/kellen/wheel_leg_training_data`。`manifest.json`记录来源SHA、实际位置和消费者，`runtime_paths.json`为现有RuntimePaths逐文件映射，`models.json`沿用ModelIndex。它不是独立备份；同内容只在数据根内部硬链接，未链接可变原run文件。旧142份缺失数据与失效候选继续UNAVAILABLE。

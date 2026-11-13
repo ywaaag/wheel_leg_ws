@@ -17,9 +17,8 @@ def _read_preparation(record, paths):
     if (
         record.get("branch") != "motion"
         or record.get("branch_updates") != 0
-        or record.get("budget_status") != (
-            "MOTION_TRAINING" if record["version"] == ALLOCATED_COURSE else "PREPARATION_ONLY"
-        )
+        or record.get("budget_status")
+        != ("MOTION_TRAINING" if record["version"] == ALLOCATED_COURSE else "PREPARATION_ONLY")
     ):
         raise ValueError("课程准备记录不能分配额度")
     values = {}
@@ -62,6 +61,18 @@ def _read_preparation(record, paths):
         or not record.get("new_authorization")
     ):
         raise ValueError("新课程分配必须绑定已结算旧任务并退役旧余额")
+    if record["version"] == ALLOCATED_COURSE:
+        ref = record["settlement"]
+        if file_sha256(paths.resolve(ref["path"])) != ref["sha256"]:
+            raise ValueError("旧任务结算身份不同")
+        settlement = paths.read(ref["path"])
+        if (
+            settlement["state"] != paths.view(record["observed_state"])
+            or settlement["budget"] != paths.view(record["observed_budget"])
+            or settlement["consumed_total"] != record["authorization_spent_updates"]
+            or settlement["retired_remaining_updates"] != record["shared_remaining_updates"]
+        ):
+            raise ValueError("旧结算未绑定实际消耗和退役余额")
     return {
         **record,
         "selected": selected,
@@ -145,10 +156,14 @@ def validate_source(job, loaded):
     source = loaded.payload
     if record["version"] in (PREPARATION, ALLOCATED_COURSE):
         if (
-            (record["version"] == PREPARATION and (
-                job.limits.smoke_updates or job.limits.formal_updates
-                or job.assets.get("preparation_only") is not True
-            ))
+            (
+                record["version"] == PREPARATION
+                and (
+                    job.limits.smoke_updates
+                    or job.limits.formal_updates
+                    or job.assets.get("preparation_only") is not True
+                )
+            )
             or json_digest(job.assets["branch_course"]) != record["target_course_sha256"]
             or source.get("model_online_updates") != record["source_model_progress_updates"]
         ):

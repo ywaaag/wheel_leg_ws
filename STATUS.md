@@ -1,5 +1,13 @@
 # 当前任务
 
+## Motion新10000次云端接线（2026-11-13）
+
+用户明确授权从完整u1500按转弯重点配方开始新的10000次在线更新、训练墙钟不限，允许共享GPU。旧累计消耗6738保留，旧阶段8429余额退役，不与新额度叠加，不退款55次。旧r15已通过公共owner.reconcile结算FAILED/worker exited without terminal state，实际1555次不变；原始结算前快照仍保留。新run身份`motion_u1500_turn_focus_v3_10000`，正式配置`configs/jobs/motion_u1500_turn_focus_v3_cloud10000.json`，沿既有分支/分配/owner/worker接线，不新增生命周期。
+
+GPU由用户手动开启并通知，无持续监测、watcher或自动启动。共享资源仍做UUID/显存与活动任务核验，不停止其他任务或自动换卡。授权/结算/分配在数据根`motion_authorization_20261113/`，真实旧终态在`motion_cloud10000_20261113/round2_handoff_20261113/`。此处为接线记录，真实远端CPU与部署结果以收据为准；没有GPU前不能宣称物理、PPO或实际能力验证已通过。
+
+部署及CPU_READY已核验：远端`candidate_revisions/motion_turn_focus_v3_10000/src`共598模块，摘要`3dd6cd7f87f76c94da103198f8310c56938f39b3a57bb0b6c6b627e2933e474d`与本机一致；完整u1500实际PPO装配的Actor/Critic/双Adam一致、warmup50保留，2432个SDK文件及物理资产/V4和15项引用SHA通过。远端`round2_handoff_20261113/cloud_config.json`正式dry-run通过，无GPU预检准确拒绝，未创建新run或worker、真实PPO0。`environment.sh`仅设置环境，`START.txt`给出唯一正式CLI，不创建监测器。远端收据已回传数据根。本机相关86 passed（7.68s），portable1967 passed/31既有skip/10warning（144.97s），架构209/0、固定Ruff0.8.4 check/format通过。精确命令、改动SHA、部署身份和边界见数据根`motion_authorization_20261113/delivery.json`。
+
 ## Motion转弯重点配方准备（2026-11-13）
 
 Motion负责人在独立`motion/turn-focused-recipe-v2`分支从main实现第二轮第一块。配置`configs/jobs/motion_u1500_turn_focus_v3_prepared.json`复用SplitCourse和生产adapter，固定0.34m，保留55%基础复习，将约36%总样本集中四方向转弯、9%保留四地形；暂缓变高采样。新增0.65/0.8 yaw中间档、75%行进转向响应门槛及基础退化/UNKNOWN时阻止focus晋级。奖励、PPO、KL、动作/输入尺度、物理/PD/电机、延迟与DR范围不变。具体门槛和边界见[能力矩阵末节](docs/MOTION_CAPABILITY_MATRIX.md#当前准备配方034m转弯重点块)。

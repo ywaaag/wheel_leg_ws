@@ -145,6 +145,8 @@ Motion目标与能力证据的共同入口为[Motion能力矩阵](docs/MOTION_CA
 
 `motion48_turn_focus_branch_v3`复用SplitCourse，增加显式focus权重、初始档位、基础保留晋级门槛；stage将75%行进转弯响应门槛传给同一maneuver_statistics，原地自转和旧课程默认不变。未实现全矩阵自动调度或高度前置门槛。u1500的`full_motion_course_preparation_v1`由既有artifacts.branch_initialization读取真实run/state/budget快照及SHA，在完整来源边界只重建课程证据，保留学习状态和独立模型进度；生产adapter复用同一依赖登记、课程、保存恢复，不增加owner或worker。该记录仅支持零额度准备，require_allocated始终拒绝，不能替代终态结算与正式接续。
 
+`full_motion_course_allocated_v2`沿同一边界接真实终态和新授权，只允许已终止旧任务、原消耗保留、旧余额退役及SHA绑定的唯一新分配。它允许完整881D/现有高度合同继续，不重复877→881或高度扩展；新目标仅重建课程证据，不重建Actor/Critic/双Adam/RNG。准备版仍拒绝训练。GPU由用户通知后走一次正式CLI提交，不增加后台监测、资源抢占、owner预处理hook或另一套launcher。
+
 两者保持task=motion，由不同配置选择`CourseStrategy`中的`SplitCourse`、统计目标与独立候选比较域；同用生产adapter、环境工厂、受控PPO和公共保存/引用。分支初始化在LoadedSource边界显式消费公共选中模型契约，领域层只重建目标/窗口/确认，不重建Actor、Critic、Adam、std、RNG或已完成warmup，也不放宽同run恢复。
 
 课程确认绑定实际方向/目标/高度/DR和执行合同，不能跨条件累计，不因无关revision丢失其他方向确认。Spin只生成有限且可表示的机体yaw端点；轮±80rad/s包络是独立动作合同。候选资格、任务成绩与独立认证分开，输出交给公共ModelIndex；领域模块不删除产物。
