@@ -140,8 +140,15 @@ def collect(
                 raise ValueError("Collection environment layout changed")
             # Clone pre-step input; engines may reuse their observation storage.
             current = obs.detach().clone()
+            with torch.no_grad():
+                if spec["kind"] == "recovery_physical":
+                    network_mean = model.actor.mean(obs)
+                    raw_action = model.actor.decode_mean(network_mean)
+                else:
+                    raw_action = model.mean(obs)
+                    network_mean = raw_action
             try:
-                result = env.step(model.mean(obs))
+                result = env.step(raw_action)
             except BaseException as failure:
                 # A backend can fail after real substeps without returning a
                 # transition. Keep its measured consumption, never fabricate a
@@ -199,6 +206,8 @@ def collect(
                 raise ValueError("Invalid per-environment done shape")
             row = dict(
                 states=current,
+                trace_network_mean=network_mean.detach().clone(),
+                trace_raw_action=raw_action.detach().clone(),
                 episodes=counters.clone(),
                 environment_id=ids,
                 policy_index=ids.new_full((actual_envs,), state["policy_steps"]),

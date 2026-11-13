@@ -3,7 +3,7 @@
   "name": "recovery2100_small256_physical_dagger",
   "algorithm": "distillation",
   "backend": "isaac_recovery",
-  "source_root": "/home/kellen/wheel_leg_distill_ws/src",
+  "source_root": "/home/kellen/wheel_leg_distill_delay_ws/src",
   "model": {
     "actor_hidden_dims": [
       256,

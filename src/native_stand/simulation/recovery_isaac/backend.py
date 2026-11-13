@@ -458,7 +458,7 @@ class IsaacRecovery:
         cfg.decimation = 10
         cfg.episode_length_s = 23.0
         cfg.is_finite_horizon = True
-        cfg.recovery_collection_cases = None
+        cfg.recovery_collection_cases = job.assets.get("recovery_distillation_collection_cases")
         cfg.recovery_collection = job.algorithm == "distillation"
         cfg.recovery_measurement = self.measurement
         cfg.recovery_effort_caps = job.control.effort_limits_nm
@@ -552,6 +552,7 @@ class IsaacRecovery:
                 ).long(),
                 initial_Swing=(life.h0 < 0.27).long(),
                 Actor_age_ms=e.execution.packet_age.clone(),
+                effective_Actor_age_ms=e.execution.effective_packet_age.clone(),
                 target_delay_ms=e.execution.target_delay.clone(),
                 wheel_left_delay_ms=e.execution.wheel_delay[:, 0].clone(),
                 wheel_right_delay_ms=e.execution.wheel_delay[:, 1].clone(),
@@ -757,8 +758,10 @@ class IsaacRecovery:
         return self.restore_execution(state["execution"])
 
     def reset_collection(self, *, fresh=False, seed_offset=0):
-        self.env.cfg.recovery_collection_cases = (
-            self.job.assets.get("recovery_distillation_validation_cases") if fresh else None
+        self.env.cfg.recovery_collection_cases = self.job.assets.get(
+            "recovery_distillation_validation_cases"
+            if fresh
+            else "recovery_distillation_collection_cases"
         )
         import numpy as np
 
