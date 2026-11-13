@@ -58,6 +58,10 @@ def execute(
     if state.get("review_required"):
         return state, False
     state.setdefault("collections", [recipe.dataset])
+    if job.assets.get("recovery_mujoco"):
+        from native_stand.simulation.recovery_mujoco import prepare_resources
+
+        prepare_resources(job)
     teachers = [
         Teacher(
             t.name,
@@ -116,9 +120,8 @@ def execute(
                             set().union(*(t.conditions or {} for t in recipe.teachers))
                         ),
                     )
-                if (
-                    collector.__module__ == "native_stand.simulation.collection"
-                    and job.backend == "isaac_recovery"
+                if collector.__module__ == "native_stand.simulation.collection" and (
+                    job.backend == "isaac_recovery" or job.assets.get("recovery_mujoco")
                 ):
                     if environment is None:
                         from native_stand.simulation.collection import make_environment
@@ -483,13 +486,12 @@ def execute(
                                 wheel_MAE_rad_s=float(np.abs(error[:, [2, 5]]).mean()),
                             ),
                             hardware="OFF",
-                            independent_delay_sweep="RUN same-reset cohorts with per-step actual delay readback",
+                            independent_delay_sweep="Same-reset declared cohorts; actual delay readback retained",
                             partition="final_holdout" if phase.final else "development",
                         ),
                     )
-                    score = (
-                        reports["student"]["continuous_10s_rate"] or 0,
-                        reports["student"]["rise_success_rate"] or 0,
+                    score = tuple(
+                        reports["student"][metric] or 0 for metric in recipe.selection_metrics
                     )
                     best = tuple(state.get("best_closed_loop", [-1, -1]))
                     if not phase.final and score > best:

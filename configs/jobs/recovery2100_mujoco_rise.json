@@ -1,0 +1,688 @@
+{
+  "preset": "recovery_cubic_v2",
+  "name": "recovery2100_mujoco_rise_dagger",
+  "algorithm": "distillation",
+  "backend": "mujoco",
+  "source_root": "/home/kellen/wheel_leg_distill_mujoco_ws/src",
+  "model": {
+    "actor_hidden_dims": [
+      256,
+      128,
+      64
+    ],
+    "critic_input": 909,
+    "critic_privileged_version": "recovery_standalone_height_causal909_v5"
+  },
+  "observation": {
+    "critic_dim": 909
+  },
+  "initialization": {
+    "mode": "scratch"
+  },
+  "control": {
+    "effort_limits_nm": [
+      40.0,
+      40.0,
+      4.8,
+      40.0,
+      40.0,
+      4.8
+    ],
+    "physics_dt_s": 0.0005
+  },
+  "runtime": {
+    "envs": 8,
+    "steps_per_env": 128,
+    "seed": 111325,
+    "device": "cuda:0",
+    "headless": true
+  },
+  "limits": {
+    "smoke_updates": 0,
+    "formal_updates": 0,
+    "sample_limit": null,
+    "chain_wall_s": 14400,
+    "evaluation_wall_s": null
+  },
+  "storage": {
+    "checkpoint_every_updates": 1,
+    "metrics_every_updates": 1,
+    "keep_recent_checkpoints": 2,
+    "max_output_bytes": 8589934592,
+    "terminal_reserve_bytes": 268435456,
+    "tensorboard": false
+  },
+  "assets": {
+    "recovery_training_contract": {
+      "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_11__recovery_preentry48_restart/output_contract.json",
+      "sha256": "71d2b06b6617b9499f056e9951b2ca7c3a3ee8b2d100169a4e57f09ba21575db"
+    },
+    "recovery_mujoco": {
+      "version": "recovery_mujoco_collection_v1",
+      "model": {
+        "path": "/home/kellen/wheel_leg_training_data/recovery2100_distillation_engineering/mujoco_frozen_model/original_xml_reference.mjb",
+        "sha256": "0799a4d0d1fdcad4e6ee5497803294b62ca859d965b83d6173e1441041f79f9c"
+      },
+      "model_readback": {
+        "path": "/home/kellen/wheel_leg_training_data/recovery2100_distillation_engineering/mujoco_frozen_model/model_readback.json",
+        "sha256": "3c3dbe7ad4b915a1410ab36cd86bd7e651ab30fe389891192b35dfc81d2e4575"
+      },
+      "catalog": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__recovery_standalone_restart10000/initial_states.json",
+        "sha256": "6e1e68c7b344abeafce7965af977b16ada8649e8f5dbad76dee892098718313d"
+      },
+      "V4_contract": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_10_30__bilateral_detailed_response_v4/candidate_contract.json",
+        "sha256": "5510088cc1f57f823718fd36218beb32cabf3c1d8ce708cf75531129178dc1cd"
+      },
+      "V4_tensor": {
+        "path": "/home/kellen/wheel_leg_native_train/isolated/2026_11_05__motion_supported2048_dqgain_ppo/response_tensor.py",
+        "sha256": "7cdd53f8354fc1b2491b8e3b92e2b28d9e5eb02913c59ce684afe43ff6f227d3"
+      },
+      "execution_sources": {
+        "execution": {
+          "path": "/home/kellen/wheel_leg_recovery_ws/src/native_stand/simulation/recovery_isaac/execution.py",
+          "sha256": "f986a30757fc4b8c9dfb9c2a3d83d03564ff6a071b2e00616ba2bb34d1d2c25a"
+        },
+        "lifecycle": {
+          "path": "/home/kellen/wheel_leg_recovery_ws/src/native_stand/simulation/recovery_isaac/lifecycle.py",
+          "sha256": "d3a6df814bbebda7394bdf1c8aaaeb21d0e954ca4aaa1959fdff8b197e2bfec4"
+        },
+        "legacy_lifecycle": {
+          "path": "/home/kellen/wheel_leg_recovery_ws/src/native_stand/simulation/recovery_isaac/legacy_lifecycle.py",
+          "sha256": "24620f07e795f444ebbddffb6233e1419414b4295ca67d4458f223ad315d74ab"
+        },
+        "preentry_lifecycle": {
+          "path": "/home/kellen/wheel_leg_recovery_ws/src/native_stand/simulation/recovery_isaac/preentry_lifecycle.py",
+          "sha256": "7e1b32d8f8c6c44074d0c09f315ec04722b65baf8e662fbe103ebcf5f7b054e8"
+        },
+        "settle_lifecycle": {
+          "path": "/home/kellen/wheel_leg_recovery_ws/src/native_stand/simulation/recovery_isaac/settle_lifecycle.py",
+          "sha256": "49a05fcf1ff75a62844e4e254be20fca9951ae54e10d6d478761a91118af2809"
+        }
+      },
+      "episode_seconds": 23.0,
+      "cases": {
+        "train": [
+          {
+            "case_id": "train_00",
+            "seed": 913001,
+            "pose": "Swing",
+            "yaw_rad": 0.0,
+            "DR_strength": 0.0,
+            "cohort": 0,
+            "contact_version": "original_XML_contact_reference"
+          },
+          {
+            "case_id": "train_01",
+            "seed": 913002,
+            "pose": "Swing",
+            "yaw_rad": 1.5707963267948966,
+            "DR_strength": 0.0,
+            "cohort": 1,
+            "contact_version": "original_XML_contact_reference"
+          },
+          {
+            "case_id": "train_02",
+            "seed": 913003,
+            "pose": "Swing",
+            "yaw_rad": -1.5707963267948966,
+            "DR_strength": 0.25,
+            "cohort": 2,
+            "contact_version": "original_XML_contact_reference"
+          },
+          {
+            "case_id": "train_03",
+            "seed": 913004,
+            "pose": "Swing",
+            "yaw_rad": 0.0,
+            "DR_strength": 0.25,
+            "cohort": 3,
+            "contact_version": "original_XML_contact_reference"
+          },
+          {
+            "case_id": "train_04",
+            "seed": 913005,
+            "pose": "Swing",
+            "yaw_rad": 1.5707963267948966,
+            "DR_strength": 0.5,
+            "cohort": 4,
+            "contact_version": "original_XML_contact_reference"
+          },
+          {
+            "case_id": "train_05",
+            "seed": 913006,
+            "pose": "Swing",
+            "yaw_rad": -1.5707963267948966,
+            "DR_strength": 0.5,
+            "cohort": 5,
+            "contact_version": "original_XML_contact_reference"
+          },
+          {
+            "case_id": "train_06",
+            "seed": 913007,
+            "pose": "Swing",
+            "yaw_rad": 0.0,
+            "DR_strength": 1.0,
+            "cohort": 6,
+            "contact_version": "original_XML_contact_reference"
+          },
+          {
+            "case_id": "train_07",
+            "seed": 913008,
+            "pose": "standing_h0.34",
+            "yaw_rad": 1.5707963267948966,
+            "DR_strength": 0.0,
+            "cohort": 7,
+            "contact_version": "original_XML_contact_reference"
+          }
+        ],
+        "development": [
+          {
+            "case_id": "development_00",
+            "seed": 914001,
+            "pose": "Swing",
+            "yaw_rad": 0.0,
+            "DR_strength": 0.0,
+            "cohort": 0,
+            "contact_version": "original_XML_contact_reference"
+          },
+          {
+            "case_id": "development_01",
+            "seed": 914002,
+            "pose": "Swing",
+            "yaw_rad": 1.5707963267948966,
+            "DR_strength": 0.0,
+            "cohort": 1,
+            "contact_version": "original_XML_contact_reference"
+          },
+          {
+            "case_id": "development_02",
+            "seed": 914003,
+            "pose": "Swing",
+            "yaw_rad": -1.5707963267948966,
+            "DR_strength": 0.25,
+            "cohort": 2,
+            "contact_version": "original_XML_contact_reference"
+          },
+          {
+            "case_id": "development_03",
+            "seed": 914004,
+            "pose": "Swing",
+            "yaw_rad": 0.0,
+            "DR_strength": 0.25,
+            "cohort": 3,
+            "contact_version": "original_XML_contact_reference"
+          },
+          {
+            "case_id": "development_04",
+            "seed": 914005,
+            "pose": "Swing",
+            "yaw_rad": 1.5707963267948966,
+            "DR_strength": 0.5,
+            "cohort": 4,
+            "contact_version": "original_XML_contact_reference"
+          },
+          {
+            "case_id": "development_05",
+            "seed": 914006,
+            "pose": "Swing",
+            "yaw_rad": -1.5707963267948966,
+            "DR_strength": 0.5,
+            "cohort": 5,
+            "contact_version": "original_XML_contact_reference"
+          },
+          {
+            "case_id": "development_06",
+            "seed": 914007,
+            "pose": "Swing",
+            "yaw_rad": 0.0,
+            "DR_strength": 1.0,
+            "cohort": 6,
+            "contact_version": "original_XML_contact_reference"
+          },
+          {
+            "case_id": "development_07",
+            "seed": 914008,
+            "pose": "standing_h0.34",
+            "yaw_rad": 1.5707963267948966,
+            "DR_strength": 0.0,
+            "cohort": 7,
+            "contact_version": "original_XML_contact_reference"
+          }
+        ],
+        "holdout": [
+          {
+            "case_id": "holdout_00",
+            "seed": 915001,
+            "pose": "Swing",
+            "yaw_rad": 0.0,
+            "DR_strength": 0.0,
+            "cohort": 0,
+            "contact_version": "original_XML_contact_reference"
+          },
+          {
+            "case_id": "holdout_01",
+            "seed": 915002,
+            "pose": "Swing",
+            "yaw_rad": 1.5707963267948966,
+            "DR_strength": 0.0,
+            "cohort": 1,
+            "contact_version": "original_XML_contact_reference"
+          },
+          {
+            "case_id": "holdout_02",
+            "seed": 915003,
+            "pose": "Swing",
+            "yaw_rad": -1.5707963267948966,
+            "DR_strength": 0.25,
+            "cohort": 2,
+            "contact_version": "original_XML_contact_reference"
+          },
+          {
+            "case_id": "holdout_03",
+            "seed": 915004,
+            "pose": "Swing",
+            "yaw_rad": 0.0,
+            "DR_strength": 0.25,
+            "cohort": 3,
+            "contact_version": "original_XML_contact_reference"
+          },
+          {
+            "case_id": "holdout_04",
+            "seed": 915005,
+            "pose": "Swing",
+            "yaw_rad": 1.5707963267948966,
+            "DR_strength": 0.5,
+            "cohort": 4,
+            "contact_version": "original_XML_contact_reference"
+          },
+          {
+            "case_id": "holdout_05",
+            "seed": 915006,
+            "pose": "Swing",
+            "yaw_rad": -1.5707963267948966,
+            "DR_strength": 0.5,
+            "cohort": 5,
+            "contact_version": "original_XML_contact_reference"
+          },
+          {
+            "case_id": "holdout_06",
+            "seed": 915007,
+            "pose": "Swing",
+            "yaw_rad": 0.0,
+            "DR_strength": 1.0,
+            "cohort": 6,
+            "contact_version": "original_XML_contact_reference"
+          },
+          {
+            "case_id": "holdout_07",
+            "seed": 915008,
+            "pose": "standing_h0.34",
+            "yaw_rad": 1.5707963267948966,
+            "DR_strength": 0.0,
+            "cohort": 7,
+            "contact_version": "original_XML_contact_reference"
+          }
+        ]
+      }
+    },
+    "physical_gpu_uuid": "GPU-e704e7d4-2965-4712-9759-ba6b9910bd72",
+    "gpu_resource_policy": {
+      "mode": "shared_authorized",
+      "authorization": {
+        "path": "/home/kellen/wheel_leg_distill_ws/configs/recovery/distillation2100_authorization.json",
+        "sha256": "779465444fc727d1f73ea31f3ce41e7a21936b3cf4e595115f025c752e6e51a6"
+      },
+      "minimum_free_MiB": 2048,
+      "minimum_disk_free_bytes": 8589934592,
+      "storage_path": "/home/kellen/wheel_leg_training_data"
+    }
+  },
+  "reward": {
+    "version": "recovery_preentry_runaway48_physical_v8",
+    "dt": 0.01,
+    "weights": [
+      1.0
+    ],
+    "fields": {
+      "source": "recovery_isaac.lifecycle"
+    }
+  },
+  "notifications": {
+    "enabled": false,
+    "target": null
+  },
+  "supervision": {
+    "teachers": [
+      {
+        "name": "Recovery2100",
+        "path": "/home/kellen/wheel_leg_training_data/2026_11_13__recovery_settle48_full1800_10000_attempt4/checkpoints/model_update_2100.pt",
+        "sha256": "5aec83df5644ae1b96f4ed012be41d41cb15c4729bbc7b632af347912d3d12a9",
+        "inference": {
+          "kind": "recovery_physical",
+          "input_dim": 31,
+          "hidden_dims": [
+            2048,
+            1024,
+            512
+          ],
+          "output_dim": 6,
+          "input_contract": {
+            "version": "recovery_cubic_physical_v2",
+            "observation": {
+              "frame_dim": 22,
+              "actor_dim": 31,
+              "critic_dim": 909,
+              "leg_input_scale_rad": 1.5,
+              "wheel_input_scale_rad_s": 100.0
+            }
+          },
+          "output_contract": {
+            "action_version": "recovery_cubic_physical_Gaussian_v2",
+            "actor_dimensions": [
+              31,
+              2048,
+              1024,
+              512,
+              6
+            ],
+            "hidden_activation": "ELU(alpha=1)",
+            "mean_activation": "Tanh",
+            "center_rad": [
+              -0.13097405433654785,
+              -0.15117678046226501,
+              0.13097405433654785,
+              -0.15117678046226501
+            ],
+            "leg_lower_rad": [
+              -1.5,
+              -1.5,
+              -1.5,
+              -1.5
+            ],
+            "leg_upper_rad": [
+              1.5,
+              1.5,
+              1.5,
+              1.5
+            ],
+            "center_slope_rad": 0.15,
+            "wheel_scale_rad_s": 100.0,
+            "height_command_m": "per-cycle explicit command, not a fixed decoder center",
+            "height_change_within_episode": true,
+            "input_leg_scale_rad": 1.5,
+            "input_wheel_previous_scale_rad_s": 100.0,
+            "input_leg_dq_scale": 0.05,
+            "Actor_leg_dq_multiplier": 1.0,
+            "PD_D_retained": true,
+            "previous": "actual adopted physical target after protection",
+            "center_source": {
+              "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_07__motion_C0_interface_large_ppo_handoff/large_output_contract.json",
+              "sha256": "b095ef1983991e3e12196b7cdf73fa7a1030e1b0c1af4a0e08c107c63bc74cd7"
+            },
+            "raw_action": "physical target Gaussian sample before explicit range/mechanical protection; log_prob of this original rad/rad_s sample",
+            "formula": "d=a_leg; R=upper-center if d>=0 else center-lower; q=center+.15*d+(R-.15)*d^3; wheel=100*a_wheel",
+            "derivative_warning": "center decoder slope is not the complete Actor feedback gain; exact physical relabel keeps old gain",
+            "mechanical_protection": "same named joint limits after physical decode; adopted target alone enters previous",
+            "parameters_must_not_be_guessed": [
+              "encoder zero delta",
+              "spring or extra compensation"
+            ],
+            "hardware_deployment_accepted": false,
+            "limits_not_changed": false,
+            "deterministic_source_version": "recovery_centered_cubic_v1",
+            "deterministic_source_sha256": "77ec4036b78e6fad962227457c5b9f070e863000d81175b8063da53e2a655338",
+            "sampling_distribution": {
+              "version": "physical_target_Gaussian_v2",
+              "fixed_std": [
+                0.02,
+                0.02,
+                2,
+                0.02,
+                0.02,
+                2
+              ],
+              "raw_units": [
+                "rad",
+                "rad",
+                "rad/s",
+                "rad",
+                "rad",
+                "rad/s"
+              ],
+              "second_mean_space_Gaussian": false,
+              "entropy_coefficient": 0
+            },
+            "critic_privileged_version": "recovery_standalone_height_causal909_v5",
+            "actor_only": true,
+            "old_Critic_Adam_log_std_resume": false,
+            "height_conditioning": "Actor absolute height slot; cubic center stays fixed at original .34 reference",
+            "motor_effort_limits_nm": [
+              40.0,
+              40.0,
+              4.8,
+              40.0,
+              40.0,
+              4.8
+            ],
+            "motor_limit_revision": "user unified wheel motor4.8Nm; leg40Nm; motor and external NET remain separate"
+          },
+          "activation": "ELU"
+        },
+        "labels": {
+          "kind": "physical"
+        },
+        "conditions": {}
+      }
+    ],
+    "student": {
+      "kind": "recovery_physical",
+      "input_dim": 31,
+      "hidden_dims": [
+        256,
+        128,
+        64
+      ],
+      "output_dim": 6,
+      "input_contract": {
+        "version": "recovery_cubic_physical_v2",
+        "observation": {
+          "frame_dim": 22,
+          "actor_dim": 31,
+          "critic_dim": 909,
+          "leg_input_scale_rad": 1.5,
+          "wheel_input_scale_rad_s": 100.0
+        }
+      },
+      "output_contract": {
+        "action_version": "recovery_cubic_physical_Gaussian_v2",
+        "actor_dimensions": [
+          31,
+          256,
+          128,
+          64,
+          6
+        ],
+        "hidden_activation": "ELU(alpha=1)",
+        "mean_activation": "Tanh",
+        "center_rad": [
+          -0.13097405433654785,
+          -0.15117678046226501,
+          0.13097405433654785,
+          -0.15117678046226501
+        ],
+        "leg_lower_rad": [
+          -1.5,
+          -1.5,
+          -1.5,
+          -1.5
+        ],
+        "leg_upper_rad": [
+          1.5,
+          1.5,
+          1.5,
+          1.5
+        ],
+        "center_slope_rad": 0.15,
+        "wheel_scale_rad_s": 100.0,
+        "height_command_m": "per-cycle explicit command, not a fixed decoder center",
+        "height_change_within_episode": true,
+        "input_leg_scale_rad": 1.5,
+        "input_wheel_previous_scale_rad_s": 100.0,
+        "input_leg_dq_scale": 0.05,
+        "Actor_leg_dq_multiplier": 1.0,
+        "PD_D_retained": true,
+        "previous": "actual adopted physical target after protection",
+        "center_source": {
+          "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_07__motion_C0_interface_large_ppo_handoff/large_output_contract.json",
+          "sha256": "b095ef1983991e3e12196b7cdf73fa7a1030e1b0c1af4a0e08c107c63bc74cd7"
+        },
+        "raw_action": "physical target Gaussian sample before explicit range/mechanical protection; log_prob of this original rad/rad_s sample",
+        "formula": "d=a_leg; R=upper-center if d>=0 else center-lower; q=center+.15*d+(R-.15)*d^3; wheel=100*a_wheel",
+        "derivative_warning": "center decoder slope is not the complete Actor feedback gain; exact physical relabel keeps old gain",
+        "mechanical_protection": "same named joint limits after physical decode; adopted target alone enters previous",
+        "parameters_must_not_be_guessed": [
+          "encoder zero delta",
+          "spring or extra compensation"
+        ],
+        "hardware_deployment_accepted": false,
+        "limits_not_changed": false,
+        "deterministic_source_version": "recovery_centered_cubic_v1",
+        "deterministic_source_sha256": "77ec4036b78e6fad962227457c5b9f070e863000d81175b8063da53e2a655338",
+        "sampling_distribution": {
+          "version": "physical_target_Gaussian_v2",
+          "fixed_std": [
+            0.02,
+            0.02,
+            2,
+            0.02,
+            0.02,
+            2
+          ],
+          "raw_units": [
+            "rad",
+            "rad",
+            "rad/s",
+            "rad",
+            "rad",
+            "rad/s"
+          ],
+          "second_mean_space_Gaussian": false,
+          "entropy_coefficient": 0
+        },
+        "critic_privileged_version": "recovery_standalone_height_causal909_v5",
+        "actor_only": true,
+        "old_Critic_Adam_log_std_resume": false,
+        "height_conditioning": "Actor absolute height slot; cubic center stays fixed at original .34 reference",
+        "motor_effort_limits_nm": [
+          40.0,
+          40.0,
+          4.8,
+          40.0,
+          40.0,
+          4.8
+        ],
+        "motor_limit_revision": "user unified wheel motor4.8Nm; leg40Nm; motor and external NET remain separate"
+      },
+      "activation": "ELU"
+    },
+    "student_labels": {
+      "kind": "physical"
+    },
+    "dataset": {
+      "path": "/home/kellen/wheel_leg_distill_mujoco_ws/configs/recovery/distillation_empty_view.json",
+      "sha256": "f90317a69deb944e9126efc3104542b46bb97aaad81f3dd6e30da897ea7410fa",
+      "kind": "episode_dataset_view_v1"
+    },
+    "phases": [
+      {
+        "operation": "collect",
+        "steps": 4600,
+        "policy": "Recovery2100"
+      },
+      {
+        "operation": "label"
+      },
+      {
+        "operation": "fit",
+        "rounds": 20
+      },
+      {
+        "operation": "compare",
+        "steps": 2300
+      },
+      {
+        "operation": "collect",
+        "steps": 4600
+      },
+      {
+        "operation": "label"
+      },
+      {
+        "operation": "fit",
+        "rounds": 20
+      },
+      {
+        "operation": "compare",
+        "steps": 2300
+      },
+      {
+        "operation": "compare",
+        "steps": 2300,
+        "final": true
+      },
+      {
+        "operation": "export"
+      }
+    ],
+    "batch_size": 1024,
+    "learning_rate": 0.0003,
+    "objective": {
+      "kind": "physical_huber",
+      "scales": [
+        0.05,
+        0.05,
+        10.0,
+        0.05,
+        0.05,
+        10.0
+      ],
+      "phase_weights": {
+        "0": 1.0,
+        "1": 1.0,
+        "2": 2.0,
+        "3": 4.0,
+        "4": 1.0,
+        "5": 2.0,
+        "6": 2.0
+      },
+      "updates_per_round": 50
+    },
+    "initial_student": {
+      "path": "/home/kellen/wheel_leg_training_data/2026_11_13__recovery2100_small256_distillation_r3/supervision/phase_002_fit/student_actor.pt",
+      "sha256": "21be7ac5d5ef3eb7c6f679a947c434025331b307b16090b119063b6faa8796de"
+    },
+    "selection_metrics": [
+      "rise_success_rate",
+      "continuous_10s_rate"
+    ]
+  },
+  "experiment_variables": {
+    "total_task_budget": null,
+    "teacher_fixed_sha256": "5aec83df5644ae1b96f4ed012be41d41cb15c4729bbc7b632af347912d3d12a9",
+    "primary_goal": "Replicate autonomous rise; slow post-standing drift acceptable",
+    "prior_consumption": {
+      "physical_steps": 13479680,
+      "supervised_updates": 1000,
+      "previous_baseline_mujoco_integration_steps": 138000
+    },
+    "prior_failed_offline_run": {
+      "path": "/home/kellen/wheel_leg_training_data/2026_11_13__recovery2100_mujoco_offline_bc_r1",
+      "supervised_updates": 0,
+      "reason": "rejected at missing routing conditions; old regression dataset quarantined"
+    },
+    "execution_block": "40 rounds x50 optimizer updates; full-reset paired teacher/student comparisons; final holdout after candidate freeze; 4h wall and8GiB cap",
+    "initialization_boundary": "New MuJoCo data-domain experiment, explicit Actor-only warm start from saved Isaac BC candidate; new Adam/RNG; prior1000 supervised updates remain charged, not a full-state continuation."
+  }
+}

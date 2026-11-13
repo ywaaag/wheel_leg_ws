@@ -1,5 +1,12 @@
 # 当前任务
 
+## Recovery2100 MuJoCo起身蒸馏（2026-11-13）
+
+蒸馏/电控负责人在独立`recovery/2100-mujoco-rise`分支，从main `12c8be4`复用已有监督owner/worker、物理Huber、episode划分、停止恢复和部署。教师固定2100 SHA `5aec83df…d12a9`。本轮优先复刻起身，慢速漂移单报，不强求解决教师较硬接触缺口。原延迟扩展已正常STOPPED_BOUNDED、failure=null，累计20轮/1000优化、13,479,680物理步保留。原15组只作回归；误建offline r1在标签前失败、优化0，数据隔离。
+
+新增原XML MuJoCo collection factory及配置，通过显式SHA绑定模型/版本/V4/执行器接线，未复制训练生命周期。三航向旧学生快速MuJoCo基线3/3起身、3/3保持；正式adapter教师smoke1/1起身/100Hz和原始1kHz保持通过、实际46,000子步。它们是有限固定条件证据，不是新学生最终泛化验收。新配方计划8条件Teacher采集→20轮BC→开发比较→Student采集补教→20轮→开发/冻结候选→最终检查→部署。启动与能力结果写对应run，不把提交称完成。
+
+
 ## Motion开训前审阅与欠转诊断（2026-11-13）
 
 在独立`motion/pretrain-gate-audit`分支复核保留的15个训练统计窗口。正式SplitCourse.advance的基础保留门槛：u100失败（DR±2rad/s自转），u200～u1500全部通过；近期连续6窗未见结构性晋级阻断。新75%行进转向评分缺逐回合记录，重评UNKNOWN。逐cohort结果及来源SHA位于数据根`motion_pretrain_audit/20261113_turn_focus_v3/`。

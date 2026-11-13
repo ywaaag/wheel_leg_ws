@@ -25,6 +25,9 @@ def summarize(arrays):
                 lost_contact=bool((entered & ~dual).any()) if ended else None,
                 hold10=bool(hold.max() >= 10 - 1e-5) if ended else None,
                 HF_peak=float(arrays["condition_HF_peak"][mask].max()),
+                raw_hold10=bool(arrays["condition_raw_longest_hold_s"][mask].max() >= 10 - 1e-5)
+                if "condition_raw_longest_hold_s" in arrays and ended
+                else None,
             )
         )
     complete = [r for r in rows if r["complete"]]
@@ -39,6 +42,9 @@ def summarize(arrays):
         else None,
         continuous_10s_rate=np.mean([r["hold10"] for r in complete]).item() if complete else None,
         HF_peak=max((r["HF_peak"] for r in rows), default=None),
+        raw_continuous_10s_rate=np.mean([r["raw_hold10"] for r in complete]).item()
+        if complete and all(r["raw_hold10"] is not None for r in complete)
+        else None,
         delay_robustness={
             str(c): dict(
                 completed=sum(r["cohort"] == c for r in complete),

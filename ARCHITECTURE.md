@@ -184,3 +184,7 @@ sim2sim不是训练课程或另一套worker：显式协议经CLI直接顺序拥�
 Recovery监督扩展：`learning/distillation/objective.py`负责显式物理Huber和回合/阶段采样质量；`tasks/recovery/distillation_metrics.py`只计算真实首回合指标。`supervision_flow`复用collector、现有Recovery环境和owner预算，显式选择教师/学生行为策略、固定更新数fit与有界闭环compare；环境在worker内复用并在finally关闭。compare不向数据聚合回灌。部署模块接收带SHA和行号的真实golden来源，复用C核心核对三次decoder。未新增scripts工具或训练进程创建点。
 
 Recovery collector通过显式collection/validation cases区分采集与评分；case只覆盖原有reset参数与具名队列时序，不新增延迟阶段。PhysicalActor.decode_mean复用同一三次解码，collector记录归一化network mean与原始物理动作、执行目标及力矩；训练/播放/导出仍调用原PhysicalActor前向。
+
+Recovery原XML MuJoCo采集由`simulation/recovery_mujoco.py`实现，通过`execution_service`和公共collection进入既有监督worker。只支持显式Recovery distillation合同，不开放MuJoCo PPO；执行器/生命周期用factory注入，禁止全局替换。原XML二进制模型、版本和源SHA属于外部构建产物；正式源码不导入旧scripts/isolated工具。源物理快照构建是一次性准备，不构成新训练入口。
+
+`artifacts/c_actor.py`仅在部署边界生成FP32 ELU/Tanh Actor C源码，复用`simulation.control_core.build(additional_sources=...)`和原`RLPolicyDecode`。生成模型不另建编译launcher或控制实现，golden核对包括完整C网络及一次解码，主机时延与MCU认证分开。
