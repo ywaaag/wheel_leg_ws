@@ -109,6 +109,12 @@ def execution_service(job: JobConfig) -> dict[str, Any]:
             "module": declared["module"],
             "reason": "显式任务执行合同；未实现后端拒绝",
         }
+    if job.backend == "mujoco" and job.assets.get("recovery_mujoco"):
+        return {
+            "service": "generic",
+            "module": "native_stand.simulation.recovery_mujoco",
+            "reason": "Explicit Recovery original-XML collection contract",
+        }
     if job.backend != "isaac":
         return {
             "service": "generic",

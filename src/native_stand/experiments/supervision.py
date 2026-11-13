@@ -62,11 +62,17 @@ class SupervisionConfig:
     initial_student: dict | None = None
     rehearsal: tuple[dict, ...] = ()
     objective: dict | None = None
+    selection_metrics: tuple[str, ...] = ("continuous_10s_rate", "rise_success_rate")
 
     def __post_init__(self):
         from native_stand.learning.distillation.objective import validate_objective
 
         validate_objective(self.objective, self.student.get("kind"))
+        if (
+            set(self.selection_metrics) != {"continuous_10s_rate", "rise_success_rate"}
+            or len(self.selection_metrics) != 2
+        ):
+            raise ValueError("Explicit rise/hold closed-loop selection priority required")
         names = {t.name for t in self.teachers}
         if any(p.policy != "student" and p.policy not in names for p in self.phases):
             raise ValueError("Collection policy must name an explicit Teacher")
@@ -115,6 +121,9 @@ class SupervisionConfig:
                 "teachers": tuple(TeacherConfig(**r) for r in record["teachers"]),
                 "phases": tuple(PhaseConfig(**r) for r in record["phases"]),
                 "rehearsal": tuple(record.get("rehearsal", ())),
+                "selection_metrics": tuple(
+                    record.get("selection_metrics", ("continuous_10s_rate", "rise_success_rate"))
+                ),
             }
         )
 

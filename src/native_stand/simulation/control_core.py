@@ -46,7 +46,7 @@ def verify_source(source=SOURCE):
     return manifest
 
 
-def build(output, *, source=SOURCE, jump=False):
+def build(output, *, source=SOURCE, jump=False, additional_sources=()):
     source = Path(source)
     manifest = verify_source(source)
     output = Path(output)
@@ -73,6 +73,7 @@ def build(output, *, source=SOURCE, jump=False):
             *(["-DRL_JUMP_NOMINAL_V1=1"] if jump else []),
             "-I" + str(source),
             *(str(source / n) for n in names),
+            *(str(Path(p)) for p in additional_sources),
             "-lm",
             "-o",
             str(output),
