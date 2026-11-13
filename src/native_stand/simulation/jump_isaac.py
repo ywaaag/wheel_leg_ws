@@ -26,7 +26,7 @@ from native_stand.simulation.jump_isaac_critic import BatchCritic, RowCritic
 from native_stand.simulation.jump_response import Response
 from native_stand.simulation.jump_unified import UnifiedV4Execution
 from native_stand.tasks.jump.adaptive_course import AdaptiveCourse
-from native_stand.tasks.jump.dense_reward import RewardConfig, TaskSpec
+from native_stand.tasks.jump.dense_reward import TaskSpec
 from native_stand.tasks.jump.geometry import CHANNELS
 from native_stand.tasks.jump.isaac_contract import CRITIC, TRAINING
 from native_stand.tasks.jump.unified import BALANCE
@@ -57,6 +57,8 @@ def validate_job(job):
     from native_stand.tasks.jump.spec import build_task
 
     build_task(job)
+    if job.assets.get("jump_compute") not in (None, "cuda_firmware_warp_inverse_v1"):
+        raise ValueError("Explicit supported Jump compute contract required")
     if job.reward.version != REWARD_VERSION:
         raise ValueError("Explicit current Jump reward version required")
     if job.backend != "isaac" or job.action.version != TRAINING or job.runtime.device != "cuda:0":
@@ -109,6 +111,9 @@ class IsaacJump:
         from native_stand.simulation.jump_isaac_scene import physical_contract
 
         self.physical_contract = physical_contract(self.num_envs)
+        self.training_semantics = dict(TRAINING_SEMANTICS)
+        if self.job.assets.get("jump_compute") == "cuda_firmware_warp_inverse_v1":
+            self.training_semantics["compute"] = "cuda_firmware_warp_inverse_v1"
         self.identity = json_digest(
             dict(
                 contract=job.assets["jump_contract_data"],
@@ -116,7 +121,7 @@ class IsaacJump:
                 course=job.assets["jump_course"],
                 backend=TRAINING,
                 physics=self.physical_contract,
-                training=TRAINING_SEMANTICS,
+                training=self.training_semantics,
                 envs=self.num_envs,
             )
         )
@@ -194,7 +199,16 @@ class IsaacJump:
         )
         material = self.scene.physics.material.detach().cpu().numpy()
         self._material_bounds = np.stack((material.min(1), material.max(1)), 1)
-        self.execution = UnifiedV4Execution(
+        execution_factory = UnifiedV4Execution
+        execution_kwargs = {}
+        if self.job.assets.get("jump_compute") == "cuda_firmware_warp_inverse_v1":
+            from native_stand.simulation.jump_cuda_execution import CudaExecution
+            from native_stand.simulation.jump_device_inverse import DeviceInverse
+
+            execution_factory = CudaExecution
+            execution_kwargs["cuda_output"] = self.output / "cuda_firmware"
+            self.device_inverse = DeviceInverse(self.inverse, self.num_envs, self.device)
+        self.execution = execution_factory(
             self.binding["path"],
             V4,
             Response,
@@ -202,6 +216,7 @@ class IsaacJump:
             device=self.device,
             library_sha=self.binding["sha256"],
             row_faults=True,
+            **execution_kwargs,
         )
         self.execution.c.measurement = self.measurement
         cfg = self.execution.c.config
@@ -209,6 +224,8 @@ class IsaacJump:
         cfg.model_id = 0x53494D34
         cfg.model_input_id = self.execution.c.INPUT_CONTRACT
         cfg.model_output_id = self.execution.c.OUTPUT_CONTRACT
+        if hasattr(self.execution, "gpu"):
+            self.execution.gpu.config.copy_(self.execution.gpu.words(cfg))
         self.courses = [
             AdaptiveCourse(seed=self.job.runtime.seed + i, **self.job.assets["jump_course"])
             for i in range(self.num_envs)
@@ -304,6 +321,23 @@ class IsaacJump:
 
     def prepare(self, host, *, reset_ids=None):
         e = self.execution
+        if hasattr(e, "gpu"):
+            if self.prepared_tick == e.tick and reset_ids is None:
+                return
+            if reset_ids is None and e.tick % 5:
+                self.prepared_tick = e.tick
+                return
+            with self.measurement.section("jump_GPU_inverse_C", synchronize=False):
+                feedback = self.device_inverse.evaluate(self.scene.measured(), self.motor, self.NET)
+                request = (
+                    self._active_requests
+                    & ((e.tick - self._device_starts) >= 1500)
+                    & (e.gpu.field("phase") == BALANCE)
+                    & (e.gpu.field("request_id") == 0)
+                )
+                e.prepare_device(feedback, request, reset_ids=reset_ids)
+            self.prepared_tick = e.tick
+            return
         if self.prepared_tick == e.tick and reset_ids is None:
             return
         if reset_ids is None and e.tick % 5:
@@ -370,6 +404,91 @@ class IsaacJump:
             fault=bool(fault or state.fault or h["restricted"][i] or h["closure"][i].max() > 0.005),
         )
 
+    def validate_device_measurement(self):
+        """Same physical gate, reducing on device instead of copying all rows."""
+        from native_stand.simulation.jump_isaac_scene import PHYSICAL_CONTRACT
+
+        measured = self.scene.measured()
+        packed = torch.cat([v.reshape(self.num_envs, -1).float() for v in measured.values()], -1)
+        scalars = (
+            torch.stack(
+                (
+                    torch.isfinite(packed).all().float(),
+                    measured["clearance"].amin(),
+                    measured["closure"].amax(),
+                    torch.isfinite(torch.stack((self.motor, self.NET, self.passive))).all().float(),
+                )
+            )
+            .cpu()
+            .numpy()
+        )
+        if (
+            scalars[0] == 0
+            or scalars[3] == 0
+            or -float(scalars[1]) > PHYSICAL_CONTRACT["maximum_wheel_penetration_m"]
+            or float(scalars[2]) > PHYSICAL_CONTRACT["maximum_closure_residual_m"]
+        ):
+            self.host()  # retains the same rejection and original packet receipt
+            raise RuntimeError("Device/host physical validation disagrees")
+
+    def device_packet(self):
+        """Actual physical tensors plus C decisions; no per-row reward packets."""
+        e = self.execution
+        # C adoption only changes at the 5ms controller/PD boundary. The
+        # snapshot after that PD includes its actually adopted target.
+        if hasattr(e, "gpu"):
+            g = e.gpu
+            c = torch.cat(
+                (
+                    torch.stack(
+                        (g.field("phase"), g.field("owner"), g.field("fault"), g.field("success")),
+                        -1,
+                    ).double(),
+                    g.field("adopted"),
+                ),
+                -1,
+            )
+        else:
+            c = None
+        key = (e.tick + 4) // 5
+        if c is None and getattr(self, "_device_controller_key", None) != key:
+            data = np.asarray(
+                [[s.phase, s.owner, s.fault, s.success, *s.adopted] for s in e.c.states],
+                dtype=np.float64,
+            )
+            self._device_controller = torch.as_tensor(data, device=self.device)
+            self._device_controller_key = key
+        if c is None:
+            c = self._device_controller
+        m = self.scene.measured()
+        leg_ids = [self.mechanics["joint_names"].index(n) for n in CHANNELS]
+        return dict(
+            dt_s=c.new_full((self.num_envs,), 0.001),
+            phase=c[:, 0],
+            owner=c[:, 1],
+            COM_height_m=m["COM"][:, 2],
+            COM_velocity_m_s=m["COMv"],
+            root_height_m=m["root"][:, 2],
+            tilt_rad=m["tilt"],
+            omega_rad_s=m["omega"],
+            leg_length_m=m["length"],
+            leg_swing_rad=m["swing"],
+            spring_length_m=m["spring"],
+            contact=m["contact"],
+            tire_clearance_m=m["clearance"],
+            wheel_normal_force_N=m["normal"],
+            contact_slip_m_s=m["slip"],
+            actual_motor_Nm=self.motor,
+            actual_dq_rad_s=m["joint"][:, 1, leg_ids],
+            adopted_target=c[:, 4:10],
+            force_valid=torch.ones(self.num_envs, dtype=torch.bool, device=self.device),
+            motion_confirmed=(c[:, 0] == BALANCE) & c[:, 3].bool(),
+            fault=c[:, 2].bool() | m["restricted"] | (m["closure"].amax(-1) > 0.005),
+            external_takeoff_assist=torch.zeros(
+                self.num_envs, dtype=torch.bool, device=self.device
+            ),
+        )
+
     def physical(self, i, h):
         r = self.requests[i]
         mass_COM = self._root_mass_COM[i]
@@ -394,6 +513,10 @@ class IsaacJump:
         )
 
     def row_observation(self, i, h, actor, *, execution=None):
+        if hasattr(self.execution, "gpu"):
+            self.execution.gpu.sync_to_host()
+        if hasattr(self, "device_reward"):
+            self.device_reward.export([i], self.rewards)
         return self.critics[i].pack(
             self.execution if execution is None else execution,
             i,
@@ -413,26 +536,41 @@ class IsaacJump:
         if self._obs is not None:
             return self._obs
         with self.measurement.section("jump_observation_pack", synchronize=False):
-            h = self.host()
+            h = (
+                self.host()
+                if not hasattr(self, "batch_critic") or not hasattr(self.execution, "gpu")
+                else None
+            )
             self.prepare(h)
-            actor, valid = self.execution.observe()
+            if hasattr(self.execution, "gpu"):
+                actor, valid = self.execution.observe_device()
+            else:
+                actor, valid = self.execution.observe()
             if not hasattr(self, "batch_critic"):
-                self.batch_critic = BatchCritic(self, actor, h)
+                self.batch_critic = BatchCritic(
+                    self, actor.detach().cpu().numpy() if torch.is_tensor(actor) else actor, h
+                )
             critic = self.batch_critic.pack(self, actor)
+            if hasattr(self.execution, "gpu"):
+                phase = self.execution.gpu.field("phase")[:, None]
+                owner = self.execution.gpu.field("owner")[:, None]
+            else:
+                phase = torch.tensor(
+                    [[s.phase] for s in self.execution.c.states], device=self.device
+                )
+                owner = torch.tensor(
+                    [[s.owner] for s in self.execution.c.states], device=self.device
+                )
             schema = self.critics[0].schema.contract()
             if json_digest(schema) != json_digest(self.job.assets["jump_critic_schema"]):
                 raise ValueError("Actual Isaac Critic schema differs from frozen job")
             self._obs = TensorDict(
                 dict(
-                    student_actor=torch.from_numpy(actor).to(self.device),
+                    student_actor=torch.as_tensor(actor, device=self.device),
                     student_critic=critic,
-                    recovery_actor_valid=torch.from_numpy(valid[:, None]).to(self.device),
-                    jump_C_phase=torch.tensor(
-                        [[s.phase] for s in self.execution.c.states], device=self.device
-                    ),
-                    jump_C_owner=torch.tensor(
-                        [[s.owner] for s in self.execution.c.states], device=self.device
-                    ),
+                    recovery_actor_valid=torch.as_tensor(valid[:, None], device=self.device),
+                    jump_C_phase=phase,
+                    jump_C_owner=owner,
                 ),
                 batch_size=[self.num_envs],
             )
@@ -465,6 +603,12 @@ class IsaacJump:
                 self.motor[i] = 0
                 self.NET[i] = 0
                 self.passive[i] = 0
+            if hasattr(self.execution, "gpu"):
+                self.execution.finalize_reset(ids)
+                self._active_requests = torch.tensor(
+                    [r["kind"] == "ground_active_jump" for r in self.requests], device=self.device
+                )
+                self._device_starts = torch.as_tensor(self.starts.copy(), device=self.device)
             self.prepared_tick = -1
             self._obs = None
             h = self.host()
@@ -483,6 +627,19 @@ class IsaacJump:
                 )
                 self.rewards[i] = UnifiedReward.start(spec, self.packet(i, h, 0.0))
                 self.measurement.count("jump_environment_resets")
+        from native_stand.tasks.jump.device_reward import DeviceReward
+
+        if not hasattr(self, "device_reward"):
+            self.device_reward = DeviceReward(self.rewards, self.device)
+            self.device_balance_s = torch.zeros(
+                self.num_envs, dtype=torch.float64, device=self.device
+            )
+            self.device_balance_good = torch.zeros_like(self.device_balance_s)
+        else:
+            self.device_reward.reset(ids, self.rewards)
+            self.device_balance_s[ids] = 0
+            self.device_balance_good[ids] = 0
+        self._device_controller_key = None
         result = self.observations()
         if partial and previous is not None:
             untouched = [i for i in range(self.num_envs) if i not in ids]
@@ -492,21 +649,19 @@ class IsaacJump:
 
     def step(self, raw):
         start = self.observations()
-        if (
-            self.execution.publish_raw(
-                raw, start["recovery_actor_valid"][:, 0].detach().cpu().numpy()
-            )
-            < 0
-        ).any():
+        valid = start["recovery_actor_valid"][:, 0]
+        if not hasattr(self.execution, "gpu"):
+            valid = valid.detach().cpu().numpy()
+        if (self.execution.publish_raw(raw, valid) < 0).any():
             raise RuntimeError("Actual C rejected raw publication")
         done = np.zeros(self.num_envs, dtype=bool)
         valid_steps = np.zeros(self.num_envs, dtype=np.int32)
-        reward = np.zeros(self.num_envs)
+        reward = torch.zeros(self.num_envs, dtype=torch.float64, device=self.device)
         terminal = {}
         outcomes = [None] * self.num_envs
         for _ in range(10):
-            h = self.host()
-            self.prepare(h)
+            if self.execution.tick % 5 == 0:
+                self.prepare(None if hasattr(self.execution, "gpu") else self.host())
             q = self.scene.robot.data.joint_pos.torch[:, self.scene.ids]
             dq = self.scene.robot.data.joint_vel.torch[:, self.scene.ids]
             motor, net = self.execution.step(q, dq)
@@ -515,32 +670,47 @@ class IsaacJump:
             with self.measurement.section("jump_PhysX_step", synchronize=False):
                 self.passive.copy_(self.scene.apply_effort(motor, net))
             self.measurement.count("jump_actual_engine_ticks", self.num_envs)
-            h = self.host()
-            ended = []
-            for i in range(self.num_envs):
-                if done[i]:
-                    continue
-                p = self.packet(i, h, 0.001)
-                result = self.rewards[i].step(p)
-                outcomes[i] = result
-                reward[i] += result["total"]
-                valid_steps[i] += 1
-                self.measurement.count("jump_reward_packets")
-                if p.phase == BALANCE and p.owner == 2:
-                    self.balance_s[i] += 0.001
-                    cfg = RewardConfig()
-                    good = (
-                        all(p.contact)
-                        and abs(p.root_height_m - 0.34) <= cfg.stable_height_error_m
-                        and max(map(abs, p.tilt_rad)) <= cfg.stable_tilt_rad
-                        and np.linalg.norm(p.COM_velocity_m_s[:2]) <= cfg.stable_vxy_m_s
-                        and np.linalg.norm(p.omega_rad_s) <= cfg.stable_omega_rad_s
-                    )
-                    self.balance_good[i] += 0.001 * bool(good)
-                if result["terminated"]:
-                    done[i] = True
-                    ended.append(i)
+            self.validate_device_measurement()
+            values = self.device_packet()
+            enabled = torch.as_tensor(~done, device=self.device)
+            result = self.device_reward.run(values, enabled)
+            new_done = result["terminated"].cpu().numpy()
+            reward += result["total"]
+            valid_steps += ~done
+            self.measurement.count("jump_reward_packets", int((~done).sum()))
+            balance = enabled & (values["phase"] == BALANCE) & (values["owner"] == 2)
+            cfg = self.device_reward.c
+            good = (
+                values["contact"].all(-1)
+                & ((values["root_height_m"] - 0.34).abs() <= cfg.stable_height_error_m)
+                & (values["tilt_rad"].abs().amax(-1) <= cfg.stable_tilt_rad)
+                & (
+                    torch.linalg.vector_norm(values["COM_velocity_m_s"][:, :2], dim=-1)
+                    <= cfg.stable_vxy_m_s
+                )
+                & (
+                    torch.linalg.vector_norm(values["omega_rad_s"], dim=-1)
+                    <= cfg.stable_omega_rad_s
+                )
+            )
+            self.device_balance_s += balance.double() * 0.001
+            self.device_balance_good += (balance & good).double() * 0.001
+            ended = np.flatnonzero(new_done).tolist()
             if ended:
+                self.device_reward.export(ended, self.rewards)
+                balance_stats = (
+                    torch.stack((self.device_balance_s, self.device_balance_good), -1)[ended]
+                    .cpu()
+                    .numpy()
+                )
+                for j, i in enumerate(ended):
+                    outcomes[i] = {k: bool(v[i]) for k, v in result.items() if k != "total"}
+                    self.balance_s[i], self.balance_good[i] = balance_stats[j]
+                done |= new_done
+            if ended:
+                h = self.host()
+                if hasattr(self.execution, "gpu"):
+                    self.execution.gpu.sync_to_host()
                 actor, _ = self.execution.c.observe()
                 execution = self.critic_snapshot()
                 for i in ended:
@@ -623,7 +793,7 @@ class IsaacJump:
             self.reset(np.flatnonzero(done))
         return dict(
             observations=self.observations(),
-            rewards=torch.tensor(reward, dtype=torch.float32, device=self.device),
+            rewards=reward.float(),
             dones=torch.tensor(done, device=self.device),
             terminated=torch.tensor(done, device=self.device),
             truncated=torch.zeros(self.num_envs, dtype=torch.bool, device=self.device),
@@ -643,7 +813,7 @@ class IsaacJump:
             version=TRAINING,
             identity=self.identity,
             physical_contract=self.physical_contract,
-            training_semantics=copy.deepcopy(TRAINING_SEMANTICS),
+            training_semantics=copy.deepcopy(self.training_semantics),
             restore="fresh_reset",
             execution=self.execution.state_dict(),
             courses=[c.state_dict() for c in self.courses],

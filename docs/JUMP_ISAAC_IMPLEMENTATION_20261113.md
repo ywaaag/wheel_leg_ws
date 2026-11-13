@@ -81,3 +81,17 @@ Isaac Critic现按dtype批量读回全体V4/response行，保持原字段顺序�
 正常策略观测经`IsaacJump.observations → BatchCritic.pack`，保留实际PhysX/V4/response张量在设备上。原5591列顺序、环形队列时间顺序、全部字段和float64归一化后float32输出保持；CPU侧真实C/FSM和dense reward记忆合并一次上传。首观测按RowCritic建立schema；RowCritic仍用于终态和诊断同tick逐位对照，因此不是删列或以常量代替实际历史。既有base TaskMemory本来每次由request新建，保持该合同，live dense记忆仍读取实际reward。
 
 InverseFeedback仅调用位置/速度相关MuJoCo forward阶段，用实际PhysX有限差分加速度计算逆模型，不运行被丢弃的约束/前向加速度。SupportWorkspace只缓存拓扑索引和每次覆盖的scratch，作用域为单个inverse实例，未缓存动态反馈。真实C/FSM、支持判定、奖励/课程与终止语义不变。没有新增trainer或worker；统一CLI/owner/公共driver保持。CPU逆模型与dense reward仍存在，不能声称全部GPU化；吞吐以对应正式run记录为准。
+
+
+## 显式全设备计算合同
+
+配置`assets.jump_compute="cuda_firmware_warp_inverse_v1"`选择同一Isaac后端的设备计算版本。正式入口仍为CLI→owner/worker→公共driver→JumpAdapter；没有新增trainer。未声明时保留CPU-C/逆模型消费者，供冻结来源和历史恢复对照。未知值拒绝，不静默回退。
+
+- C/FSM与PD：jump_cuda_build先调用原SHA/ABI构建校验，再只为私有副本的函数声明添加CUDA device限定。原C函数体、ABI4、阈值、动作解码和40/4.8Nm保持；每行一个CUDA线程，禁止fastmath/FMA。当前仅验收sm89。输出仍hardware OFF，非固件部署。
+- 逆动力学：MuJoCo Warp仅执行kinematics/com_pos/crb/com_vel/passive/rne和Jacobian，完全不调用step、碰撞或积分。状态和加速度来自实际PhysX。闭链切空间pinv以原rcond1e-9在double执行；同CAD六祖先链计算腿长。只有Isaac/PhysX推进世界。Warp数值原语使用float32，不能称CPU double逐位等价；compute合同进入execution identity，新run需显式来源和force_new_cohort，不继承旧成功窗口。
+- 奖励/终止：tasks.jump.device_reward在设备保存完整Dense/Unified记忆和previous packet；double累计与原标量顺序一致，已结束行冻结；仅正常结束/序列化导出标量参考，原once/来源/成功门控保持。
+- Critic：实际C连续ABI数组直接在设备解码，onehot/uint32相对年龄/全部5591列在设备组装；GPU奖励记忆直接接入，不经逐行Python。RowCritic保留作终态/逐列参考。
+- 物理检查：原1mm轮穿入/2mm闭链/finite门禁在每个真实tick设备归约，只读回少量标量。超限仍调用原host拒绝并保存原始故障packet，未放宽阈值。课程、已结束回合、checkpoint和owner资源管理仍CPU，不声称整个进程没有CPU。
+- 同步：Warp运行使用当前Torch CUDA stream，初始化一次同步，避免qpos/质量/Jacobian跨stream竞态。
+
+checkpoint完整学习状态保持，物理仍fresh_reset，不伪造hidden solver恢复。CUDA版需nvcc、MuJoCo Warp和Torch compile；当前本机IsaacSim6.0.1/sm89通过不代表远端6.2通过。具体运行性能与预算在run/artifacts记录。

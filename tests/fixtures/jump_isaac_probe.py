@@ -25,6 +25,7 @@ def main():
     parser.add_argument("--steps", type=int, default=40)
     parser.add_argument("--envs", type=int, default=2)
     parser.add_argument("--verify-critic-readback", action="store_true")
+    parser.add_argument("--verify-inverse-readback", action="store_true")
     args = parser.parse_args()
     job = load_job_config(args.config)
     job = replace(job, runtime=replace(job.runtime, envs=args.envs))
@@ -45,9 +46,48 @@ def main():
         actor.load_state_dict(source.payload["actor"])
         actor.to(job.runtime.device).eval()
         critic_comparisons = 0
+        inverse_comparisons = 0
+        inverse_errors = {}
         for index in range(args.steps):
             started = perf_counter()
             obs = env.observations()
+            if args.verify_inverse_readback and index % 40 == 0:
+                from native_stand.simulation.jump_device_c import abi_field
+                from native_stand.simulation.jump_shared_c import Input
+
+                env.execution.gpu.sync_to_host()
+                host = env.host()
+                limits = dict(
+                    gyro=1e-4,
+                    gravity=1e-5,
+                    q=0.0,
+                    dq=0.0,
+                    accel=0.005,
+                    driver_tau=0.0,
+                    internal_tau=0.01,
+                    support_J=1e-4,
+                    leg_length=1e-7,
+                    leg_spread=1e-5,
+                )
+                for row in sorted({0, env.num_envs // 2, env.num_envs - 1}):
+                    reference = env.inverse.input(
+                        tick=env.execution.tick,
+                        state=env.execution.c.states[row],
+                        root=host["root"][row],
+                        joint=host["joint"][row],
+                        acceleration=host["acceleration"][row],
+                        motor=host["motor"][row],
+                        NET=host["NET"][row],
+                        command=[0.0, 0.0, 0.34],
+                        request=False,
+                    )
+                    for name, tolerance in limits.items():
+                        actual = abi_field(env.execution.gpu.source_inputs, Input, name)[row].cpu()
+                        expected = torch.tensor(list(getattr(reference, name)), dtype=actual.dtype)
+                        error = float((actual - expected).abs().max())
+                        inverse_errors[name] = max(inverse_errors.get(name, 0.0), error)
+                        assert error <= tolerance, (name, row, error, tolerance)
+                    inverse_comparisons += 1
             if args.verify_critic_readback and (index % 40 == 0 or index in (11, args.steps - 1)):
                 # Compare the optimized snapshot path with direct live tensor
                 # reads at the same tick. This does not advance any physics.
@@ -72,6 +112,8 @@ def main():
                 )
             )
             if index == 10 and env.num_envs > 1:
+                if hasattr(env.execution, "gpu"):
+                    env.execution.gpu.sync_to_host()
                 before = bytes(env.execution.c.states[1])
                 env.reset([0])
                 assert bytes(env.execution.c.states[1]) == before
@@ -98,6 +140,8 @@ def main():
             Actor_sha256=source.sha256,
             torch_peak_allocated_bytes=torch.cuda.max_memory_allocated(),
             direct_vs_batched_critic_bitwise_comparisons=critic_comparisons,
+            GPU_vs_CPU_inverse_comparisons=inverse_comparisons,
+            inverse_maximum_absolute_errors=inverse_errors,
         )
     except BaseException as exc:
         receipt.update(status="FAILED", error=repr(exc), completed_policy_rows=rows)

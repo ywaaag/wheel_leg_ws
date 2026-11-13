@@ -91,3 +91,29 @@ def test_inverse_C_input_is_bitwise_equal_to_full_FK_without_RNG_or_engine(inver
         fresh = estimate(fast)
         for key in ("internal_tau", "driver_tau", "support_J"):
             np.testing.assert_array_equal(cached[key], fresh[key])
+
+
+def test_device_ancestor_chain_lengths_match_original_geometry_on_cpu(inverse_args):
+    import torch
+
+    from native_stand.simulation.jump_device_inverse import DeviceInverse
+
+    ref = InverseFeedback(*inverse_args)
+    ref.geometry.leg_lengths(ref.initial.q)
+    device = DeviceInverse.__new__(DeviceInverse)
+    device.n, device.device = 64, "cpu"
+    device.hips = torch.as_tensor(np.asarray(ref.geometry._leg_hips))
+    device.leg_chain = [
+        (j, ref.joint_names.index(j["name"]), torch.as_tensor(a), torch.as_tensor(b))
+        for j, a, b in ref.geometry._leg_chain
+    ]
+    rng = np.random.default_rng(116)
+    joint = torch.as_tensor(rng.uniform(-3, 3, (64, 3, len(ref.joint_names))))
+    lengths = device.leg_lengths(joint).numpy()
+    expected = np.stack(
+        [
+            ref.geometry.leg_lengths(dict(zip(ref.joint_names, row[0].numpy(), strict=True)))
+            for row in joint
+        ]
+    )
+    np.testing.assert_allclose(lengths, expected, atol=2e-15, rtol=0)

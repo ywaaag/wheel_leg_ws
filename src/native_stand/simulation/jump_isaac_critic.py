@@ -113,31 +113,17 @@ class BatchCritic:
     def pack(self, env, actor):
         n, tick, v = self.n, env.execution.tick, env.execution.v4
         values = {}
-        cpu = []
-        for i in range(n):
-            fields, _ = self.controller_fields(
-                env.execution.c.states[i],
-                env.execution.c.inputs[i],
-                fault_count=14,
-                phase_count=10,
-                layout=self.layout,
-            )
-            fields["C.raw_output"] = fields.pop("C.mean")
-            fields.update({k: np.asarray(x[0]) for k, x in env.rewards[i].critic_fields().items()})
-            cpu.append(fields)
-        cpu_names = list(cpu[0])
-        widths = [np.asarray(cpu[0][k]).size for k in cpu_names]
-        packed = np.stack(
-            [
-                np.concatenate([np.asarray(row[k], dtype=float).reshape(-1) for k in cpu_names])
-                for row in cpu
-            ]
-        )
-        uploaded = torch.from_numpy(packed).to(self.device)
-        start = 0
-        for key, width in zip(cpu_names, widths, strict=True):
-            values[key] = uploaded[:, start : start + width]
-            start += width
+        from native_stand.simulation.jump_device_c import controller_device_fields
+
+        values.update(controller_device_fields(env.execution, self.device))
+        if hasattr(env, "device_reward"):
+            values.update(env.device_reward.critic_values())
+        else:
+            rows = [r.critic_fields() for r in env.rewards]
+            for key in rows[0]:
+                values[key] = torch.as_tensor(
+                    np.stack([row[key][0] for row in rows]), device=self.device
+                )
         values["Actor.delayed37"] = torch.as_tensor(actor, device=self.device)
         m = env.scene.measured()
         values.update(
@@ -170,7 +156,7 @@ class BatchCritic:
                 ).items()
             }
         )
-        values["execution.subcycle"] = uploaded.new_tensor([tick % 5, tick % 10]).expand(n, -1)
+        values["execution.subcycle"] = self.scales.new_tensor([tick % 5, tick % 10]).expand(n, -1)
         histories = {"targets", "origins", "wheel_queue", "motors", "NETs"}
         policy = {
             "packet",
@@ -206,8 +192,8 @@ class BatchCritic:
             values["response." + name] = value
         for key, value in self.constant.items():
             values[key] = torch.as_tensor(value, device=self.device).expand(n, *value.shape)
-        values["task.horizon_s"] = uploaded.new_tensor([r["seconds"] for r in env.requests])
-        values["task.landing_only"] = uploaded.new_tensor(
+        values["task.horizon_s"] = self.scales.new_tensor([r["seconds"] for r in env.requests])
+        values["task.landing_only"] = self.scales.new_tensor(
             [r["kind"] == "landing_only" for r in env.requests]
         )
         if set(values) != {f.name for f in self.fields}:

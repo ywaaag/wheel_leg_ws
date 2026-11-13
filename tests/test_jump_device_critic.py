@@ -89,3 +89,33 @@ def test_batch_device_fields_match_scalar_full_contract_at_ring_wrap_and_reset(b
         actual = packer.pack(env, actor)
         np.testing.assert_array_equal(actual.numpy(), expected)
         assert actual.shape == (3, 5591)
+
+
+def test_device_controller_encoding_preserves_uint32_wrap_and_all_fields(bridge):  # noqa: F811
+    from native_stand.simulation.jump_device_c import controller_device_fields
+    from native_stand.tasks.jump.controller_critic import controller_fields
+
+    e = bridge()
+    for _ in range(10):
+        advance(e)
+    for k, (state, inputs) in enumerate(zip(e.c.states, e.c.inputs, strict=True)):
+        inputs.now = 3 + k
+        state.phase_tick = 0xFFFFFFF0 + k
+        state.candidate[:] = [0, 2]
+        state.candidate_tick[:] = [0xFFFFFFFE, 1]
+        state.off_valid[:] = [1, 0]
+        state.off_tick[:] = [0xFFFFFFFD, 2]
+        state.command_sequence = 0xFFFFFFFE
+        state.adopted_sequence = 2
+        state.command_valid = 1
+        state.command_tick = 0xFFFFFFFA
+        inputs.feedback_tick[:] = [0xFFFFFFFF, 0, 1, 2, 3, 4]
+    actual = controller_device_fields(e, "cpu")
+    for i in range(3):
+        expected, _ = controller_fields(
+            e.c.states[i], e.c.inputs[i], fault_count=14, phase_count=10
+        )
+        expected["C.raw_output"] = expected.pop("C.mean")
+        assert actual.keys() == expected.keys()
+        for name, value in expected.items():
+            np.testing.assert_array_equal(actual[name][i].numpy(), value, err_msg=name)
