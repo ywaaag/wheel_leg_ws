@@ -383,7 +383,9 @@ class IsaacRecovery:
         self.output = Path(output)
         self.output.mkdir(parents=True, exist_ok=True)
         template = execution_json(runtime["bindings"]["scene_spec"]["path"], job.assets)
-        sys.path.insert(0, template["asset_module_root"])
+        from .bindings import asset_module_root
+
+        sys.path.insert(0, str(asset_module_root(template)))
         from native_stand.command_v6.runtime.configure import verify_asset_import
         from native_stand.env import NativeStandCfg
 
@@ -758,23 +760,21 @@ class IsaacRecovery:
         self.env.cfg.recovery_collection_cases = (
             self.job.assets.get("recovery_distillation_validation_cases") if fresh else None
         )
-        if fresh:
-            import numpy as np
+        import numpy as np
 
-            from native_stand.tasks.recovery.swing_priority_course import RecoveryCourse
+        from native_stand.tasks.recovery.swing_priority_course import RecoveryCourse
 
-            e = self.env
-            e.courses = [
-                RecoveryCourse(self.job.runtime.seed + seed_offset + i)
-                for i in range(self.num_envs)
-            ]
-            e.DR_rng = [
-                np.random.default_rng(self.job.runtime.seed + seed_offset + 170000 + i)
-                for i in range(self.num_envs)
-            ]
-            e.episode_spec = [None] * self.num_envs
-            e.episode_steps.zero_()
-            e.completed.clear()
+        e = self.env
+        e.courses = [
+            RecoveryCourse(self.job.runtime.seed + seed_offset + i) for i in range(self.num_envs)
+        ]
+        e.DR_rng = [
+            np.random.default_rng(self.job.runtime.seed + seed_offset + 170000 + i)
+            for i in range(self.num_envs)
+        ]
+        e.episode_spec = [None] * self.num_envs
+        e.episode_steps.zero_()
+        e.completed.clear()
         raw, _ = self.env.reset()
         self._obs = self.convert(raw)
         return self._obs
