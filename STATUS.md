@@ -207,3 +207,6 @@ r10/r11的实际故障已定位为rough穿透检测位置错误：lower-leg的�
 
 
 Jump本机v88启动准备：v84实际4096环境零PPO2000tick物理/C/随机Actor接线自然PASS，未处理奖励/课程，不是能力评估；先前罕见1.017mm超限根因仍未确认。用户已明确授权在本机执行，决定保留原1mm fail-fast启动剩9561、不设墙钟。新run完整初始化u2 SHA7c2394d6，439已耗（含未保存1次）不退款；checkpoint每10次、最近2份+里程碑；故障packet进入execution/physical_failure.json。长训配置与授权/结算位于artifacts的v82/v88；启动收据后续以真实run为准，不能因启动声明全部前置或能力accepted。
+
+
+Jump保存频率调整：用户要求每100次保存。v9在u3正常边界保存STOPPED_BOUNDED/failure=null；前三次711.248/706.914/712.979秒。原run未用9558额度退役，完整u3 SHA6dc5b94f接续新run`2026_11_13__jump_4096_local_save100_remaining9558_v10`，累计442/10000、剩9558，墙钟null，4096×64；每100例行保存，首次/终态保存保留。统一CLI启动worker3511614，握手RUNNING、首更尚未确认。收据`artifacts/jump_diagnosis_20261113/local_save100_receipt_v89.json`；无源码热改，无预算刷新。
