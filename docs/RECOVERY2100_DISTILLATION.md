@@ -33,3 +33,13 @@
 compare产物包括`closed_loop.json`、真实采集块以及学生真实状态上的腿rad/轮rad/s教师保真误差；compare轨迹不进入训练聚合。三次开发比较各2300步；随后先冻结开发候选，再用独立seed（+100000）做4600步最终检查，最终结果不回用于选模。初期2300步检查；前者若有未结束回合如实保留UNKNOWN，不外推成功。
 
 export复用正式部署模块；包中有Actor、带三次decoder的ONNX、输入/输出合同、控制参数与时序、V4/场景/C核心依赖、真实留出状态golden、ONNX ReferenceEvaluator和C三次decoder数值核对。独立的ARM/ORT/完整PD时序实机一致性仍需相应平台证据；默认hardware_output=OFF，不向电控写入。软件数值通过不等于实机接线验收，也不等于小模型闭环能力通过。若连续无改善触发停止，不跳过诊断自动发布部署包。
+
+## 首轮实测与延迟补教接续
+
+r3在20round/1000次监督更新后，开发比较中教师起身/10秒保持均100%；学生为52.08%/61.72%。名义延迟保持96.875%，观测年龄0ms为100%，目标运输15ms和轮运输11/15ms各25%。学生状态上的教师保真误差变为腿0.0616375rad、轮8.131875rad/s，不能以教师数据离线误差0.0074195rad/0.434851rad/s宣称可部署。
+
+实际首轮采集仅覆盖目标4～9ms、轮6～8/10～12ms。根因在初始配方沿用`cubic_randomization.draw(strength=.25)`，而原`reset_collection(fresh=False)`没有使用长延迟case。已通过统一stop入口请求本会话worker有界停止；原r3的模型、评估、spec、账本和源码保持只读。
+
+接续配方改为`configs/jobs/recovery2100_delay_dagger.json`，在当前main `fc29da3`建立的独立worktree `/home/kellen/wheel_leg_distill_delay_ws` 实现。复用现有case/reset/factory，只增加collection case配置；四组显式时序覆盖失效条件，每组保留名义与DR=.25锚。训练数据来自新学生回合，开发/最终比较帧不回灌。`PhysicalActor.decode_mean()`只抽出原三次公式，让collector在一次网络前向后分别保存network mean和物理raw action；实际采用目标、请求及力矩仍来自原执行器，额外保存实际Actor观测年龄。
+
+用现有`wheel-leg import-checkpoint`和`resume`完成版本化完整BC交接，保留逻辑run身份、20round/1000更新、Adam/RNG、固定episode划分、已有物理消耗及phase cursor。新的累计墙钟边界为14400s，原消耗不退款；任务总预算仍不限。仅checkpoint的handoff元数据改变时，采集恢复须明确记录旧/新SHA并核对Actor所有tensor完全相同，不能将换权重伪装成metadata搬迁。新版本不向电控写入。

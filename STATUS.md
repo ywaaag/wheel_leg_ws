@@ -251,3 +251,9 @@ r10/r11的实际故障已定位为rough穿透检测位置错误：lower-leg的�
 正式run为 `/home/kellen/wheel_leg_training_data/2026_11_13__recovery2100_small256_distillation_r3`，执行源码冻结于 `4332ef8`。首次真实教师采集588800帧/5888000物理子步；首个50更新窗口保存停止后，沿同run实际恢复到20round/1000次监督更新，PPO0。当前进入闭环比较；后续补教、最终检查与导出由同一owner继续，能力尚未accepted。首批离线腿/轮目标MAE为0.0074195rad/0.434851rad/s；这不是闭环结果。精确当前状态、账本与首批证据见run的 `state.json`、`budget.json`、`engineering_first_batch.json`。r1/r2在物理前失败，证据保留。
 
 31D/256-128-64/Recovery物理三次输出，128环境，三批各1000次监督更新、两次学生真实状态补教、开发与最终独立延迟比较，执行块7200s/8GiB，每round保存。最终CPU portable1944通过/31历史skip；相关41项通过，架构211/0、Ruff0.8.4 check/format通过。真实previous和C三次decoder核对见数据根 `recovery2100_distillation_engineering`；22项精确改动清单为该目录 `implementation_manifest.json`。来源/合同与正式入口见 `docs/RECOVERY2100_DISTILLATION.md`。公共main与其他活动任务冻结源码未更改。
+
+### Recovery延迟补教接续（本会话）
+
+r3首轮比较显示学生在长延迟条件明显失败，已由本owner经统一stop请求停止，终态STOPPED_BOUNDED/failure=null；仍20round/1000监督更新，实际物理累计12340480子步。原数据/源码只读。开发教师起身与10秒保持100%，学生52.08%/61.72%；源数据只有目标4～9ms及轮6～8/10～12ms，未覆盖失效15ms/11,15ms。
+
+新版本在`/home/kellen/wheel_leg_distill_delay_ws` / `recovery/2100-delay-dagger`，基点当前main fc29da3，准备完整BC交接至数据根`recovery2100_delay_block2`，保留原逻辑身份、消耗与Adam，不裁成Actor初始化。新学生采集显式覆盖四组延迟并保留名义/DR锚；评估数据不回灌。相关42项CPU与portable1945/31历史skip通过；架构211/0，Ruff0.8.4 check/format通过。未启动新worker前不称接续成功；正式入口和详细边界见原蒸馏说明。
