@@ -475,6 +475,8 @@ def test_incremental_formal_scripts_import_still_fails(tmp_path):
     # Relative package import cannot hide behind the exact package name.
     (root / "src/native_stand/learning/bad.py").write_text("from ..scripts import analyze\n")
     assert incremental(root).returncode == 1
+    (root / "src/native_stand/learning/bad.py").write_text("from .. import scripts\n")
+    assert incremental(root).returncode == 1
 
 
 def test_incremental_base_missing_invalid_empty_and_non_git_fail_closed(tmp_path):

@@ -134,6 +134,11 @@ def check_file(path: Path, root: Path, project_modules: set[str]):
                     member_matched = False
                     for alias in node.names:
                         member = f"{target}.{alias.name}"
+                        if member == "native_stand.scripts":
+                            violations.append(
+                                (norm_rel, node.lineno, "R2-imports", f"import:{member}", node)
+                            )
+                            continue
                         if member not in project_modules:
                             continue
                         # 每个成员单独判定并立即报告，不能被后续成员覆盖。

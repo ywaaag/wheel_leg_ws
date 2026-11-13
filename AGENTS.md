@@ -13,15 +13,14 @@
 |---|---|
 | 命令、参数、退出码 | `wheel-leg --help`、`README.md` |
 | 当前任务、负责人、证据 | `STATUS.md` |
-| 模块职责与依赖方向 | `ARCHITECTURE.md` |
+| 模块职责、扩展位置与集成门槛 | `ARCHITECTURE.md` |
 | 已结项重构范围与冻结证据 | `docs/MIGRATION_20261105.md` |
-| 扩展位置、工具与集成门槛 | `ARCHITECTURE.md` |
 
 原始历史报告与数据根证据按需读取；未提交或缺失材料不能成为干净检出的必需入口。迁移已结项，模型能力、提速和新后端按普通领域任务推进。
 
 ## 架构规则（稳定，改动需评审）
 
-1. 统一入口：正式训练/蒸馏只经 `wheel-leg` CLI（`cli.py`）；训练进程创建只允许 `experiments/owner.py`。新增并行入口或绕过 owner 的 worker 创建会被 `python scripts/check_architecture.py` 拦截。
+1. 统一入口：正式训练/蒸馏只经 `wheel-leg` CLI（`cli.py`）；训练进程创建只允许 `experiments/owner.py`。新增并行入口或绕过 owner 的 worker 创建由 `python scripts/check_architecture.py --base refactor-migration-v1` 静态检查。
 2. 生命周期复用：PPO 与 BC 共用 owner、worker、状态、停止恢复与预算机制（`experiments/`）；各算法只保留自己的数学训练循环。BC 只写 `rounds_used`，不写 PPO `updates_used`。
 3. 扩展位置：网络宽度/层数/超参→配置；新网络/损失/算法→`learning`；观测/动作/奖励/终止→`tasks`；后端与时序→`simulation`；checkpoint/评估读写→`artifacts`；一次性探查→临时目录；可复用离线/构建/验证工具→`scripts`。
 4. 依赖方向：tasks↛cli/owner/report；learning↛cli；simulation↛integrations；artifacts↛tasks；正式源码↛scripts。配置数据类型（`experiments.config`）允许被各层导入。执行判定收敛在 `dispatch.execution_service()`。

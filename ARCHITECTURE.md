@@ -97,7 +97,7 @@ wheel-leg / python -m native_stand          cli.py：参数、展示、退出码
 
 `scripts`允许离线分析、编译/打包、契约验证、受控测试和可复用微基准。工具调用正式模块，正式模块不导入scripts。新增工具需在此简述职责及与已有工具的区别，无需另建README/报告。例如现有`benchmark_recovery_reset_cpu.py`只测脚本I/O下reset组件与调用数；`prepare_recovery_continuation.py`只读核对来源/预算并派生准备材料，不提交worker；`test_portable_cpu.py`选择明确PORTABLE测试并启用物理/CUDA保护。
 
-`check_architecture.py`为纯标准库静态检查，不执行目标脚本：无参数维持全量正式源码依赖/入口/全局替换检查；`--base refactor-migration-v1`额外审查tag之后的Python/shell脚本（含已提交、暂存、工作树和未忽略新增文件）。Git使用NUL列表，删除跳过、重命名检查目标。无效/缺失基点退出2；确定违规退出1；动态命令/进程target输出REVIEW供人工核对，不声称理解任意动态行为、跨文件间接调用或所有代码重复。编译器、pytest和打包subprocess不是一律违规。公开入口/声明变化输出PUBLIC-REVIEW，不因任意文档被修改就自动认证内容正确。
+`check_architecture.py`为纯标准库静态检查，不执行目标脚本：无参数维持全量正式源码依赖/入口/全局替换检查；`--base refactor-migration-v1`额外审查tag之后的Python/shell脚本（含已提交、暂存、工作树和未忽略新增文件）。Git使用NUL列表，删除跳过、重命名检查目标。无效/缺失基点退出2；确定违规退出1；动态命令/进程target及未支持脚本语言输出REVIEW供人工核对，不声称理解任意动态行为、跨文件间接调用或所有代码重复。编译器、pytest和打包subprocess不是一律违规。公开入口/声明变化输出PUBLIC-REVIEW，不因任意文档被修改就自动认证内容正确。
 
 ## 集成门槛
 
