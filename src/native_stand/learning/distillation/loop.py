@@ -123,6 +123,11 @@ def load_dataset(path: str | Path) -> dict[str, Any]:
             if "teacher_actions" in payload
             else None
         )
+        phases = (
+            payload["condition_recovery_phase"].copy()
+            if "condition_recovery_phase" in payload
+            else None
+        )
         provenance = None
         if "label_provenance" in payload:
             import json as _json
@@ -136,6 +141,7 @@ def load_dataset(path: str | Path) -> dict[str, Any]:
         "episodes": episodes,
         "teacher_actions": teacher_actions,
         "label_provenance": provenance,
+        "phases": phases,
     }
 
 
@@ -286,6 +292,28 @@ def run_distillation(
     train_index = rows(split.train)
     validation_index = rows(split.validation)
 
+    from .objective import per_row_loss, sampling_weights
+
+    objective = job.supervision.objective if job.supervision else None
+    if resume_state is not None and resume_state.get("objective") != objective:
+        raise DistillationError("Supervised objective changed on resume")
+    weights = None
+    if objective is not None:
+        if data.get("phases") is None:
+            raise DistillationError("Missing actual Recovery sampling phases")
+        weights = sampling_weights(
+            torch.as_tensor(data["episodes"])[train_index],
+            torch.as_tensor(data["phases"])[train_index],
+            objective["phase_weights"],
+        )
+
+    def criterion(prediction, target):
+        return per_row_loss(prediction, target, objective).mean()
+
+    device = job.runtime.device if objective is not None else "cpu"
+    student.to(device)
+    states = states.to(device)
+    labels = labels.to(device)
     student.train()
     optimizer = torch.optim.Adam(
         [p for p in student.parameters() if p.requires_grad], lr=learning_rate
@@ -319,7 +347,7 @@ def run_distillation(
     if prepared is not None and prepared.get("new_comparison_domain"):
         with torch.no_grad():
             incumbent_loss = float(
-                torch.nn.functional.mse_loss(
+                criterion(
                     student({"student_actor": states[validation_index]}, stochastic_output=False),
                     labels[validation_index],
                 )
@@ -345,6 +373,7 @@ def run_distillation(
         """完整可恢复快照：Student/Adam/RNG/shuffle/固定split/累计round/best/history。"""
         weights = {key: value.detach().clone() for key, value in student.state_dict().items()}
         return {
+            "objective": objective,
             "student": weights,
             "actor": weights,
             "inference_spec": prepared["student_spec"] if prepared is not None else None,
@@ -378,13 +407,22 @@ def run_distillation(
         if stop_requested is not None and stop_requested():
             break  # 只在轮边界停止；未开始的轮次不计费。
         round_index = start_round + offset
-        order = torch.randperm(len(train_index), generator=generator)
+        order = (
+            torch.multinomial(
+                weights,
+                objective["updates_per_round"] * batch_size,
+                replacement=True,
+                generator=generator,
+            )
+            if weights is not None
+            else torch.randperm(len(train_index), generator=generator)
+        )
         total = 0.0
         batches = 0
         for start in range(0, len(order), batch_size):
             index = train_index[order[start : start + batch_size]]
             prediction = student({"student_actor": states[index]}, stochastic_output=False)
-            loss = torch.nn.functional.mse_loss(prediction, labels[index])
+            loss = criterion(prediction, labels[index])
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
             optimizer.step()
@@ -392,7 +430,7 @@ def run_distillation(
             batches += 1
         with torch.no_grad():
             validation = float(
-                torch.nn.functional.mse_loss(
+                criterion(
                     student({"student_actor": states[validation_index]}, stochastic_output=False),
                     labels[validation_index],
                 )
@@ -472,6 +510,7 @@ def run_distillation(
         )
     record = {
         "version": "distillation_loop_v1",
+        "objective": objective,
         "rounds": rounds,
         "hyperparameters": {
             "batch_size": batch_size,
