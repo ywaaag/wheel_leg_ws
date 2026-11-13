@@ -111,3 +111,5 @@ PPO更新、监督round、实际监督优化步和物理子步分别记账。com
 先冻结当前源码SHA并完成对应CPU回归，再执行`wheel-leg cloud-plan --config CONFIG.json --manifest MANIFEST.json --archive BUNDLE.tar`。依赖只沿SHA引用有限展开；缺失/冲突拒绝打包，内容去重，失败保留旧包。Recovery已在旧owner空间边界自然停止，准备包仍不构成正式handoff或接续授权。显式有效依赖可用`--reference PATH SHA256 ROLE`逐条加入；失效旧候选保留为UNAVAILABLE证据，不得改SHA冒充原候选。
 
 在已确认持久盘解包后，按manifest逐条生成`runtime_path_mapping_v1.files`，将每个原path映射到解包根/archive_path；候选源码旧根可用prefixes映射。派生配置只加入assets.path_mapping(path/SHA)、实际source_root和执行资源，不改原始文件。GPU UUID、CUDA映射、输出runs-root与缓存必须按新机器实际填写，不照抄本机授权。保留指定IsaacSim6.2/IsaacLab3镜像、PhysX、uv及LD_LIBRARY_PATH。顺序为环境身份→持久盘/依赖SHA→dry-run→单链有界工程运行→保存恢复→分段计时；本侧不连接、上传或启动。
+
+Recovery 2100 小模型蒸馏使用 `configs/jobs/recovery2100_distillation.json`：复用监督生命周期，固定2100教师、三次物理输出、按回合/阶段均衡的归一化Huber、学生真实闭环补教和独立延迟比较。运行前先 `wheel-leg distill --config configs/jobs/recovery2100_distillation.json --dry-run`。参数、来源、预算与部署边界见 [蒸馏说明](docs/RECOVERY2100_DISTILLATION.md)。
