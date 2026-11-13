@@ -9,6 +9,7 @@ VERSION = "selected_full_training_branch_v1"
 ALLOCATED = "selected_full_bounded_branch_v2"
 ALLOCATED_TRAINING = "selected_full_allocated_branch_v3"
 PREPARATION = "full_motion_course_preparation_v1"
+ALLOCATED_COURSE = "full_motion_course_allocated_v2"
 
 
 def _read_preparation(record, paths):
@@ -16,7 +17,9 @@ def _read_preparation(record, paths):
     if (
         record.get("branch") != "motion"
         or record.get("branch_updates") != 0
-        or record.get("budget_status") != "PREPARATION_ONLY"
+        or record.get("budget_status") != (
+            "MOTION_TRAINING" if record["version"] == ALLOCATED_COURSE else "PREPARATION_ONLY"
+        )
     ):
         raise ValueError("课程准备记录不能分配额度")
     values = {}
@@ -52,6 +55,13 @@ def _read_preparation(record, paths):
         or record["rolled_back_updates_not_refunded"] is not True
     ):
         raise ValueError("课程准备的模型进度与实际消耗不一致")
+    if record["version"] == ALLOCATED_COURSE and (
+        state["status"] not in ("FAILED", "STOPPED_BOUNDED", "COMPLETED")
+        or any(a["status"] == "RUNNING" for a in budget["attempts"].values())
+        or record.get("retired_remaining_updates") != record["shared_remaining_updates"]
+        or not record.get("new_authorization")
+    ):
+        raise ValueError("新课程分配必须绑定已结算旧任务并退役旧余额")
     return {
         **record,
         "selected": selected,
@@ -71,7 +81,7 @@ def read_branch(assets):
     if file_sha256(path) != reference["sha256"]:
         raise ValueError("分支初始化契约SHA不同")
     record = read_json(path)
-    if record.get("version") == PREPARATION:
+    if record.get("version") in (PREPARATION, ALLOCATED_COURSE):
         return _read_preparation(record, paths)
     if record.get("version") not in (VERSION, ALLOCATED, ALLOCATED_TRAINING) or record.get(
         "branch"
@@ -133,15 +143,16 @@ def validate_source(job, loaded):
     if record is None:
         return None
     source = loaded.payload
-    if record["version"] == PREPARATION:
+    if record["version"] in (PREPARATION, ALLOCATED_COURSE):
         if (
-            job.limits.smoke_updates
-            or job.limits.formal_updates
-            or job.assets.get("preparation_only") is not True
+            (record["version"] == PREPARATION and (
+                job.limits.smoke_updates or job.limits.formal_updates
+                or job.assets.get("preparation_only") is not True
+            ))
             or json_digest(job.assets["branch_course"]) != record["target_course_sha256"]
             or source.get("model_online_updates") != record["source_model_progress_updates"]
         ):
-            raise ValueError("课程准备只允许零额度并绑定明确目标与模型进度")
+            raise ValueError("课程准备/分配必须绑定明确目标与模型进度；准备只允许零额度")
         paths = RuntimePaths.from_assets(job.assets)
         original = paths.read(record["source_run"]["path"])["config"]
         current = job.as_run_record()
@@ -206,7 +217,8 @@ def require_allocated(job):
     if record["version"] == PREPARATION:
         raise ValueError("课程准备不是训练分配；必须先完成旧attempt结算和显式接续")
     training = (
-        record["version"] == ALLOCATED_TRAINING and record.get("budget_status") == "MOTION_TRAINING"
+        record["version"] in (ALLOCATED_TRAINING, ALLOCATED_COURSE)
+        and record.get("budget_status") == "MOTION_TRAINING"
     )
     if not training and (
         record["version"] != ALLOCATED or record.get("budget_status") != "BOUNDED_SMOKE"

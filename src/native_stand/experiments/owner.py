@@ -188,6 +188,9 @@ def submit(
         and job.backend != "cpu"
     ):
         module = __import__(service["module"], fromlist=["preflight"])
+        prepare = getattr(module, "prepare_submission", None)
+        if prepare is not None:
+            job = prepare(job)
         module.preflight(job)
     directory = create_run(job, runs_root=runs_root, purpose=purpose, run_id=run_id)
     run_paths(directory)

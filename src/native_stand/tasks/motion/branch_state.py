@@ -53,9 +53,9 @@ def confirmation_execution_identity(job):
 
 
 def prepare_branch_source(source, job, record):
-    from native_stand.artifacts.branch_initialization import PREPARATION
+    from native_stand.artifacts.branch_initialization import ALLOCATED_COURSE, PREPARATION
 
-    if record["version"] != PREPARATION:
+    if record["version"] not in (PREPARATION, ALLOCATED_COURSE):
         from .height_extension import extend_source
 
         source = extend_source(source, job)

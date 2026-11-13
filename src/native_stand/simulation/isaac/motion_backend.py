@@ -77,7 +77,7 @@ def validate_job(job):
             branch = read_branch(job.assets)
             if branch is None or branch["branch"] != configuration["branch"]:
                 raise ValueError("新目标分支必须显式绑定选择与停止结算")
-            from native_stand.artifacts.branch_initialization import PREPARATION
+            from native_stand.artifacts.branch_initialization import ALLOCATED_COURSE, PREPARATION
 
             if branch["version"] == PREPARATION and (
                 job.limits.smoke_updates
@@ -85,7 +85,7 @@ def validate_job(job):
                 or job.assets.get("preparation_only") is not True
             ):
                 raise ValueError("课程准备尚未结算接续，只允许零额度CPU准备")
-            if branch["version"] == PREPARATION:
+            if branch["version"] in (PREPARATION, ALLOCATED_COURSE):
                 from native_stand.artifacts.io import json_digest
 
                 if json_digest(configuration) != branch["target_course_sha256"]:
@@ -514,11 +514,14 @@ class MotionProductionAdapter:
             references["branch_initialization"] = paths.view(
                 self.job.assets["branch_initialization"]
             )
-            from native_stand.artifacts.branch_initialization import PREPARATION
+            from native_stand.artifacts.branch_initialization import ALLOCATED_COURSE, PREPARATION
 
-            if branch["version"] == PREPARATION:
+            if branch["version"] in (PREPARATION, ALLOCATED_COURSE):
                 for key in ("source_run", "observed_state", "observed_budget", "output_contract"):
                     references["branch_" + key] = paths.view(branch[key])
+                if branch["version"] == ALLOCATED_COURSE:
+                    for key in ("allocation", "new_authorization", "settlement"):
+                        references["branch_" + key] = paths.view(branch[key])
             else:
                 for key in ("selection", "settlement"):
                     references["branch_" + key] = paths.view(branch[key])
