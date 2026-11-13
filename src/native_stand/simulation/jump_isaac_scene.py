@@ -21,7 +21,7 @@ PHYSICAL_CONTRACT = {
 }
 
 
-def physical_contract(envs):
+def physical_contract(envs, wheel_collision=None):
     """Keep every clone on tiled ground, including the outer rows of 4096."""
     result = dict(PHYSICAL_CONTRACT)
     grid_span = (ceil(sqrt(envs)) - 1) * result["env_spacing_m"]
@@ -30,6 +30,14 @@ def physical_contract(envs):
         ceil((grid_span + 2 * result["minimum_spawn_floor_margin_m"]) / 8) * 8,
     )
     result["ground_size_m"] = [side, side, result["ground_size_m"][2]]
+    if wheel_collision is not None:
+        if wheel_collision != "wheel_convex30_v1":
+            raise ValueError("Unsupported Jump wheel collision contract")
+        result.update(
+            version="jump_PhysX_wheel_convex30_v5",
+            wheel_collision="circumscribed_convex30",
+            wheel_radial_envelope_error_bound_m=0.000331,
+        )
     return result
 
 
@@ -54,6 +62,49 @@ def tensor(value):
     if torch.is_tensor(value):
         return value
     return value.torch
+
+
+def wheel_convex_geometry(radius, half, axis):
+    """Authored cylinder envelope, independent of USD or PhysX cooking."""
+    a, b = (axis + 1) % 3, (axis + 2) % 3
+    sides = 30
+    radial = radius / np.cos(np.pi / sides)
+    points = np.zeros((2 * sides, 3), dtype=float)
+    angles = (np.arange(sides) + 0.5) * 2 * np.pi / sides
+    for ring, z in enumerate((-half, half)):
+        points[ring * sides : (ring + 1) * sides, axis] = z
+        points[ring * sides : (ring + 1) * sides, a] = radial * np.cos(angles)
+        points[ring * sides : (ring + 1) * sides, b] = radial * np.sin(angles)
+    faces = [list(reversed(range(sides))), list(range(sides, 2 * sides))]
+    faces += [[k, (k + 1) % sides, (k + 1) % sides + sides, k + sides] for k in range(sides)]
+    return points, faces
+
+
+def author_wheel_convex_collision(stage, root):
+    """Represent the same cylinder envelope with a high-resolution convex hull.
+
+    The 30-sided circumscribed polygon differs radially by at most331um
+    for the60mm wheel. Existing mass/COM/inertia, frames and sensor paths stay.
+    """
+    from pxr import Gf, Usd, UsdGeom, UsdPhysics
+
+    paths = [
+        p.GetPath()
+        for p in Usd.PrimRange(stage.GetPrimAtPath(root))
+        if p.IsA(UsdGeom.Cylinder) and "_wheel/collisions/" in str(p.GetPath())
+    ]
+    for path in paths:
+        cylinder = UsdGeom.Cylinder(stage.GetPrimAtPath(path))
+        radius, half = cylinder.GetRadiusAttr().Get(), cylinder.GetHeightAttr().Get() / 2
+        axis = "XYZ".index(cylinder.GetAxisAttr().Get())
+        points, faces = wheel_convex_geometry(radius, half, axis)
+        mesh = UsdGeom.Mesh.Define(stage, path)
+        mesh.CreatePointsAttr([Gf.Vec3f(*point) for point in points])
+        mesh.CreateFaceVertexCountsAttr([len(face) for face in faces])
+        mesh.CreateFaceVertexIndicesAttr([i for face in faces for i in face])
+        mesh.CreateSubdivisionSchemeAttr("none")
+        UsdPhysics.MeshCollisionAPI.Apply(mesh.GetPrim()).CreateApproximationAttr("convexHull")
+    return len(paths)
 
 
 def spawn_tiled_ground(prim_path, cfg, translation=None, orientation=None, **kwargs):
@@ -135,11 +186,12 @@ class IsaacScene:
 
         self.apply, self.inverse = quat_apply, quat_apply_inverse
         self.device, self.num_envs = job.runtime.device, job.runtime.envs
-        self.physical_contract = physical_contract(self.num_envs)
-        self.dt = job.control.physics_dt_s
-        self.sim = SimulationContext(
-            SimulationCfg(dt=self.dt, device=self.device, render_interval=10)
+        self.physical_contract = physical_contract(
+            self.num_envs, job.assets.get("jump_wheel_collision")
         )
+        self.dt = job.control.physics_dt_s
+        simulation = SimulationCfg(dt=self.dt, device=self.device, render_interval=10)
+        self.sim = SimulationContext(simulation)
 
         @configclass
         class SceneCfg(InteractiveSceneCfg):
@@ -158,7 +210,9 @@ class IsaacScene:
                         static_friction=0.5, dynamic_friction=0.5, restitution=0.0
                     ),
                 ),
-                init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 0.0, -0.05)),
+                init_state=AssetBaseCfg.InitialStateCfg(
+                    pos=(0.0, 0.0, -self.physical_contract["ground_size_m"][2] / 2)
+                ),
             )
             robot = ArticulationCfg(
                 prim_path="{ENV_REGEX_NS}/Robot",
@@ -221,13 +275,12 @@ class IsaacScene:
                 filter_prim_paths_expr=["/World/ground"],
             )
 
-        self.scene = InteractiveScene(
-            SceneCfg(
-                num_envs=self.num_envs,
-                env_spacing=self.physical_contract["env_spacing_m"],
-                replicate_physics=True,
-            )
+        scene_cfg = SceneCfg(
+            num_envs=self.num_envs,
+            env_spacing=self.physical_contract["env_spacing_m"],
+            replicate_physics=True,
         )
+        self.scene = InteractiveScene(scene_cfg)
         self.minimum_floor_margin_m = float(
             (
                 self.scene.env_origins.new_tensor(self.physical_contract["ground_size_m"][:2]) / 2
@@ -238,6 +291,10 @@ class IsaacScene:
         )
         if self.minimum_floor_margin_m < self.physical_contract["minimum_spawn_floor_margin_m"]:
             raise ValueError("Jump clone grid exceeds the declared tiled ground margin")
+        if self.physical_contract.get("wheel_collision"):
+            count = author_wheel_convex_collision(sim_utils.get_current_stage(), "/World/envs")
+            if count != 2 * self.num_envs:
+                raise ValueError(f"Wheel convex collision row coverage {count}")
         self.robot = self.scene["robot"]
         self.sensor = self.scene["contact_forces"]
         self.cfg = SimpleNamespace(ground_dynamic_friction=0.5)

@@ -39,6 +39,38 @@ def packet():
     }
 
 
+def test_explicit_contact_solver_changes_identity_without_relaxing_geometry_guard():
+    from native_stand.simulation.jump_isaac_scene import physical_contract
+
+    old = physical_contract(4096)
+    candidate = physical_contract(4096, "wheel_convex30_v1")
+    assert candidate["version"] != old["version"]
+    assert candidate["wheel_collision"] == "circumscribed_convex30"
+    assert candidate["wheel_radial_envelope_error_bound_m"] == 0.000331
+    for key in ("ground_size_m", "maximum_wheel_penetration_m", "maximum_closure_residual_m"):
+        assert candidate[key] == old[key]
+    with pytest.raises(ValueError, match="Unsupported Jump wheel collision"):
+        physical_contract(4096, "unknown")
+
+
+@pytest.mark.parametrize("axis", [0, 1, 2])
+def test_authored_convex_wheel_bounds_true_cylinder_at_all_contact_directions(axis):
+    from native_stand.simulation.jump_isaac_scene import wheel_convex_geometry
+
+    points, faces = wheel_convex_geometry(0.06, 0.0165, axis)
+    rng = np.random.default_rng(140)
+    directions = rng.normal(size=(2000, 3))
+    directions /= np.linalg.norm(directions, axis=-1, keepdims=True)
+    axial = abs(directions[:, axis])
+    exact = 0.0165 * axial + 0.06 * np.sqrt(1 - axial**2)
+    support = (directions @ points.T).max(-1)
+    assert (support >= exact - 1e-14).all()
+    assert (support - exact).max() < 0.000331
+    assert points.shape == (60, 3)
+    assert min(i for face in faces for i in face) == 0
+    assert max(i for face in faces for i in face) == 59
+
+
 def test_untrained_falling_and_nonwheel_contact_are_task_events():
     # The free-drop traces reach .17m without broken wheel/closure geometry.
     validate_physical_measurement(packet())
