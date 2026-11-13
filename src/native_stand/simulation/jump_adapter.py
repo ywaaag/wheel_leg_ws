@@ -63,6 +63,7 @@ class JumpAdapter(GenericPPOAdapter):
                 schema=context.job.assets["jump_critic_schema"],
                 execution=context.job.assets["jump_bindings"],
                 course=context.job.assets["jump_course"],
+                reward=context.job.reward.version,
             )
         )
         self.candidates = context.refs.candidate_index(context.run_dir.name) or dict(

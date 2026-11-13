@@ -30,13 +30,35 @@ from native_stand.tasks.jump.dense_reward import RewardConfig, TaskSpec
 from native_stand.tasks.jump.geometry import CHANNELS
 from native_stand.tasks.jump.isaac_contract import CRITIC, TRAINING
 from native_stand.tasks.jump.unified import BALANCE
+from native_stand.tasks.jump.unified_reward import VERSION as REWARD_VERSION
 from native_stand.tasks.jump.unified_reward import UnifiedPacket, UnifiedReward
+
+TRAINING_SEMANTICS = dict(
+    reward=REWARD_VERSION,
+    request="single_request_first_BALANCE_at_or_after_1500ms",
+)
+
+
+def scheduled_request(request, elapsed_ms, state):
+    """Delay a single episode request while busy; C retains all entry gates.
+
+    RLJumpInit on physical reset clears request_id. Once C consumes the
+    rising edge, its request_id prevents retries, including rejected requests.
+    """
+    return (
+        request["kind"] == "ground_active_jump"
+        and elapsed_ms >= 1500
+        and state.phase == BALANCE
+        and state.request_id == 0
+    )
 
 
 def validate_job(job):
     from native_stand.tasks.jump.spec import build_task
 
     build_task(job)
+    if job.reward.version != REWARD_VERSION:
+        raise ValueError("Explicit current Jump reward version required")
     if job.backend != "isaac" or job.action.version != TRAINING or job.runtime.device != "cuda:0":
         raise ValueError("Explicit Jump Isaac ABI4/CUDA0 contract required")
     if (job.control.physics_dt_s, job.control.pd_dt_s, job.control.policy_dt_s) != (
@@ -94,6 +116,7 @@ class IsaacJump:
                 course=job.assets["jump_course"],
                 backend=TRAINING,
                 physics=self.physical_contract,
+                training=TRAINING_SEMANTICS,
                 envs=self.num_envs,
             )
         )
@@ -264,7 +287,7 @@ class IsaacJump:
         for i in indices:
             request = self.requests[i]
             elapsed = e.tick - self.starts[i]
-            key = request["kind"] == "ground_active_jump" and 1500 <= elapsed < 1520
+            key = scheduled_request(request, elapsed, e.c.states[i])
             rows.append(
                 self.inverse.input(
                     tick=e.tick,
@@ -579,6 +602,7 @@ class IsaacJump:
             version=TRAINING,
             identity=self.identity,
             physical_contract=self.physical_contract,
+            training_semantics=copy.deepcopy(TRAINING_SEMANTICS),
             restore="fresh_reset",
             execution=self.execution.state_dict(),
             courses=[c.state_dict() for c in self.courses],

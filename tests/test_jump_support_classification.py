@@ -4,6 +4,7 @@ import pytest
 from test_jump_unified import feedback
 
 from native_stand.simulation.jump_build import build
+from native_stand.simulation.jump_isaac import scheduled_request
 from native_stand.simulation.jump_unified import UnifiedJump
 
 FROZEN_TEST_SCOPE = "PORTABLE"
@@ -64,3 +65,27 @@ def test_unavailable_support_retains_real_C_fault_and_rejects_actor_samples(brid
     assert bridge.states[0].phase == 8 and bridge.states[0].fault == 5
     _, valid = bridge.observe()
     assert not valid.any()
+
+
+def test_scheduled_request_survives_busy_window_and_is_consumed_once_by_real_C(bridge):
+    state = bridge.states[0]
+    state.phase, state.phase_tick = 5, 1400
+    request = dict(kind="ground_active_jump")
+    keys = []
+    for tick in range(1400, 2530, 5):
+        key = scheduled_request(request, tick, state)
+        keys.append(tick if key else None)
+        if tick <= 2400:
+            assert not key
+        bridge.step([support_input(tick, [100, 100], key=key)])
+        assert state.fault == 0
+    assert len([k for k in keys if k is not None]) == 1
+    assert state.request_id == 1 and state.phase == 1
+    assert not scheduled_request(request, 5000, state)
+    # Resetting the actual C state makes the next episode eligible again.
+    import ctypes as C
+
+    bridge.lib.RLJumpInit(C.byref(state), 5000)
+    assert not scheduled_request(request, 1495, state)
+    assert scheduled_request(request, 1500, state)
+    assert not scheduled_request(dict(kind="landing_only"), 5000, state)

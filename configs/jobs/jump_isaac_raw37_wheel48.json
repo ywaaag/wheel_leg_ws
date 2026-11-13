@@ -58,7 +58,7 @@
     "height_command_m": 0.34
   },
   "reward": {
-    "version": "jump_unified_dense_reward_wheel48_v1",
+    "version": "jump_unified_dense_reward_wheel48_v2",
     "dt": 0.01,
     "weights": [
       1.0,

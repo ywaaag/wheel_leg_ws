@@ -85,3 +85,14 @@ C修复后的第一次联合回归为146通过/7失败，7项均由两份现用�
 继承Actor仍主要SETTLE、约0.25m，没有站稳/主动跳证书。按原Stage0密集站立/落地奖励与raw Normal探索继续学习，不加入隐藏Teacher、滤波或新训练循环；原合同successful_teacher_required_for_PPO=false，零成功不单独否决未训练Stage0。候选仅消费正常PPO回合，当前三池accepted均0。
 
 **尚未通过的开训门槛**：远端GPU/真实UUID/驱动挂载恢复后，在新6.2版本做零PPO物理I/O与8次正常PPO有界完整学习复验；检查请求覆盖、系统性早故障及保存/恢复后，再在同一run续训，继续扣减9585。没有自动开GPU、创建watcher或启动远端训练。命令和边界见材料目录NEXT_STEPS.md。完整文件清单、证据表与机器摘要见`artifacts/jump_diagnosis_20261113/{DELIVERY_20261113.md,delivery_final_v46.json}`。
+
+## 站高奖励与请求调度复核（后续增量）
+
+上一节“保留原Stage0密集站立/落地奖励”不代表奖励已覆盖所有失败路径。本轮沿正常PPO消费者核实两个训练缺口，并保留旧结果：
+
+- 意外离地没有合法takeoff时，`DenseReward.has_landed`保持false；原SETTLE站高惩罚也被这个门控关闭。`UnifiedReward` v2在真实C的SETTLE阶段独立计算原权重/尺度的站高惩罚。合法起跳、落地稳定、active/drop成功与own completion门控不变，不给意外下落补发正奖励。
+- Isaac原1.500～1.520s固定请求可能在SETTLE时被C拒绝busy。新Isaac调度在1.5s后首次BALANCE发一次请求；实际C的request_id锁住本回合后续重复发出。原静止、支撑、姿态、100ms进入确认和500ms等待超时不变。尚未回BALANCE仍可能失败，不能把“请求待发”算作接受或起跳。CPU历史播放器/手动请求的20ms按键语义未改。
+
+Isaac执行identity加入reward与request调度语义，同run不允许旧版本直接恢复。新run采用既有显式full transition保留学习状态、课程RNG与累计身份，开启新证据cohort，物理仍fresh_reset；本轮物理参数未变。候选比较域包含reward版本。两份现用配方显式改为v2，旧run/spec与远端ready_support_v44保留，不得继续拿旧配方作新版启动包。
+
+真实C回归覆盖请求在busy窗口保留、回BALANCE消费一次、合法进入CROUCH及reset重新资格；奖励回归覆盖意外下落低高度有代价、站高改善代价下降、时间切分一致、无伪造落地/跳跃成功。Jump相关CPU83项通过（24.46s）。新版正常PPO32次有界验收待执行，拟先30次保存、同run恢复2次，全部从原9585余额扣减。远端本轮再次核实Torch2.11.0+cu130、CUDA=False/count0，未启动远端训练。

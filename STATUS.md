@@ -4,6 +4,8 @@
 
 分支`jump/isaac-training`保持独立。已修复单个128m薄盒造成的轮接触丢失、真实u407因exp舍入被误拒完整恢复、C把去抖未确认误作支撑不可用导致25ms故障。执行合同`jump_PhysX_tiled_flat_ground_support_valid_v3`，源USD、ABI4输入/输出、40/4.8Nm和1/5/10ms不变。新增8次有界PPO及同run完整resume已终态结算：累计415/10000、剩9585；原失败证据与账本保留。最终完整模型SHA `2ea1f5c9f42d2e7519e6daa41fc7850c8b1188679145fc536ec71c3c1c276f42`。相关CPU155通过、portable1915通过/31历史skip、Ruff0.8.4与当前main架构检查通过。本机CPU/GPU接触/冲量/reset及远端实际6.2 CPU PhysX通过；远端GPU仍0，修复后GPU验收未完成，长训未放行。继承Actor仍约0.25m/SETTLE，站稳与跳跃未认证，三类池均无accepted。远端新源码、完整模型、33依赖SHA、三段预算和剩9585配方已准备；当前结果与剩余门槛见`docs/JUMP_DIAGNOSIS_20261113.md`末节，原始收据`artifacts/jump_diagnosis_20261113/`。以下公共历史记录不覆盖此独立分支新状态。
 
+本轮续做：已补齐UnifiedReward v2对意外下落SETTLE的站高约束，以及Isaac请求在1.5s后等待首次BALANCE的单次调度。成功门控/安全边界不变；Jump相关CPU83项通过，新版32次正常PPO（30+2完整恢复）验收待执行，尚未增加消耗。旧远端v44准备包为旧语义，暂不可用于新版开训。
+
 ## 主仓基线与依赖归档（2026-11-12，当前收尾）
 
 主源码仓固定为`/home/kellen/wheel_leg_refactor_ws`，独立Git/main；旧仓及其.git保留，不交换目录、不转发软链接、不配置remote或push。源码/测试/CI/两套共享C源码及小型契约纳入基线；run、预算、模型、机器映射和原始证据留文件存储。精确提交与干净clone收据保存在本地`artifacts/repository_baseline`，不提交运行数据。
