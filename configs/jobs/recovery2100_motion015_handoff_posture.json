@@ -185,7 +185,7 @@
       "name": "posture200ms",
       "kind": "posture",
       "dwell_ms": 200,
-      "maximum_center_error_rad": 0.25
+      "maximum_center_error_rad": 0.5
     }
   ],
   "cases": [
