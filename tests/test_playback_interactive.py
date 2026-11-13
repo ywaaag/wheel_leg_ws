@@ -129,3 +129,21 @@ def test_explicit_http_binding_uses_same_command_owner():
         assert snapshot["paused"] is False and snapshot["recording"] is False
     finally:
         stop(server)
+
+
+def test_served_page_includes_packaged_keyboard_and_memory_charts():
+    import urllib.request
+    from native_stand.simulation.playback_panel import start
+    from native_stand.students.motion_panel import stop
+
+    server, _ = start(PlaybackCommands(plant_stub()), 0)
+    try:
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        html = opener.open(f"http://127.0.0.1:{server.server_port}/", timeout=3).read().decode()
+        assert "/*PLAYBACK_SCRIPT*/" not in html
+        assert "document.addEventListener('keydown'" in html
+        assert "window.addEventListener('blur'" in html
+        assert "history.length>300" in html
+        assert "localStorage" not in html and "sessionStorage" not in html
+    finally:
+        stop(server)
