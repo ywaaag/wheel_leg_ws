@@ -48,11 +48,17 @@ def test_minimal_FK_matches_authored_full_geometry_for_broad_joint_angles(invers
 
 
 def test_inverse_C_input_is_bitwise_equal_to_full_FK_without_RNG_or_engine(inverse_args):
+    import mujoco
+
+    class FullForwardInverse(InverseFeedback):
+        def forward_feedback(self):
+            mujoco.mj_forward(self.model, self.data)
+
     class ReferenceGeometry(ClosedChain):
         def leg_lengths(self, q):
             return self.measure(q).length
 
-    fast, reference = InverseFeedback(*inverse_args), InverseFeedback(*inverse_args)
+    fast, reference = InverseFeedback(*inverse_args), FullForwardInverse(*inverse_args)
     reference.geometry = ReferenceGeometry(*inverse_args[:2], stop_margin_m=0)
     rng = np.random.default_rng(61)
     q = np.array([fast.initial.q[n] for n in fast.joint_names])
@@ -79,3 +85,9 @@ def test_inverse_C_input_is_bitwise_equal_to_full_FK_without_RNG_or_engine(inver
             request=tick == 500,
         )
         assert bytes(fast.input(**kwargs)) == bytes(reference.input(**kwargs))
+        from native_stand.simulation.jump_support_model import estimate
+
+        cached = estimate(fast, workspace=fast.support_workspace)
+        fresh = estimate(fast)
+        for key in ("internal_tau", "driver_tau", "support_J"):
+            np.testing.assert_array_equal(cached[key], fresh[key])

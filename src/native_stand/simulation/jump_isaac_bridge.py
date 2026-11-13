@@ -13,7 +13,7 @@ from scipy.spatial.transform import Rotation
 
 from native_stand.simulation.jump_mechanics import model_from_description, static_data
 from native_stand.simulation.jump_shared_c import declared_input
-from native_stand.simulation.jump_support_model import estimate
+from native_stand.simulation.jump_support_model import SupportWorkspace, estimate
 from native_stand.tasks.jump.geometry import CHANNELS, ClosedChain
 
 
@@ -36,6 +36,14 @@ class InverseFeedback:
         self.joint_names = mechanics["joint_names"]
         self.qids = np.array([self.model.jnt_qposadr[self.refs[n]] for n in self.joint_names])
         self.dofs = np.array([self.model.jnt_dofadr[self.refs[n]] for n in self.joint_names])
+        self.support_workspace = SupportWorkspace(self)
+
+    def forward_feedback(self):
+        # Only position/velocity-dependent M, bias, passive and Jacobians are
+        # consumed. Contact solving and forward acceleration are discarded:
+        # acceleration below always comes from the actual PhysX readback.
+        mujoco.mj_fwdPosition(self.model, self.data)
+        mujoco.mj_fwdVelocity(self.model, self.data)
 
     def input(self, *, tick, state, root, joint, acceleration, motor, NET, command, request):
         d = self.data
@@ -46,7 +54,7 @@ class InverseFeedback:
         rotation = Rotation.from_quat(root[3:7]).as_matrix()
         d.qvel[3:6] = rotation.T @ root[10:13]
         d.qvel[self.dofs] = joint[1]
-        mujoco.mj_forward(self.model, d)
+        self.forward_feedback()
         # The forward call establishes M/bias/passive/FK, not a replacement
         # physical acceleration. Supply the measured PhysX finite differences.
         d.qacc[:3] = acceleration[:3]
@@ -55,7 +63,7 @@ class InverseFeedback:
         d.qfrc_actuator[:] = 0
         d.qfrc_actuator[self.vids] = motor
         self.actual_NET = NET - self.coulomb * np.sign(d.qvel[self.vids])
-        support = estimate(self)
+        support = estimate(self, workspace=self.support_workspace)
         lengths = self.geometry.leg_lengths(dict(zip(self.joint_names, joint[0], strict=True)))
         q = d.qpos[[self.model.jnt_qposadr[self.refs[n]] for n in CHANNELS]]
         spread = (47.1033888 + 47.1080837) * np.pi / 180 + np.array([q[0] + q[1], -q[3] + q[4]])

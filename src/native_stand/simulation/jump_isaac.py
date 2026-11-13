@@ -22,7 +22,7 @@ from native_stand.artifacts.io import json_digest, read_json, write_json
 from native_stand.learning.ppo.performance import Measurement
 from native_stand.simulation.jump_build import build
 from native_stand.simulation.jump_isaac_bridge import InverseFeedback, critic_execution
-from native_stand.simulation.jump_isaac_critic import RowCritic
+from native_stand.simulation.jump_isaac_critic import BatchCritic, RowCritic
 from native_stand.simulation.jump_response import Response
 from native_stand.simulation.jump_unified import UnifiedV4Execution
 from native_stand.tasks.jump.adaptive_course import AdaptiveCourse
@@ -416,20 +416,16 @@ class IsaacJump:
             h = self.host()
             self.prepare(h)
             actor, valid = self.execution.observe()
-            execution = self.critic_snapshot()
-            critic = np.stack(
-                [
-                    self.row_observation(i, h, actor[i], execution=execution)
-                    for i in range(self.num_envs)
-                ]
-            )
+            if not hasattr(self, "batch_critic"):
+                self.batch_critic = BatchCritic(self, actor, h)
+            critic = self.batch_critic.pack(self, actor)
             schema = self.critics[0].schema.contract()
             if json_digest(schema) != json_digest(self.job.assets["jump_critic_schema"]):
                 raise ValueError("Actual Isaac Critic schema differs from frozen job")
             self._obs = TensorDict(
                 dict(
                     student_actor=torch.from_numpy(actor).to(self.device),
-                    student_critic=torch.from_numpy(critic).to(self.device),
+                    student_critic=critic,
                     recovery_actor_valid=torch.from_numpy(valid[:, None]).to(self.device),
                     jump_C_phase=torch.tensor(
                         [[s.phase] for s in self.execution.c.states], device=self.device

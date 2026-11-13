@@ -74,3 +74,10 @@ Isaac Critic现按dtype批量读回全体V4/response行，保持原字段顺序�
 逆动力学桥的腿长采用`ClosedChain.leg_lengths`，与完整measure相同的轮心FK，仅消除未消费的弹簧/碰撞/COM计算及非祖先关节。宽角度腿长与随机完整C输入字节回归比较，完整物理/支撑模型及周期不变。跨本机/远端引擎版本可显式full transition声明force_new_cohort，即使张量布局identity相同也不能沿用能力窗口；保留学习状态和课程RNG/累计计数。
 
 高频奖励包保留原有全部外部边界校验，finite合并单次扫描，异常时定位字段。Isaac Critic静态字段单位/尺度只在首个实际观测构造，动态name/shape/finite每次保留。allocator峰值使用公共MetricsWriter已有peak_memory_*字段，mask样本数进入performance_counters，不使用会被writer丢弃的自定义标量名。
+
+
+## GPU Critic组装与逆模型最小计算
+
+正常策略观测经`IsaacJump.observations → BatchCritic.pack`，保留实际PhysX/V4/response张量在设备上。原5591列顺序、环形队列时间顺序、全部字段和float64归一化后float32输出保持；CPU侧真实C/FSM和dense reward记忆合并一次上传。首观测按RowCritic建立schema；RowCritic仍用于终态和诊断同tick逐位对照，因此不是删列或以常量代替实际历史。既有base TaskMemory本来每次由request新建，保持该合同，live dense记忆仍读取实际reward。
+
+InverseFeedback仅调用位置/速度相关MuJoCo forward阶段，用实际PhysX有限差分加速度计算逆模型，不运行被丢弃的约束/前向加速度。SupportWorkspace只缓存拓扑索引和每次覆盖的scratch，作用域为单个inverse实例，未缓存动态反馈。真实C/FSM、支持判定、奖励/课程与终止语义不变。没有新增trainer或worker；统一CLI/owner/公共driver保持。CPU逆模型与dense reward仍存在，不能声称全部GPU化；吞吐以对应正式run记录为准。
