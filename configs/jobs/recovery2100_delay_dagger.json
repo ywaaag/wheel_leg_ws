@@ -1,0 +1,5081 @@
+{
+  "preset": "recovery_cubic_v2",
+  "name": "recovery2100_small256_delay_coverage_continuation",
+  "algorithm": "distillation",
+  "backend": "isaac_recovery",
+  "source_root": "/home/kellen/wheel_leg_distill_delay_ws/src",
+  "model": {
+    "actor_hidden_dims": [
+      256,
+      128,
+      64
+    ],
+    "critic_input": 909,
+    "critic_privileged_version": "recovery_standalone_height_causal909_v5"
+  },
+  "observation": {
+    "critic_dim": 909
+  },
+  "initialization": {
+    "mode": "full",
+    "checkpoint": "/home/kellen/wheel_leg_training_data/2026_11_13__recovery_settle48_full1800_10000_attempt4/checkpoints/model_update_2100.pt",
+    "sha256": "5aec83df5644ae1b96f4ed012be41d41cb15c4729bbc7b632af347912d3d12a9"
+  },
+  "control": {
+    "effort_limits_nm": [
+      40.0,
+      40.0,
+      4.8,
+      40.0,
+      40.0,
+      4.8
+    ]
+  },
+  "runtime": {
+    "envs": 128,
+    "steps_per_env": 128,
+    "seed": 111321,
+    "device": "cuda:0",
+    "headless": true
+  },
+  "limits": {
+    "smoke_updates": 0,
+    "formal_updates": 0,
+    "sample_limit": null,
+    "chain_wall_s": 14400,
+    "evaluation_wall_s": null
+  },
+  "storage": {
+    "checkpoint_every_updates": 1,
+    "metrics_every_updates": 1,
+    "keep_recent_checkpoints": 2,
+    "max_output_bytes": 8589934592,
+    "terminal_reserve_bytes": 268435456,
+    "tensorboard": false
+  },
+  "assets": {
+    "recovery_initial_actor": {
+      "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_11__recovery_preentry48_restart/initial_actor.pt",
+      "sha256": "9bcdb05e46fdadaaa1957659afa295c41f3cba941687c7f8a69b9cbc1fd7b633"
+    },
+    "recovery_training_contract": {
+      "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_11__recovery_preentry48_restart/output_contract.json",
+      "sha256": "71d2b06b6617b9499f056e9951b2ca7c3a3ee8b2d100169a4e57f09ba21575db"
+    },
+    "recovery": {
+      "entry_family": "swing",
+      "gate": {
+        "hold_seconds": 10.0,
+        "standing_height_m": [
+          0.3,
+          0.4
+        ],
+        "dual_contact_min": 0.95,
+        "peak_tilt_max_rad": 0.18,
+        "closure_max_m": 0.005,
+        "saturation_fraction_max": 0.05
+      }
+    },
+    "recovery_isaac_runtime": {
+      "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_11__recovery_preentry48_restart/runtime_contract.json",
+      "sha256": "81d6c19ec5e64189fb5609310f7e2ec0d55fc0cbc76e7594ee4a1a51c819a25b"
+    },
+    "recovery_isaac_acceptance": {
+      "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_11__recovery_preentry48_restart/Isaac_acceptance.json",
+      "sha256": "9f3ee22de6386127f57faa1c137ea282a187f629769830fe8c228a92d03a6d58"
+    },
+    "physical_gpu_uuid": "GPU-e704e7d4-2965-4712-9759-ba6b9910bd72",
+    "recovery_critic_contract": {
+      "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__recovery_standalone_restart10000/critic_contract.json",
+      "sha256": "59b912bc5df2309445b13da135c29ffa5f9d1ad5dd01067f37c4293644d8d487"
+    },
+    "recovery_standalone_course": {
+      "version": "recovery_Swing_priority_own_hold_v2",
+      "own_control_entire_episode": true,
+      "initial_stage": 0,
+      "HF_is_promotion_gate": false,
+      "first_episode": "full_Swing",
+      "fractions_student_seconds": [
+        0.15,
+        0.075,
+        0.075,
+        0.7
+      ]
+    },
+    "recovery_legacy_reward": {
+      "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_11__recovery_preentry48_restart/reward_recipe.json",
+      "sha256": "61a944aeff5d6ad761f7aee93f8537c54bc1c8bce275d04bd498a41cd3784611"
+    },
+    "path_mapping": {
+      "path": "/home/kellen/wheel_leg_training_data/runtime_paths.json",
+      "sha256": "38c6f5100170e80e66cd1d9bc826daf397bd0ded0f1a3b248ec15b1ae412ccea"
+    },
+    "gpu_resource_policy": {
+      "mode": "shared_authorized",
+      "authorization": {
+        "path": "/home/kellen/wheel_leg_distill_ws/configs/recovery/distillation2100_authorization.json",
+        "sha256": "779465444fc727d1f73ea31f3ce41e7a21936b3cf4e595115f025c752e6e51a6"
+      },
+      "minimum_free_MiB": 8192,
+      "minimum_disk_free_bytes": 8589934592,
+      "storage_path": "/home/kellen/wheel_leg_training_data"
+    },
+    "recovery_distillation_validation_cases": [
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      }
+    ],
+    "recovery_distillation_collection_cases": [
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 0,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 1,
+        "timing": {
+          "Actor_age_ms": 0,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 2,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 15,
+          "wheel_delay_ms": [
+            7,
+            11
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "full_Swing",
+        "standing": false,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "standing_review",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": false,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": true,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.0,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      },
+      {
+        "group": "perturbed_standing",
+        "standing": true,
+        "prefix_s": 0.0,
+        "pulse": true,
+        "DR_strength": 0.25,
+        "height_m": 0.34,
+        "height_dynamic": false,
+        "cohort": 3,
+        "timing": {
+          "Actor_age_ms": 20,
+          "target_delay_ms": 5,
+          "wheel_delay_ms": [
+            11,
+            15
+          ]
+        }
+      }
+    ]
+  },
+  "reward": {
+    "version": "recovery_preentry_runaway48_physical_v8",
+    "dt": 0.01,
+    "weights": [
+      1.0
+    ],
+    "fields": {
+      "source": "recovery_isaac.lifecycle"
+    }
+  },
+  "notifications": {
+    "enabled": false,
+    "target": null
+  },
+  "supervision": {
+    "teachers": [
+      {
+        "name": "Recovery2100",
+        "path": "/home/kellen/wheel_leg_training_data/2026_11_13__recovery_settle48_full1800_10000_attempt4/checkpoints/model_update_2100.pt",
+        "sha256": "5aec83df5644ae1b96f4ed012be41d41cb15c4729bbc7b632af347912d3d12a9",
+        "inference": {
+          "kind": "recovery_physical",
+          "input_dim": 31,
+          "hidden_dims": [
+            2048,
+            1024,
+            512
+          ],
+          "output_dim": 6,
+          "input_contract": {
+            "version": "recovery_cubic_physical_v2",
+            "observation": {
+              "frame_dim": 22,
+              "actor_dim": 31,
+              "critic_dim": 909,
+              "leg_input_scale_rad": 1.5,
+              "wheel_input_scale_rad_s": 100.0
+            }
+          },
+          "output_contract": {
+            "action_version": "recovery_cubic_physical_Gaussian_v2",
+            "actor_dimensions": [
+              31,
+              2048,
+              1024,
+              512,
+              6
+            ],
+            "hidden_activation": "ELU(alpha=1)",
+            "mean_activation": "Tanh",
+            "center_rad": [
+              -0.13097405433654785,
+              -0.15117678046226501,
+              0.13097405433654785,
+              -0.15117678046226501
+            ],
+            "leg_lower_rad": [
+              -1.5,
+              -1.5,
+              -1.5,
+              -1.5
+            ],
+            "leg_upper_rad": [
+              1.5,
+              1.5,
+              1.5,
+              1.5
+            ],
+            "center_slope_rad": 0.15,
+            "wheel_scale_rad_s": 100.0,
+            "height_command_m": "per-cycle explicit command, not a fixed decoder center",
+            "height_change_within_episode": true,
+            "input_leg_scale_rad": 1.5,
+            "input_wheel_previous_scale_rad_s": 100.0,
+            "input_leg_dq_scale": 0.05,
+            "Actor_leg_dq_multiplier": 1.0,
+            "PD_D_retained": true,
+            "previous": "actual adopted physical target after protection",
+            "center_source": {
+              "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_07__motion_C0_interface_large_ppo_handoff/large_output_contract.json",
+              "sha256": "b095ef1983991e3e12196b7cdf73fa7a1030e1b0c1af4a0e08c107c63bc74cd7"
+            },
+            "raw_action": "physical target Gaussian sample before explicit range/mechanical protection; log_prob of this original rad/rad_s sample",
+            "formula": "d=a_leg; R=upper-center if d>=0 else center-lower; q=center+.15*d+(R-.15)*d^3; wheel=100*a_wheel",
+            "derivative_warning": "center decoder slope is not the complete Actor feedback gain; exact physical relabel keeps old gain",
+            "mechanical_protection": "same named joint limits after physical decode; adopted target alone enters previous",
+            "parameters_must_not_be_guessed": [
+              "encoder zero delta",
+              "spring or extra compensation"
+            ],
+            "hardware_deployment_accepted": false,
+            "limits_not_changed": false,
+            "deterministic_source_version": "recovery_centered_cubic_v1",
+            "deterministic_source_sha256": "77ec4036b78e6fad962227457c5b9f070e863000d81175b8063da53e2a655338",
+            "sampling_distribution": {
+              "version": "physical_target_Gaussian_v2",
+              "fixed_std": [
+                0.02,
+                0.02,
+                2,
+                0.02,
+                0.02,
+                2
+              ],
+              "raw_units": [
+                "rad",
+                "rad",
+                "rad/s",
+                "rad",
+                "rad",
+                "rad/s"
+              ],
+              "second_mean_space_Gaussian": false,
+              "entropy_coefficient": 0
+            },
+            "critic_privileged_version": "recovery_standalone_height_causal909_v5",
+            "actor_only": true,
+            "old_Critic_Adam_log_std_resume": false,
+            "height_conditioning": "Actor absolute height slot; cubic center stays fixed at original .34 reference",
+            "motor_effort_limits_nm": [
+              40.0,
+              40.0,
+              4.8,
+              40.0,
+              40.0,
+              4.8
+            ],
+            "motor_limit_revision": "user unified wheel motor4.8Nm; leg40Nm; motor and external NET remain separate"
+          },
+          "activation": "ELU"
+        },
+        "labels": {
+          "kind": "physical"
+        },
+        "conditions": {
+          "teacher_eligible": 1
+        }
+      }
+    ],
+    "student": {
+      "kind": "recovery_physical",
+      "input_dim": 31,
+      "hidden_dims": [
+        256,
+        128,
+        64
+      ],
+      "output_dim": 6,
+      "input_contract": {
+        "version": "recovery_cubic_physical_v2",
+        "observation": {
+          "frame_dim": 22,
+          "actor_dim": 31,
+          "critic_dim": 909,
+          "leg_input_scale_rad": 1.5,
+          "wheel_input_scale_rad_s": 100.0
+        }
+      },
+      "output_contract": {
+        "action_version": "recovery_cubic_physical_Gaussian_v2",
+        "actor_dimensions": [
+          31,
+          256,
+          128,
+          64,
+          6
+        ],
+        "hidden_activation": "ELU(alpha=1)",
+        "mean_activation": "Tanh",
+        "center_rad": [
+          -0.13097405433654785,
+          -0.15117678046226501,
+          0.13097405433654785,
+          -0.15117678046226501
+        ],
+        "leg_lower_rad": [
+          -1.5,
+          -1.5,
+          -1.5,
+          -1.5
+        ],
+        "leg_upper_rad": [
+          1.5,
+          1.5,
+          1.5,
+          1.5
+        ],
+        "center_slope_rad": 0.15,
+        "wheel_scale_rad_s": 100.0,
+        "height_command_m": "per-cycle explicit command, not a fixed decoder center",
+        "height_change_within_episode": true,
+        "input_leg_scale_rad": 1.5,
+        "input_wheel_previous_scale_rad_s": 100.0,
+        "input_leg_dq_scale": 0.05,
+        "Actor_leg_dq_multiplier": 1.0,
+        "PD_D_retained": true,
+        "previous": "actual adopted physical target after protection",
+        "center_source": {
+          "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_07__motion_C0_interface_large_ppo_handoff/large_output_contract.json",
+          "sha256": "b095ef1983991e3e12196b7cdf73fa7a1030e1b0c1af4a0e08c107c63bc74cd7"
+        },
+        "raw_action": "physical target Gaussian sample before explicit range/mechanical protection; log_prob of this original rad/rad_s sample",
+        "formula": "d=a_leg; R=upper-center if d>=0 else center-lower; q=center+.15*d+(R-.15)*d^3; wheel=100*a_wheel",
+        "derivative_warning": "center decoder slope is not the complete Actor feedback gain; exact physical relabel keeps old gain",
+        "mechanical_protection": "same named joint limits after physical decode; adopted target alone enters previous",
+        "parameters_must_not_be_guessed": [
+          "encoder zero delta",
+          "spring or extra compensation"
+        ],
+        "hardware_deployment_accepted": false,
+        "limits_not_changed": false,
+        "deterministic_source_version": "recovery_centered_cubic_v1",
+        "deterministic_source_sha256": "77ec4036b78e6fad962227457c5b9f070e863000d81175b8063da53e2a655338",
+        "sampling_distribution": {
+          "version": "physical_target_Gaussian_v2",
+          "fixed_std": [
+            0.02,
+            0.02,
+            2,
+            0.02,
+            0.02,
+            2
+          ],
+          "raw_units": [
+            "rad",
+            "rad",
+            "rad/s",
+            "rad",
+            "rad",
+            "rad/s"
+          ],
+          "second_mean_space_Gaussian": false,
+          "entropy_coefficient": 0
+        },
+        "critic_privileged_version": "recovery_standalone_height_causal909_v5",
+        "actor_only": true,
+        "old_Critic_Adam_log_std_resume": false,
+        "height_conditioning": "Actor absolute height slot; cubic center stays fixed at original .34 reference",
+        "motor_effort_limits_nm": [
+          40.0,
+          40.0,
+          4.8,
+          40.0,
+          40.0,
+          4.8
+        ],
+        "motor_limit_revision": "user unified wheel motor4.8Nm; leg40Nm; motor and external NET remain separate"
+      },
+      "activation": "ELU"
+    },
+    "student_labels": {
+      "kind": "physical"
+    },
+    "dataset": {
+      "path": "/home/kellen/wheel_leg_distill_ws/configs/recovery/distillation_empty_view.json",
+      "sha256": "f90317a69deb944e9126efc3104542b46bb97aaad81f3dd6e30da897ea7410fa",
+      "kind": "episode_dataset_view_v1"
+    },
+    "phases": [
+      {
+        "operation": "collect",
+        "steps": 4600,
+        "policy": "Recovery2100"
+      },
+      {
+        "operation": "label"
+      },
+      {
+        "operation": "fit",
+        "rounds": 20
+      },
+      {
+        "operation": "compare",
+        "steps": 2300
+      },
+      {
+        "operation": "collect",
+        "steps": 4600
+      },
+      {
+        "operation": "label"
+      },
+      {
+        "operation": "fit",
+        "rounds": 20
+      },
+      {
+        "operation": "compare",
+        "steps": 2300
+      },
+      {
+        "operation": "collect",
+        "steps": 4600
+      },
+      {
+        "operation": "label"
+      },
+      {
+        "operation": "fit",
+        "rounds": 20
+      },
+      {
+        "operation": "compare",
+        "steps": 2300
+      },
+      {
+        "operation": "compare",
+        "steps": 4600,
+        "final": true
+      },
+      {
+        "operation": "export"
+      }
+    ],
+    "batch_size": 1024,
+    "learning_rate": 0.0003,
+    "objective": {
+      "kind": "physical_huber",
+      "scales": [
+        0.05,
+        0.05,
+        10.0,
+        0.05,
+        0.05,
+        10.0
+      ],
+      "phase_weights": {
+        "0": 1.0,
+        "1": 1.0,
+        "2": 2.0,
+        "3": 4.0,
+        "4": 1.0,
+        "5": 2.0,
+        "6": 2.0
+      },
+      "updates_per_round": 50
+    }
+  },
+  "experiment_variables": {
+    "teacher_fixed_sha256": "5aec83df5644ae1b96f4ed012be41d41cb15c4729bbc7b632af347912d3d12a9",
+    "total_task_budget": null,
+    "execution_block": "Preserve full BC/Adam/RNG/split/budget/phase cursor via public checkpoint handoff; cumulative wall boundary14400s,8GiB; task total remains unlimited",
+    "teacher_source_reward": "v9 training; collection-only lifecycle v8 with identical physical/timing/entry/hold semantics; no PPO or reward optimization",
+    "continuation_reason": "Measured first comparison: target15ms and wheel11/15ms fail; source collection only covered target4..9 and wheels6..8/10..12. New actual student episodes use explicit timing cohorts plus nominal/DR anchors; never train on compare episodes."
+  }
+}

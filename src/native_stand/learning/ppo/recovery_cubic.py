@@ -30,7 +30,9 @@ class PhysicalActor(StudentNetwork):
         self.register_buffer("upper", torch.tensor(contract["leg_upper_rad"]))
 
     def physical_mean(self, x):
-        a = self.mean(x)
+        return self.decode_mean(self.mean(x))
+
+    def decode_mean(self, a):
         v = a[..., LEGS]
         reach = torch.where(v >= 0, self.upper - self.center, self.center - self.lower)
         q = self.center + 0.15 * v + (reach - 0.15) * v.pow(3)
