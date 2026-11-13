@@ -209,3 +209,15 @@ def test_recovery_physical_ONNX_is_valid_and_matches_multiple_batch_sizes(tmp_pa
     for n in (1, 7):
         got = evaluator.run(None, {"observation": x[:n].numpy()})[0]
         np.testing.assert_allclose(got, actor.physical_mean(x[:n]).numpy(), atol=1e-5, rtol=1e-5)
+
+
+def test_physical_export_comparison_uses_leg_and_wheel_units():
+    from native_stand.artifacts.deployment import check_output_golden
+
+    expected = np.zeros((1, 6))
+    actual = expected.copy()
+    actual[0, 2] = 5e-5
+    check_output_golden(actual, expected, "recovery_physical")
+    actual[0, 0] = 5e-5
+    with pytest.raises(AssertionError):
+        check_output_golden(actual, expected, "recovery_physical")

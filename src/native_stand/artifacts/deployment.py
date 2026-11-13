@@ -71,6 +71,22 @@ def export_package(
     return record
 
 
+def check_output_golden(actual, expected, kind):
+    """Compare in declared physical supervision units, not mixed rad/rad_s."""
+    import numpy as np
+
+    scale = np.array([0.05, 0.05, 10.0, 0.05, 0.05, 10.0]) if kind == "recovery_physical" else 1.0
+    np.testing.assert_allclose(actual / scale, expected / scale, rtol=1e-5, atol=1e-5)
+    error = np.abs(actual - expected)
+    return dict(
+        max_abs_error=float(error.max()),
+        per_channel_max_abs_error=error.max(0).tolist(),
+        tolerance="rtol=1e-5,atol=1e-5 after physical supervision scaling"
+        if kind == "recovery_physical"
+        else "rtol=1e-5,atol=1e-5",
+    )
+
+
 def _export_new(source, spec, output, *, execution, dependencies=(), onnx=False, golden=None):
     import shutil
 
@@ -146,6 +162,7 @@ def _export_new(source, spec, output, *, execution, dependencies=(), onnx=False,
             opset_version=17,
             dynamo=False,
         )
+    ONNX_error = None
     if onnx:
         import numpy as np
         import onnx as onnx_format
@@ -156,7 +173,7 @@ def _export_new(source, spec, output, *, execution, dependencies=(), onnx=False,
         actual = ReferenceEvaluator(str(output / "actor.onnx")).run(
             None, {"observation": x.numpy()}
         )[0]
-        np.testing.assert_allclose(actual, y.numpy(), rtol=1e-5, atol=1e-5)
+        ONNX_error = check_output_golden(actual, y.numpy(), spec.kind)
     c_build = None
     if execution.get("C_core"):
         if execution["C_core"] == "jump_ABI4":
@@ -209,6 +226,7 @@ def _export_new(source, spec, output, *, execution, dependencies=(), onnx=False,
             C_decoder_max_abs_error=C_decoder_error,
             C_actor=C_actor,
             ONNX_reference=True if onnx else "NOT_RUN",
+            ONNX_error=ONNX_error,
             ORT="NOT_RUN",
             ARM="NOT_RUN",
             hardware="OFF",
