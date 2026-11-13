@@ -198,3 +198,6 @@ sim2sim不是训练课程或另一套worker：显式协议经CLI直接顺序拥�
 网页展示与键盘适配位于`simulation/playback_panel.html/.js`，由现有`start()`内联加载为同一页面；
 JS作为package data打包。借鉴历史Motion面板的焦点保护、物理按键和有界曲线，不搬入其斜坡、手柄或技能仲裁。
 键盘/数值/按钮通过同一个串行命令队列接既有HTTP owner，不直接调用物理、不引入第二个控制循环。
+
+
+Motion少量高度配方`configs/jobs/motion_height_small_dose_prepared.json`复用SplitCourse v3的targets/focus_weights与既有height-first时序，不新增课程版本、执行器或训练入口。10%高度、28%转弯、7%rough、55%基础；职责和语义见能力矩阵末节。`artifacts.branch_initialization.CONTINUED_COURSE`在现有完整来源/分配校验中支持真实终态后的剩余额度接续，复用生产adapter依赖登记和公共预算；不更改同run恢复合同，不热改活动冻结源码。

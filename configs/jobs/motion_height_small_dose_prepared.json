@@ -1,0 +1,2004 @@
+{
+  "schema_version": 1,
+  "preset": "motion48_supported_v1",
+  "name": "motion_height_small_dose_prepared",
+  "backend": "isaac",
+  "source_root": "../../src",
+  "model": {
+    "interface": "multiskill_mcu_v2",
+    "actor_hidden_dims": [
+      2048,
+      1024,
+      512
+    ],
+    "critic_hidden_dims": [
+      512,
+      512,
+      256
+    ],
+    "actor_input": 31,
+    "critic_input": 881,
+    "critic_privileged_version": "motion48_height_bank_contact_causal881_v1",
+    "action_version": "motion_multiheight020_support_center_015_80_v2",
+    "kind": "mlp"
+  },
+  "observation": {
+    "frame_dim": 22,
+    "actor_dim": 31,
+    "critic_dim": 881,
+    "leg_input_scale_rad": 1.5,
+    "wheel_input_scale_rad_s": 100.0
+  },
+  "action": {
+    "dim": 6,
+    "order": [
+      "left_hip_pitch",
+      "left_active_link_pitch",
+      "left_wheel_spin",
+      "right_hip_pitch",
+      "right_active_link_pitch",
+      "right_wheel_spin"
+    ],
+    "leg_scale_rad": 0.15,
+    "wheel_scale_rad_s": 80.0,
+    "version": "motion_multiheight020_support_center_015_80_v2"
+  },
+  "control": {
+    "physics_dt_s": 0.001,
+    "pd_dt_s": 0.005,
+    "policy_dt_s": 0.01,
+    "leg_kp": 40.0,
+    "leg_kd": 2.0,
+    "wheel_kv": 0.2,
+    "effort_limits_nm": [
+      40.0,
+      40.0,
+      4.8,
+      40.0,
+      40.0,
+      4.8
+    ],
+    "height_command_m": 0.34
+  },
+  "initialization": {
+    "mode": "full",
+    "checkpoint": "/home/kellen/wheel_leg_training_data/motion_preservation/20261113_r15_u1500/wheel_leg_motion/runs/2026_11_12__motion_contact_grid_cloud10000_r15_speed/checkpoints/model_update_1500.pt",
+    "sha256": "6f84a7f66f64e7a30ca4cf0b4d5a1f78acaf9f3c9e96fbe12c03756624a543d2"
+  },
+  "reward": {
+    "version": "motion48_bank_anchored_coarse_drift_reward_v2",
+    "dt": 0.01,
+    "weights": [
+      0.5,
+      4.0,
+      2.0,
+      1.0,
+      2.0,
+      2.0,
+      -1.0,
+      -0.5,
+      -0.5,
+      -0.2,
+      -0.3,
+      -0.15,
+      -0.02,
+      -0.002
+    ],
+    "fields": {
+      "scale_corrections": {
+        "version": "motion_supported_physical_scale_corrections_v1",
+        "linear_wide_mps": 0.8,
+        "linear_narrow_mps": 0.1,
+        "linear_weight": 4.0,
+        "linear_tail_scale_mps": 0.3,
+        "linear_tail_weight": -1.0,
+        "yaw_wide_rad_s": 0.5,
+        "yaw_narrow_rad_s": 0.15,
+        "yaw_weight": 2.0,
+        "yaw_tail_scale_rad_s": 0.5,
+        "yaw_tail_weight": -0.5,
+        "narrow_mix": 0.25,
+        "effort_normalization": "per_env_effective_motor_caps",
+        "motor_effort_excludes": [
+          "NET",
+          "passive_friction",
+          "external_pulse"
+        ],
+        "input_scales_unchanged": [
+          1.5,
+          100.0
+        ],
+        "output_scales": [
+          0.15,
+          80.0
+        ],
+        "policy_dt_s": 0.01
+      },
+      "maneuver": {
+        "version": "motion48_bank_anchored_coarse_drift_reward_v2",
+        "dt": 0.01,
+        "height_weight": 4.0,
+        "height_wide_m": 0.06,
+        "height_narrow_m": 0.015,
+        "height_narrow_mix": 0.25,
+        "height_tail_weight": -0.75,
+        "height_tail_scale_m": 0.04,
+        "bank_reference": "FLU -atan(vx*yaw/g), soft reference only",
+        "bank_max_rad": 0.3,
+        "symmetry": "standing/straight only; reward, quality termination and assessment agree",
+        "physical_HF": "original integrated1ms term retained exactly; no extra policy dt",
+        "stand_drift_deadband_mps": 0.15,
+        "zero_position_hold": false,
+        "motor_effort": "actual motor/caps, NET excluded",
+        "actor_and_PD_dq": true,
+        "stand_drift_tail_weight": 1.5,
+        "stand_drift_tail_scale_mps": 0.3,
+        "nominal_source_retention": "balanced qualified training-only source states",
+        "precision_parking": false
+      }
+    }
+  },
+  "curriculum": {
+    "version": "motion48_turn_focus_branch_v3",
+    "stage": 0,
+    "stages": [
+      {
+        "version": "motion48_turn_focus_branch_v3",
+        "branch": "motion",
+        "initial_DR_level": 1,
+        "DR_amplitudes": [
+          0.25,
+          0.5,
+          0.75,
+          1.0
+        ],
+        "DR_enabled": true,
+        "confirmations": 2,
+        "regression_confirmations": 3,
+        "regression_pass_fraction": 0.35,
+        "minimum_ended": 16,
+        "minimum_complete_fraction": 0.9,
+        "task_pass_fraction": 0.7,
+        "review_every_updates": 100,
+        "command_program_version": "motion48_height020_rate_limited_schedule_v3",
+        "teacher_prefix_fraction": 0.0,
+        "old_confirmations_are_history": true,
+        "rough_terrain": "FOUR_STATIC_H1",
+        "symmetry": "flat standing and straight only; banking may be asymmetric",
+        "height_range_m": [
+          0.2,
+          0.4
+        ],
+        "height_020_decoder": "GEOMETRIC_SEED_PENDING_ISAAC",
+        "evidence": "normal ended on-policy episodes only; no independent certificate",
+        "source_retention_scope": "unchanged qualified .34 nominal [zero,+3.6,-3.6] bank; causal on-policy mask; not new DR/turn/spin labels",
+        "fractions": {
+          "clean": 0.1,
+          "combined": 0.1,
+          "modal": 0.1,
+          "anchors": 0.25,
+          "focus": 0.45
+        },
+        "anchors": {
+          "forward": [
+            3.6,
+            0,
+            0.34
+          ],
+          "backward": [
+            -3.6,
+            0,
+            0.34
+          ],
+          "yaw_positive": [
+            0,
+            2,
+            0.34
+          ],
+          "yaw_negative": [
+            0,
+            -2,
+            0.34
+          ]
+        },
+        "targets": {
+          "turn_fp": [
+            [
+              2,
+              0.5,
+              0.34
+            ],
+            [
+              2,
+              0.65,
+              0.34
+            ],
+            [
+              2,
+              0.8,
+              0.34
+            ],
+            [
+              2,
+              1,
+              0.34
+            ],
+            [
+              2.5,
+              0.5,
+              0.34
+            ],
+            [
+              2.5,
+              0.65,
+              0.34
+            ],
+            [
+              2.5,
+              0.8,
+              0.34
+            ],
+            [
+              3,
+              0.5,
+              0.34
+            ],
+            [
+              3,
+              0.65,
+              0.34
+            ],
+            [
+              3,
+              0.8,
+              0.34
+            ],
+            [
+              3.6,
+              0.5,
+              0.34
+            ],
+            [
+              3.6,
+              0.65,
+              0.34
+            ],
+            [
+              3.6,
+              0.75,
+              0.34
+            ]
+          ],
+          "turn_fn": [
+            [
+              2,
+              -0.5,
+              0.34
+            ],
+            [
+              2,
+              -0.65,
+              0.34
+            ],
+            [
+              2,
+              -0.8,
+              0.34
+            ],
+            [
+              2,
+              -1,
+              0.34
+            ],
+            [
+              2.5,
+              -0.5,
+              0.34
+            ],
+            [
+              2.5,
+              -0.65,
+              0.34
+            ],
+            [
+              2.5,
+              -0.8,
+              0.34
+            ],
+            [
+              3,
+              -0.5,
+              0.34
+            ],
+            [
+              3,
+              -0.65,
+              0.34
+            ],
+            [
+              3,
+              -0.8,
+              0.34
+            ],
+            [
+              3.6,
+              -0.5,
+              0.34
+            ],
+            [
+              3.6,
+              -0.65,
+              0.34
+            ],
+            [
+              3.6,
+              -0.75,
+              0.34
+            ]
+          ],
+          "turn_bp": [
+            [
+              -2,
+              0.5,
+              0.34
+            ],
+            [
+              -2,
+              0.65,
+              0.34
+            ],
+            [
+              -2,
+              0.8,
+              0.34
+            ],
+            [
+              -2,
+              1,
+              0.34
+            ],
+            [
+              -2.5,
+              0.5,
+              0.34
+            ],
+            [
+              -2.5,
+              0.65,
+              0.34
+            ],
+            [
+              -2.5,
+              0.8,
+              0.34
+            ],
+            [
+              -3,
+              0.5,
+              0.34
+            ],
+            [
+              -3,
+              0.65,
+              0.34
+            ],
+            [
+              -3,
+              0.8,
+              0.34
+            ],
+            [
+              -3.6,
+              0.5,
+              0.34
+            ],
+            [
+              -3.6,
+              0.65,
+              0.34
+            ],
+            [
+              -3.6,
+              0.75,
+              0.34
+            ]
+          ],
+          "turn_bn": [
+            [
+              -2,
+              -0.5,
+              0.34
+            ],
+            [
+              -2,
+              -0.65,
+              0.34
+            ],
+            [
+              -2,
+              -0.8,
+              0.34
+            ],
+            [
+              -2,
+              -1,
+              0.34
+            ],
+            [
+              -2.5,
+              -0.5,
+              0.34
+            ],
+            [
+              -2.5,
+              -0.65,
+              0.34
+            ],
+            [
+              -2.5,
+              -0.8,
+              0.34
+            ],
+            [
+              -3,
+              -0.5,
+              0.34
+            ],
+            [
+              -3,
+              -0.65,
+              0.34
+            ],
+            [
+              -3,
+              -0.8,
+              0.34
+            ],
+            [
+              -3.6,
+              -0.5,
+              0.34
+            ],
+            [
+              -3.6,
+              -0.65,
+              0.34
+            ],
+            [
+              -3.6,
+              -0.75,
+              0.34
+            ]
+          ],
+          "rough_steep_waves_H1": [
+            [
+              0.15,
+              0,
+              0.34
+            ],
+            [
+              0.25,
+              0,
+              0.34
+            ],
+            [
+              0.5,
+              0,
+              0.34
+            ],
+            [
+              1,
+              0,
+              0.34
+            ],
+            [
+              1.5,
+              0,
+              0.34
+            ],
+            [
+              2,
+              0,
+              0.34
+            ],
+            [
+              2.5,
+              0,
+              0.34
+            ],
+            [
+              3,
+              0,
+              0.34
+            ],
+            [
+              3.6,
+              0,
+              0.34
+            ]
+          ],
+          "rough_cobblestones_H1": [
+            [
+              0.15,
+              0,
+              0.34
+            ],
+            [
+              0.25,
+              0,
+              0.34
+            ],
+            [
+              0.5,
+              0,
+              0.34
+            ],
+            [
+              1,
+              0,
+              0.34
+            ],
+            [
+              1.5,
+              0,
+              0.34
+            ],
+            [
+              2,
+              0,
+              0.34
+            ],
+            [
+              2.5,
+              0,
+              0.34
+            ],
+            [
+              3,
+              0,
+              0.34
+            ],
+            [
+              3.6,
+              0,
+              0.34
+            ]
+          ],
+          "rough_broken_rubble_H1": [
+            [
+              0.15,
+              0,
+              0.34
+            ],
+            [
+              0.25,
+              0,
+              0.34
+            ],
+            [
+              0.5,
+              0,
+              0.34
+            ],
+            [
+              1,
+              0,
+              0.34
+            ],
+            [
+              1.5,
+              0,
+              0.34
+            ],
+            [
+              2,
+              0,
+              0.34
+            ],
+            [
+              2.5,
+              0,
+              0.34
+            ],
+            [
+              3,
+              0,
+              0.34
+            ],
+            [
+              3.6,
+              0,
+              0.34
+            ]
+          ],
+          "rough_pitted_road_H1": [
+            [
+              0.15,
+              0,
+              0.34
+            ],
+            [
+              0.25,
+              0,
+              0.34
+            ],
+            [
+              0.5,
+              0,
+              0.34
+            ],
+            [
+              1,
+              0,
+              0.34
+            ],
+            [
+              1.5,
+              0,
+              0.34
+            ],
+            [
+              2,
+              0,
+              0.34
+            ],
+            [
+              2.5,
+              0,
+              0.34
+            ],
+            [
+              3,
+              0,
+              0.34
+            ],
+            [
+              3.6,
+              0,
+              0.34
+            ]
+          ],
+          "height_20_stand": [
+            [
+              0,
+              0,
+              0.2
+            ]
+          ],
+          "height_20_forward": [
+            [
+              0.25,
+              0,
+              0.2
+            ]
+          ],
+          "height_20_backward": [
+            [
+              -0.25,
+              0,
+              0.2
+            ]
+          ],
+          "height_24_stand": [
+            [
+              0,
+              0,
+              0.24
+            ]
+          ],
+          "height_24_forward": [
+            [
+              0.25,
+              0,
+              0.24
+            ]
+          ],
+          "height_24_backward": [
+            [
+              -0.25,
+              0,
+              0.24
+            ]
+          ],
+          "height_28_stand": [
+            [
+              0,
+              0,
+              0.28
+            ]
+          ],
+          "height_28_forward": [
+            [
+              0.25,
+              0,
+              0.28
+            ]
+          ],
+          "height_28_backward": [
+            [
+              -0.25,
+              0,
+              0.28
+            ]
+          ],
+          "height_32_stand": [
+            [
+              0,
+              0,
+              0.32
+            ]
+          ],
+          "height_32_forward": [
+            [
+              0.25,
+              0,
+              0.32
+            ]
+          ],
+          "height_32_backward": [
+            [
+              -0.25,
+              0,
+              0.32
+            ]
+          ],
+          "height_36_stand": [
+            [
+              0,
+              0,
+              0.36
+            ]
+          ],
+          "height_36_forward": [
+            [
+              0.25,
+              0,
+              0.36
+            ]
+          ],
+          "height_36_backward": [
+            [
+              -0.25,
+              0,
+              0.36
+            ]
+          ],
+          "height_40_stand": [
+            [
+              0,
+              0,
+              0.4
+            ]
+          ],
+          "height_40_forward": [
+            [
+              0.25,
+              0,
+              0.4
+            ]
+          ],
+          "height_40_backward": [
+            [
+              -0.25,
+              0,
+              0.4
+            ]
+          ]
+        },
+        "straight_limit_mps": 3.6,
+        "pure_spin_limit_rad_s": 2.0,
+        "basis": "10% total fixed-height standing/flat +/-0.25 at .20,.24,.28,.32,.36,.40; existing rate-limited height-first schedule; preserve live frontiers when allocated",
+        "DR_progression": "shared_strength_independent_of_task_axes",
+        "DR_progression_basis": "preserve source uniform strength across dq/families; the DR axis advances independently of task directions; not per-family independent DR",
+        "confirmation_execution_sha256": "5021b0fccaaf1f89587c42b090d6b3ba83e76956080431ba7245fcf3171f7f83",
+        "terrain_by_axis": {
+          "rough_steep_waves_H1": "steep_waves_H1",
+          "rough_cobblestones_H1": "cobblestones_H1",
+          "rough_broken_rubble_H1": "broken_rubble_H1",
+          "rough_pitted_road_H1": "pitted_road_H1"
+        },
+        "initial_levels": {
+          "turn_fp": 0,
+          "turn_fn": 0,
+          "turn_bp": 0,
+          "turn_bn": 0,
+          "rough_steep_waves_H1": 0,
+          "rough_cobblestones_H1": 0,
+          "rough_broken_rubble_H1": 1,
+          "rough_pitted_road_H1": 1,
+          "height_20_stand": 0,
+          "height_20_forward": 0,
+          "height_20_backward": 0,
+          "height_24_stand": 0,
+          "height_24_forward": 0,
+          "height_24_backward": 0,
+          "height_28_stand": 0,
+          "height_28_forward": 0,
+          "height_28_backward": 0,
+          "height_32_stand": 0,
+          "height_32_forward": 0,
+          "height_32_backward": 0,
+          "height_36_stand": 0,
+          "height_36_forward": 0,
+          "height_36_backward": 0,
+          "height_40_stand": 0,
+          "height_40_forward": 0,
+          "height_40_backward": 0
+        },
+        "focus_weights": {
+          "turn_fp": 0.15555555555555556,
+          "turn_fn": 0.15555555555555556,
+          "turn_bp": 0.15555555555555556,
+          "turn_bn": 0.15555555555555556,
+          "rough_steep_waves_H1": 0.03888888888888889,
+          "rough_cobblestones_H1": 0.03888888888888889,
+          "rough_broken_rubble_H1": 0.03888888888888889,
+          "rough_pitted_road_H1": 0.03888888888888889,
+          "height_20_stand": 0.01234567901234568,
+          "height_20_forward": 0.01234567901234568,
+          "height_20_backward": 0.01234567901234568,
+          "height_24_stand": 0.01234567901234568,
+          "height_24_forward": 0.01234567901234568,
+          "height_24_backward": 0.01234567901234568,
+          "height_28_stand": 0.01234567901234568,
+          "height_28_forward": 0.01234567901234568,
+          "height_28_backward": 0.01234567901234568,
+          "height_32_stand": 0.01234567901234568,
+          "height_32_forward": 0.01234567901234568,
+          "height_32_backward": 0.01234567901234568,
+          "height_36_stand": 0.01234567901234568,
+          "height_36_forward": 0.01234567901234568,
+          "height_36_backward": 0.01234567901234568,
+          "height_40_stand": 0.01234567901234568,
+          "height_40_forward": 0.01234567901234568,
+          "height_40_backward": 0.01234567901234568
+        },
+        "minimum_signed_yaw_gain": 0.75,
+        "retention_gate": {
+          "nominal_pass": 0.95,
+          "nominal_complete": 0.95,
+          "DR_pass": 0.5,
+          "DR_complete": 0.85
+        }
+      }
+    ]
+  },
+  "evaluation": {
+    "envs": 8,
+    "scored_envs": 8,
+    "seconds": 33.52,
+    "seed": 104,
+    "protocol_version": "motion48_response_checked_shared_timing_v2",
+    "conditions": []
+  },
+  "runtime": {
+    "envs": 4096,
+    "steps_per_env": 64,
+    "seed": 2026111022,
+    "device": "cuda:0",
+    "headless": true
+  },
+  "ppo": {
+    "learning_rate": 3e-05,
+    "critic_learning_rate": 9e-05,
+    "epochs": 4,
+    "minibatches": 4,
+    "gamma": 0.99,
+    "lam": 0.95,
+    "entropy_coef": 0.001,
+    "clip": 0.2,
+    "value_coef": 0.5,
+    "max_grad_norm": 1.0,
+    "critic_warmup_updates": 50,
+    "kl_limit": 0.015,
+    "max_actor_backtracks": 4,
+    "boundary_coefficient": 0.01,
+    "boundary_clip_probability": 0.1,
+    "dq_gain_coefficient": 0.0,
+    "dq_gain_threshold": 2.5,
+    "auxiliary_states": 128,
+    "exploration_leg_rad": 0.02,
+    "exploration_wheel_rad_s": 2.0
+  },
+  "storage": {
+    "checkpoint_every_updates": 100,
+    "keep_recent_checkpoints": 2,
+    "metrics_every_updates": 10,
+    "tensorboard": false,
+    "save_traces": false,
+    "trace_max_bytes": 16777216,
+    "milestones": [
+      1,
+      500,
+      1000,
+      2000,
+      4000,
+      7000,
+      10000
+    ],
+    "max_output_bytes": 3221225472,
+    "terminal_reserve_bytes": 268435456
+  },
+  "limits": {
+    "smoke_updates": 0,
+    "formal_updates": 0,
+    "sample_limit": null,
+    "evaluation_wall_s": 0,
+    "chain_wall_s": null
+  },
+  "notifications": {
+    "enabled": false
+  },
+  "assets": {
+    "runtime_template": "/root/gpufree-data/wheel_leg_motion/dependencies/home/kellen/wheel_leg_native_train/configs/experiments/2026_11_5-16_51__motion_smoke12_supported015_dqgain_formal9988/spec.json",
+    "runtime_template_sha256": "bce931ba337f694d9d616260d2a4b73bb618447d1337c7fefa65ef7b8316f288",
+    "frozen_source_root": "/root/gpufree-data/wheel_leg_motion/dependencies/home/kellen/wheel_leg_native_train/isolated/2026_11_05__motion_supported2048_dqgain_ppo/runtime_view_r4/src",
+    "frozen_bundle": "/root/gpufree-data/wheel_leg_motion/dependencies/home/kellen/wheel_leg_native_train/isolated/2026_11_05__motion_supported2048_dqgain_ppo",
+    "physical_gpu_uuid": "GPU-07694748-3d8b-666b-3933-6443416715dd",
+    "wheel_identification_record": "/root/gpufree-data/wheel_leg_motion/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_2-09_16__v4_coupled_actuator_network/wheel_identification_receipt.json",
+    "wheel_identification_sha256": "74d096bbe5a451394471f5631aad2dbbab5dfaa6b2015bb68ac8f5c4f24d608f",
+    "center": {
+      "hip_above_root_m": 2.4e-05,
+      "wheel_radius_m": 0.06,
+      "equivalent_upper_m": 0.21,
+      "equivalent_lower_m": 0.25,
+      "hip_zero_deg": 47.1033888,
+      "active_zero_deg": 47.1080837,
+      "height_range_m": [
+        0.2,
+        0.4
+      ],
+      "height_command_m": 0.34,
+      "support_offset_table": {
+        "height_m": [
+          0.2,
+          0.22,
+          0.24,
+          0.26,
+          0.28,
+          0.3,
+          0.32,
+          0.34,
+          0.36,
+          0.38,
+          0.4
+        ],
+        "offset_rad": [
+          [
+            -0.34999398292359407,
+            -0.37872519076649647
+          ],
+          [
+            -0.3494817997850088,
+            -0.3782216827382334
+          ],
+          [
+            -0.3491564187176722,
+            -0.37790762516905463
+          ],
+          [
+            -0.348948829817821,
+            -0.37771180030381957
+          ],
+          [
+            -0.34882198437598766,
+            -0.37759639082806856
+          ],
+          [
+            -0.3487552522000352,
+            -0.37754057053821566
+          ],
+          [
+            -0.3435389986364944,
+            -0.3728135666205402
+          ],
+          [
+            -0.34415705961703547,
+            -0.36427784427970067
+          ],
+          [
+            -0.35197404473890415,
+            -0.35372561665494917
+          ],
+          [
+            -0.3467577911753633,
+            -0.34899861273727373
+          ],
+          [
+            -0.34154153761182243,
+            -0.3442716088195983
+          ]
+        ]
+      }
+    },
+    "prefix_onnx": "/root/gpufree-data/wheel_leg_motion/dependencies/home/kellen/wheel_leg_native_train/deployment_protocol/2026_11_07__motion_C0_standing_trial/actor.onnx",
+    "prefix_sha256": "d62620da617263c51555de89118645dab4cb19edca2df477e145d9c3e322c082",
+    "prefix_identity": "frozen C0, same multiheight center015/80",
+    "prefix_output_contract": "/root/gpufree-data/wheel_leg_motion/dependencies/home/kellen/wheel_leg_native_train/deployment_protocol/2026_11_07__motion_C0_standing_trial/output_contract.json",
+    "prefix_output_contract_sha256": "1db5cb51a7d102e738a6ddeb65406f8108463f6eac3dca1be430f9587e4734e5",
+    "center_definition_canonical_json_sha256": "d7d7faf41f7519fe39678387ed4172b79f9e5a2d9b2aba9744e04dbbf1d97347",
+    "output_contract": "/root/gpufree-data/wheel_leg_motion/candidate/configs/interfaces/motion_multiheight020_support_center_015_80_v2.json",
+    "output_contract_sha256": "590babda612dad2c86a10921172d87676908da36b8a75f0e709afd0d41c2e300",
+    "delayed_execution": {
+      "version": "motion48_v4_wheel_reported_delay_actor20_dr_v2",
+      "actor_packet_nominal_ms": 20,
+      "actor_leg_packet_nominal_ms": 20,
+      "actor_packet_DR_support_ms": [
+        0,
+        10,
+        20
+      ],
+      "target_nominal_ms": 5,
+      "wheel_channels": [
+        2,
+        5
+      ],
+      "wheel_transport_nominal_ms": [
+        7,
+        11
+      ],
+      "wheel_tau_ms": [
+        0.0,
+        0.0
+      ],
+      "wheel_transport_DR_halfwidth_ms": 4.0,
+      "wheel_delay_semantics": "reported combined onset, represented once as post-PD transport; not an independently measured pure delay",
+      "leg_response": "complete V4 tuple and existing DR; no additional20ms motor delay",
+      "DR": "existing reset-only per-env curriculum, nominal anchors retained",
+      "previous": "actual locally adopted physical target; not sensor-delayed",
+      "input_scales": [
+        1.5,
+        100.0
+      ],
+      "motor_limits_unchanged": false
+    },
+    "motor_limits": {
+      "version": "motion_motor48_leg40_v1",
+      "leg_nm": 40.0,
+      "wheel_nm": 4.8,
+      "motor_caps_nm": [
+        40.0,
+        40.0,
+        4.8,
+        40.0,
+        40.0,
+        4.8
+      ],
+      "wheel_current_raw": 16069.65174129353,
+      "NET_and_passive_force_inside_motor_cap": false,
+      "input_scales": [
+        1.5,
+        100.0
+      ],
+      "action_scales": [
+        0.15,
+        80.0
+      ]
+    },
+    "resource_mode": "exclusive",
+    "source_policy_retention": {
+      "version": "motion48_per_command_nominal_source_KL_v4",
+      "coefficient": 0.02,
+      "source_sha256": "642d9a841ee3e796b545dfb166c961c160d063c832500b5ed5da4e410842dbe4",
+      "commands": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          3.6,
+          0.0
+        ],
+        [
+          -3.6,
+          0.0
+        ]
+      ],
+      "maximum_states_per_cohort": 64,
+      "bank_states_per_command": 64,
+      "record_first_gradient": true,
+      "bank": {
+        "path": "/root/gpufree-data/wheel_leg_motion/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_anchored_recovery10000/source_comparison/source4300/train_anchors.npz",
+        "sha256": "f2d2f68671ebec94477814c3f12c709ccc45da23ba52420c61054e78210cf7d6"
+      },
+      "bank_metadata": {
+        "path": "/root/gpufree-data/wheel_leg_motion/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_anchored_recovery10000/source_comparison/source4300/train_anchors.json",
+        "sha256": "63396eb099c6e15baa9f546fb8f0810fa470a4e46e963847ad98648ea6f2eaf4"
+      },
+      "mask": "onpolicy student/nominal/no-event/posture/support,height.34; additional balanced qualified nominal train-only source bank",
+      "bank_fraction_when_onpolicy": 0.5,
+      "task_reduction": "mean_over_declared_commands"
+    },
+    "source_anchor_identity": {
+      "path": "/root/gpufree-data/wheel_leg_motion/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking_training10000/source4300_motion48_actor_only.pt",
+      "sha256": "642d9a841ee3e796b545dfb166c961c160d063c832500b5ed5da4e410842dbe4"
+    },
+    "execution_limit_transition": {
+      "old_motor_limits_from_timing_note_are_historical": true,
+      "authority": "assets.motor_limits; same4.8 execution as compared source"
+    },
+    "support_center_policy_binding": {
+      "path": "/root/gpufree-data/wheel_leg_motion/candidate/configs/interfaces/motion_height020_u3000_center_binding.json",
+      "sha256": "fe197a77356feecc9530334edcff22a61791e63ccfda374197d20952f235758a"
+    },
+    "terrain_scene": {
+      "version": "motion_H1_periodic_grid_scene_v2",
+      "families": [
+        "steep_waves_H1",
+        "cobblestones_H1",
+        "broken_rubble_H1",
+        "pitted_road_H1"
+      ],
+      "length_m": 6.0,
+      "width_m": 3.0,
+      "cell_m": 0.02,
+      "repetitions": 25,
+      "spawn_x_m": 12.1,
+      "critic_context": "881; vertical root height over actual local collision triangle; actual wheel K/C",
+      "assets": [
+        {
+          "family": "steep_waves_H1",
+          "usd": {
+            "path": "/root/gpufree-data/wheel_leg_motion/candidate/assets/terrains/motion_H1_periodic_v2/steep_waves_H1/terrain.usdc",
+            "sha256": "1979226deccc6a90f07c07cbc0a6938d89c14e580a2d916e8919252a405b5a42"
+          },
+          "heights": {
+            "path": "/root/gpufree-data/wheel_leg_motion/candidate/assets/terrains/motion_H1_periodic_v2/steep_waves_H1/heightfield.npz",
+            "sha256": "460d310abcba8a6123912f801538933ee978a5ace4fb04968530d23697613a7e"
+          }
+        },
+        {
+          "family": "cobblestones_H1",
+          "usd": {
+            "path": "/root/gpufree-data/wheel_leg_motion/candidate/assets/terrains/motion_H1_periodic_v2/cobblestones_H1/terrain.usdc",
+            "sha256": "99587daf1ff3ffee6dc0818e9d908f8f47f9309c379505aba9508dce928a9261"
+          },
+          "heights": {
+            "path": "/root/gpufree-data/wheel_leg_motion/candidate/assets/terrains/motion_H1_periodic_v2/cobblestones_H1/heightfield.npz",
+            "sha256": "fcb9e4a1bf92a6040964d86e6c34b70e9fcc02822f638ccd543364b4171e7631"
+          }
+        },
+        {
+          "family": "broken_rubble_H1",
+          "usd": {
+            "path": "/root/gpufree-data/wheel_leg_motion/candidate/assets/terrains/motion_H1_periodic_v2/broken_rubble_H1/terrain.usdc",
+            "sha256": "2b21ea316e01b15b3f48f8edb1255291c9689e3216e49dfa06c6b4aeb832d631"
+          },
+          "heights": {
+            "path": "/root/gpufree-data/wheel_leg_motion/candidate/assets/terrains/motion_H1_periodic_v2/broken_rubble_H1/heightfield.npz",
+            "sha256": "5369f79d844f05dd95f7cadd14f7ccb9932a4b264129d8707c204fc11d030c64"
+          }
+        },
+        {
+          "family": "pitted_road_H1",
+          "usd": {
+            "path": "/root/gpufree-data/wheel_leg_motion/candidate/assets/terrains/motion_H1_periodic_v2/pitted_road_H1/terrain.usdc",
+            "sha256": "1d29e9177db14c9ccc9216ff03c0b0d1022dc244bce66db6522a1ac211775234"
+          },
+          "heights": {
+            "path": "/root/gpufree-data/wheel_leg_motion/candidate/assets/terrains/motion_H1_periodic_v2/pitted_road_H1/heightfield.npz",
+            "sha256": "d5e88988ade36461526486ae8c7f1c1b7e5f841a7d33561a690721c76fc114f3"
+          }
+        }
+      ],
+      "boundary_policy": "terminated_then_legal_reset; invalid terminal height excluded; no fictitious plane or timeout bootstrap",
+      "boundary_margin_m": 0.12,
+      "lateral_repetitions": 3,
+      "seam_contract": "periodic_C0_edges_v1",
+      "horizon_guard": {
+        "episode_s": 30.0,
+        "forward_speed_mps": 3.6,
+        "distance_factor": 1.2
+      }
+    },
+    "application_lifecycle": {
+      "fast_shutdown": false,
+      "worker_finalizes_after_close": true,
+      "owner": "worker_atexit"
+    },
+    "wheel_contact_dr": {
+      "version": "motion_wheel_contact_reset_DR_v1",
+      "sampling": "reset_only",
+      "profiles": [
+        0
+      ],
+      "compliant_probability": 0.5,
+      "stiffness_n_m": [
+        100000.0,
+        1000000.0
+      ],
+      "damping_ns_m": [
+        500.0,
+        3000.0
+      ],
+      "units": "native force spring N/m and Ns/m per contact; not acceleration spring",
+      "basis": "engineering hypothesis, not real wheel-ground identification",
+      "nominal": "rigid; no compliant-contact sampling or policy RNG consumption",
+      "enable_scope": "half of combined DR rows, other cohorts retain rigid contact",
+      "ground": "rigid; sole compliant wheel material determines normal spring-damper"
+    },
+    "framework_dependency": {
+      "root": "/root/gpufree-data/wheel_leg_motion/sdk",
+      "manifest": {
+        "path": "/root/gpufree-data/wheel_leg_motion/sdk/full_manifest.json",
+        "sha256": "31f6d31060dab74f044ff2633c7da0deadb93cb0c24e6c6163ebcf03c54d5974"
+      },
+      "reason": "remote image current API lacks clone_environments; fixed exact local smoke SDK, PhysX unchanged"
+    },
+    "motion_execution_optimization": {
+      "version": "motion_v4_tensor_execution_v2",
+      "compile_tensor_tick": true
+    },
+    "branch_course": {
+      "version": "motion48_turn_focus_branch_v3",
+      "branch": "motion",
+      "initial_DR_level": 1,
+      "DR_amplitudes": [
+        0.25,
+        0.5,
+        0.75,
+        1.0
+      ],
+      "DR_enabled": true,
+      "confirmations": 2,
+      "regression_confirmations": 3,
+      "regression_pass_fraction": 0.35,
+      "minimum_ended": 16,
+      "minimum_complete_fraction": 0.9,
+      "task_pass_fraction": 0.7,
+      "review_every_updates": 100,
+      "command_program_version": "motion48_height020_rate_limited_schedule_v3",
+      "teacher_prefix_fraction": 0.0,
+      "old_confirmations_are_history": true,
+      "rough_terrain": "FOUR_STATIC_H1",
+      "symmetry": "flat standing and straight only; banking may be asymmetric",
+      "height_range_m": [
+        0.2,
+        0.4
+      ],
+      "height_020_decoder": "GEOMETRIC_SEED_PENDING_ISAAC",
+      "evidence": "normal ended on-policy episodes only; no independent certificate",
+      "source_retention_scope": "unchanged qualified .34 nominal [zero,+3.6,-3.6] bank; causal on-policy mask; not new DR/turn/spin labels",
+      "fractions": {
+        "clean": 0.1,
+        "combined": 0.1,
+        "modal": 0.1,
+        "anchors": 0.25,
+        "focus": 0.45
+      },
+      "anchors": {
+        "forward": [
+          3.6,
+          0,
+          0.34
+        ],
+        "backward": [
+          -3.6,
+          0,
+          0.34
+        ],
+        "yaw_positive": [
+          0,
+          2,
+          0.34
+        ],
+        "yaw_negative": [
+          0,
+          -2,
+          0.34
+        ]
+      },
+      "targets": {
+        "turn_fp": [
+          [
+            2,
+            0.5,
+            0.34
+          ],
+          [
+            2,
+            0.65,
+            0.34
+          ],
+          [
+            2,
+            0.8,
+            0.34
+          ],
+          [
+            2,
+            1,
+            0.34
+          ],
+          [
+            2.5,
+            0.5,
+            0.34
+          ],
+          [
+            2.5,
+            0.65,
+            0.34
+          ],
+          [
+            2.5,
+            0.8,
+            0.34
+          ],
+          [
+            3,
+            0.5,
+            0.34
+          ],
+          [
+            3,
+            0.65,
+            0.34
+          ],
+          [
+            3,
+            0.8,
+            0.34
+          ],
+          [
+            3.6,
+            0.5,
+            0.34
+          ],
+          [
+            3.6,
+            0.65,
+            0.34
+          ],
+          [
+            3.6,
+            0.75,
+            0.34
+          ]
+        ],
+        "turn_fn": [
+          [
+            2,
+            -0.5,
+            0.34
+          ],
+          [
+            2,
+            -0.65,
+            0.34
+          ],
+          [
+            2,
+            -0.8,
+            0.34
+          ],
+          [
+            2,
+            -1,
+            0.34
+          ],
+          [
+            2.5,
+            -0.5,
+            0.34
+          ],
+          [
+            2.5,
+            -0.65,
+            0.34
+          ],
+          [
+            2.5,
+            -0.8,
+            0.34
+          ],
+          [
+            3,
+            -0.5,
+            0.34
+          ],
+          [
+            3,
+            -0.65,
+            0.34
+          ],
+          [
+            3,
+            -0.8,
+            0.34
+          ],
+          [
+            3.6,
+            -0.5,
+            0.34
+          ],
+          [
+            3.6,
+            -0.65,
+            0.34
+          ],
+          [
+            3.6,
+            -0.75,
+            0.34
+          ]
+        ],
+        "turn_bp": [
+          [
+            -2,
+            0.5,
+            0.34
+          ],
+          [
+            -2,
+            0.65,
+            0.34
+          ],
+          [
+            -2,
+            0.8,
+            0.34
+          ],
+          [
+            -2,
+            1,
+            0.34
+          ],
+          [
+            -2.5,
+            0.5,
+            0.34
+          ],
+          [
+            -2.5,
+            0.65,
+            0.34
+          ],
+          [
+            -2.5,
+            0.8,
+            0.34
+          ],
+          [
+            -3,
+            0.5,
+            0.34
+          ],
+          [
+            -3,
+            0.65,
+            0.34
+          ],
+          [
+            -3,
+            0.8,
+            0.34
+          ],
+          [
+            -3.6,
+            0.5,
+            0.34
+          ],
+          [
+            -3.6,
+            0.65,
+            0.34
+          ],
+          [
+            -3.6,
+            0.75,
+            0.34
+          ]
+        ],
+        "turn_bn": [
+          [
+            -2,
+            -0.5,
+            0.34
+          ],
+          [
+            -2,
+            -0.65,
+            0.34
+          ],
+          [
+            -2,
+            -0.8,
+            0.34
+          ],
+          [
+            -2,
+            -1,
+            0.34
+          ],
+          [
+            -2.5,
+            -0.5,
+            0.34
+          ],
+          [
+            -2.5,
+            -0.65,
+            0.34
+          ],
+          [
+            -2.5,
+            -0.8,
+            0.34
+          ],
+          [
+            -3,
+            -0.5,
+            0.34
+          ],
+          [
+            -3,
+            -0.65,
+            0.34
+          ],
+          [
+            -3,
+            -0.8,
+            0.34
+          ],
+          [
+            -3.6,
+            -0.5,
+            0.34
+          ],
+          [
+            -3.6,
+            -0.65,
+            0.34
+          ],
+          [
+            -3.6,
+            -0.75,
+            0.34
+          ]
+        ],
+        "rough_steep_waves_H1": [
+          [
+            0.15,
+            0,
+            0.34
+          ],
+          [
+            0.25,
+            0,
+            0.34
+          ],
+          [
+            0.5,
+            0,
+            0.34
+          ],
+          [
+            1,
+            0,
+            0.34
+          ],
+          [
+            1.5,
+            0,
+            0.34
+          ],
+          [
+            2,
+            0,
+            0.34
+          ],
+          [
+            2.5,
+            0,
+            0.34
+          ],
+          [
+            3,
+            0,
+            0.34
+          ],
+          [
+            3.6,
+            0,
+            0.34
+          ]
+        ],
+        "rough_cobblestones_H1": [
+          [
+            0.15,
+            0,
+            0.34
+          ],
+          [
+            0.25,
+            0,
+            0.34
+          ],
+          [
+            0.5,
+            0,
+            0.34
+          ],
+          [
+            1,
+            0,
+            0.34
+          ],
+          [
+            1.5,
+            0,
+            0.34
+          ],
+          [
+            2,
+            0,
+            0.34
+          ],
+          [
+            2.5,
+            0,
+            0.34
+          ],
+          [
+            3,
+            0,
+            0.34
+          ],
+          [
+            3.6,
+            0,
+            0.34
+          ]
+        ],
+        "rough_broken_rubble_H1": [
+          [
+            0.15,
+            0,
+            0.34
+          ],
+          [
+            0.25,
+            0,
+            0.34
+          ],
+          [
+            0.5,
+            0,
+            0.34
+          ],
+          [
+            1,
+            0,
+            0.34
+          ],
+          [
+            1.5,
+            0,
+            0.34
+          ],
+          [
+            2,
+            0,
+            0.34
+          ],
+          [
+            2.5,
+            0,
+            0.34
+          ],
+          [
+            3,
+            0,
+            0.34
+          ],
+          [
+            3.6,
+            0,
+            0.34
+          ]
+        ],
+        "rough_pitted_road_H1": [
+          [
+            0.15,
+            0,
+            0.34
+          ],
+          [
+            0.25,
+            0,
+            0.34
+          ],
+          [
+            0.5,
+            0,
+            0.34
+          ],
+          [
+            1,
+            0,
+            0.34
+          ],
+          [
+            1.5,
+            0,
+            0.34
+          ],
+          [
+            2,
+            0,
+            0.34
+          ],
+          [
+            2.5,
+            0,
+            0.34
+          ],
+          [
+            3,
+            0,
+            0.34
+          ],
+          [
+            3.6,
+            0,
+            0.34
+          ]
+        ],
+        "height_20_stand": [
+          [
+            0,
+            0,
+            0.2
+          ]
+        ],
+        "height_20_forward": [
+          [
+            0.25,
+            0,
+            0.2
+          ]
+        ],
+        "height_20_backward": [
+          [
+            -0.25,
+            0,
+            0.2
+          ]
+        ],
+        "height_24_stand": [
+          [
+            0,
+            0,
+            0.24
+          ]
+        ],
+        "height_24_forward": [
+          [
+            0.25,
+            0,
+            0.24
+          ]
+        ],
+        "height_24_backward": [
+          [
+            -0.25,
+            0,
+            0.24
+          ]
+        ],
+        "height_28_stand": [
+          [
+            0,
+            0,
+            0.28
+          ]
+        ],
+        "height_28_forward": [
+          [
+            0.25,
+            0,
+            0.28
+          ]
+        ],
+        "height_28_backward": [
+          [
+            -0.25,
+            0,
+            0.28
+          ]
+        ],
+        "height_32_stand": [
+          [
+            0,
+            0,
+            0.32
+          ]
+        ],
+        "height_32_forward": [
+          [
+            0.25,
+            0,
+            0.32
+          ]
+        ],
+        "height_32_backward": [
+          [
+            -0.25,
+            0,
+            0.32
+          ]
+        ],
+        "height_36_stand": [
+          [
+            0,
+            0,
+            0.36
+          ]
+        ],
+        "height_36_forward": [
+          [
+            0.25,
+            0,
+            0.36
+          ]
+        ],
+        "height_36_backward": [
+          [
+            -0.25,
+            0,
+            0.36
+          ]
+        ],
+        "height_40_stand": [
+          [
+            0,
+            0,
+            0.4
+          ]
+        ],
+        "height_40_forward": [
+          [
+            0.25,
+            0,
+            0.4
+          ]
+        ],
+        "height_40_backward": [
+          [
+            -0.25,
+            0,
+            0.4
+          ]
+        ]
+      },
+      "straight_limit_mps": 3.6,
+      "pure_spin_limit_rad_s": 2.0,
+      "basis": "10% total fixed-height standing/flat +/-0.25 at .20,.24,.28,.32,.36,.40; existing rate-limited height-first schedule; preserve live frontiers when allocated",
+      "DR_progression": "shared_strength_independent_of_task_axes",
+      "DR_progression_basis": "preserve source uniform strength across dq/families; the DR axis advances independently of task directions; not per-family independent DR",
+      "confirmation_execution_sha256": "5021b0fccaaf1f89587c42b090d6b3ba83e76956080431ba7245fcf3171f7f83",
+      "terrain_by_axis": {
+        "rough_steep_waves_H1": "steep_waves_H1",
+        "rough_cobblestones_H1": "cobblestones_H1",
+        "rough_broken_rubble_H1": "broken_rubble_H1",
+        "rough_pitted_road_H1": "pitted_road_H1"
+      },
+      "initial_levels": {
+        "turn_fp": 0,
+        "turn_fn": 0,
+        "turn_bp": 0,
+        "turn_bn": 0,
+        "rough_steep_waves_H1": 0,
+        "rough_cobblestones_H1": 0,
+        "rough_broken_rubble_H1": 1,
+        "rough_pitted_road_H1": 1,
+        "height_20_stand": 0,
+        "height_20_forward": 0,
+        "height_20_backward": 0,
+        "height_24_stand": 0,
+        "height_24_forward": 0,
+        "height_24_backward": 0,
+        "height_28_stand": 0,
+        "height_28_forward": 0,
+        "height_28_backward": 0,
+        "height_32_stand": 0,
+        "height_32_forward": 0,
+        "height_32_backward": 0,
+        "height_36_stand": 0,
+        "height_36_forward": 0,
+        "height_36_backward": 0,
+        "height_40_stand": 0,
+        "height_40_forward": 0,
+        "height_40_backward": 0
+      },
+      "focus_weights": {
+        "turn_fp": 0.15555555555555556,
+        "turn_fn": 0.15555555555555556,
+        "turn_bp": 0.15555555555555556,
+        "turn_bn": 0.15555555555555556,
+        "rough_steep_waves_H1": 0.03888888888888889,
+        "rough_cobblestones_H1": 0.03888888888888889,
+        "rough_broken_rubble_H1": 0.03888888888888889,
+        "rough_pitted_road_H1": 0.03888888888888889,
+        "height_20_stand": 0.01234567901234568,
+        "height_20_forward": 0.01234567901234568,
+        "height_20_backward": 0.01234567901234568,
+        "height_24_stand": 0.01234567901234568,
+        "height_24_forward": 0.01234567901234568,
+        "height_24_backward": 0.01234567901234568,
+        "height_28_stand": 0.01234567901234568,
+        "height_28_forward": 0.01234567901234568,
+        "height_28_backward": 0.01234567901234568,
+        "height_32_stand": 0.01234567901234568,
+        "height_32_forward": 0.01234567901234568,
+        "height_32_backward": 0.01234567901234568,
+        "height_36_stand": 0.01234567901234568,
+        "height_36_forward": 0.01234567901234568,
+        "height_36_backward": 0.01234567901234568,
+        "height_40_stand": 0.01234567901234568,
+        "height_40_forward": 0.01234567901234568,
+        "height_40_backward": 0.01234567901234568
+      },
+      "minimum_signed_yaw_gain": 0.75,
+      "retention_gate": {
+        "nominal_pass": 0.95,
+        "nominal_complete": 0.95,
+        "DR_pass": 0.5,
+        "DR_complete": 0.85
+      }
+    },
+    "historical_online_updates": 6738,
+    "original_online_limit": 15167,
+    "source_online_updates": 6683,
+    "new_independent_authorization": false,
+    "preparation_only": true,
+    "path_mapping": {
+      "path": "/home/kellen/wheel_leg_training_data/motion_recipe_preparation/20261113_turn_focus_v3/runtime_paths.json",
+      "sha256": "1e62acc1507f3c91b4b743acb73cf19541ee0e8a65c35a93536739366b8ef299"
+    },
+    "branch_initialization": {
+      "path": "/home/kellen/wheel_leg_training_data/motion_height_small_dose_20261113/preparation.json",
+      "sha256": "3ccade7e2981a2ecd43d80546902ee068ee2dcca80eec2b733a8cf38a9dbbec6"
+    }
+  },
+  "diagnostics": {
+    "independent_evaluation": false,
+    "training_statistics_every_updates": 100,
+    "movement_components_version": "motion48_response_checked_physical_statistics_v2",
+    "training_candidate_selection": {
+      "version": "motion48_split_training_candidates_v1",
+      "every_updates": 100,
+      "maximum_candidates": 8,
+      "objectives": [
+        "motion",
+        "standing"
+      ],
+      "primary_objective": "motion",
+      "minimum_ended": 16,
+      "minimum_complete_fraction": 0.9,
+      "minimum_quality_fraction": 0.7,
+      "task_pass_fraction": 0.7,
+      "minimum_dual_support_fraction": 0.9,
+      "label": "训练统计候选",
+      "independent_certificate": false,
+      "extra_simulation_steps": 0,
+      "compare": "branch-specific fixed anchors at matching DR tier; no cross-branch ranking"
+    },
+    "transient_events_version": "motion_C0_force_off_recovery_statistics_v2",
+    "value_diagnostics_version": "motion_cohort_centered_value_diagnostics_v2",
+    "performance_measurement": true,
+    "runtime_fault_snapshot": true
+  },
+  "experiment_variables": {
+    "status": "CPU_PREPARATION_ONLY",
+    "execution_allowed": false,
+    "capability_matrix_version": "motion_capability_matrix_v1",
+    "pending": [
+      "parent attempt reconciliation",
+      "explicit allocated continuation preserving 55 charged updates",
+      "GPU resource verification"
+    ],
+    "scope": "0.34m turn focus; height axes paused; no reward/physics/PPO/KL/DR change"
+  }
+}

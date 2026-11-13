@@ -127,3 +127,12 @@ M07的最终目标是高度覆盖。除0.34m已明确的±3.6m/s核心目标外�
 欠转根因尚未确认。旧physical_control只覆盖最后策略步且混合全部环境，不能用低全局饱和率排除单个转弯方向限幅。新增cohort_execution_statistics提供报告更新rollout内的Student六通道raw均值/越界比例、请求/采用目标、绝对目标差、请求超cap/driver与motor饱和比例及实际电机能力占用；不包含NET、被动或外部力。与同文件cohort姿态、双支撑、yaw/速度、左右轮滚动数据对照，先区分目标生成、目标采用和执行能力疑点，再决定是否需要固定模型专项验证；单靠聚合均值不能证明因果。
 
 审阅原始SHA、逐cohort门槛与边界保存在数据根`motion_pretrain_audit/20261113_turn_focus_v3/retention_replay.json`和`README.md`。新增诊断须随新源码部署；既有远端598模块冻结包未包含此增量，旧CPU_READY与部署摘要不能用于证明它已部署或已在GPU验证。
+
+
+## 少量变高度并行训练
+
+用户于2026-11-13要求立即加入0.20～0.40m站立和平地运动。准备配置`configs/jobs/motion_height_small_dose_prepared.json`复用v3权重与高度时序：基础复习55%、转弯28%、H1地形7%、变高度10%。变高度目标为0.20/0.24/0.28/0.32/0.36/0.40m，每档均采站立及±0.25m/s平地直线，标称/combined DR各半；0.34m由原基础配额覆盖。离散目标覆盖区间，不证明连续高度泛化。各高度从首轮同时少量接触，不声称低高度已经解锁或通过。
+
+仍按共享`motion48_height020_rate_limited_schedule_v3`从0.34m开始，以0.02m/s先改变高度，达到后静置1秒，再1秒渐增至运动速度；站立命令始终零速度。目标高度保持固定，不在行进中变高。平地站立/直线对称规则、真实dq、动作解码、延迟、奖励、PPO和来源KL不变。新高度任务不加入旧0.34m来源KL on-policy mask。所有高度cohort独立统计，不把基础保留门槛通过当高度能力通过；低高度尚未掌握时允许失败，不伪造通过。
+
+切换通过既有公共stop→完整最终保存→新run train/owner/worker。`full_motion_course_continued_v1`在原LoadedSource分支边界读取真实旧终态/账本/最终checkpoint和目标课程SHA，仅结转同一授权的实际剩余额度，禁止新grant、退款、旧余额退役或改变累计授权上限。保留Actor/Critic/双Adam/RNG/KL bank/warmup与模型实际进度；转弯/地形档位和DR起点按最终checkpoint显式带入，新分布的连续确认重新积累。准备配置零额度，不直接启动；实际停止点、分配与运行证据在数据根`motion_height_small_dose_20261113/`，不是新的10000次授权。

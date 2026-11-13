@@ -10,15 +10,21 @@ ALLOCATED = "selected_full_bounded_branch_v2"
 ALLOCATED_TRAINING = "selected_full_allocated_branch_v3"
 PREPARATION = "full_motion_course_preparation_v1"
 ALLOCATED_COURSE = "full_motion_course_allocated_v2"
+CONTINUED_COURSE = "full_motion_course_continued_v1"
+COURSE_RECORDS = (PREPARATION, ALLOCATED_COURSE, CONTINUED_COURSE)
 
 
 def _read_preparation(record, paths):
-    """SHA-bound observation for CPU preparation, never a terminal settlement/grant."""
+    """Bind preparation, a new grant or an explicit remaining-budget course continuation."""
     if (
         record.get("branch") != "motion"
         or record.get("branch_updates") != 0
         or record.get("budget_status")
-        != ("MOTION_TRAINING" if record["version"] == ALLOCATED_COURSE else "PREPARATION_ONLY")
+        != (
+            "MOTION_TRAINING"
+            if record["version"] in (ALLOCATED_COURSE, CONTINUED_COURSE)
+            else "PREPARATION_ONLY"
+        )
     ):
         raise ValueError("课程准备记录不能分配额度")
     values = {}
@@ -54,14 +60,26 @@ def _read_preparation(record, paths):
         or record["rolled_back_updates_not_refunded"] is not True
     ):
         raise ValueError("课程准备的模型进度与实际消耗不一致")
-    if record["version"] == ALLOCATED_COURSE and (
+    if record["version"] in (ALLOCATED_COURSE, CONTINUED_COURSE) and (
         state["status"] not in ("FAILED", "STOPPED_BOUNDED", "COMPLETED")
         or any(a["status"] == "RUNNING" for a in budget["attempts"].values())
-        or record.get("retired_remaining_updates") != record["shared_remaining_updates"]
-        or not record.get("new_authorization")
+        or (
+            record["version"] == ALLOCATED_COURSE
+            and (
+                record.get("retired_remaining_updates") != record["shared_remaining_updates"]
+                or not record.get("new_authorization")
+            )
+        )
+        or (
+            record["version"] == CONTINUED_COURSE
+            and (
+                bool(record.get("new_authorization"))
+                or record.get("retired_remaining_updates", 0) != 0
+            )
+        )
     ):
         raise ValueError("新课程分配必须绑定已结算旧任务并退役旧余额")
-    if record["version"] == ALLOCATED_COURSE:
+    if record["version"] in (ALLOCATED_COURSE, CONTINUED_COURSE):
         ref = record["settlement"]
         if file_sha256(paths.resolve(ref["path"])) != ref["sha256"]:
             raise ValueError("旧任务结算身份不同")
@@ -70,7 +88,8 @@ def _read_preparation(record, paths):
             settlement["state"] != paths.view(record["observed_state"])
             or settlement["budget"] != paths.view(record["observed_budget"])
             or settlement["consumed_total"] != record["authorization_spent_updates"]
-            or settlement["retired_remaining_updates"] != record["shared_remaining_updates"]
+            or settlement["retired_remaining_updates"]
+            != (record["shared_remaining_updates"] if record["version"] == ALLOCATED_COURSE else 0)
         ):
             raise ValueError("旧结算未绑定实际消耗和退役余额")
     return {
@@ -92,7 +111,7 @@ def read_branch(assets):
     if file_sha256(path) != reference["sha256"]:
         raise ValueError("分支初始化契约SHA不同")
     record = read_json(path)
-    if record.get("version") in (PREPARATION, ALLOCATED_COURSE):
+    if record.get("version") in COURSE_RECORDS:
         return _read_preparation(record, paths)
     if record.get("version") not in (VERSION, ALLOCATED, ALLOCATED_TRAINING) or record.get(
         "branch"
@@ -154,7 +173,7 @@ def validate_source(job, loaded):
     if record is None:
         return None
     source = loaded.payload
-    if record["version"] in (PREPARATION, ALLOCATED_COURSE):
+    if record["version"] in COURSE_RECORDS:
         if (
             (
                 record["version"] == PREPARATION
@@ -171,6 +190,11 @@ def validate_source(job, loaded):
         paths = RuntimePaths.from_assets(job.assets)
         original = paths.read(record["source_run"]["path"])["config"]
         current = job.as_run_record()
+        if record["version"] == CONTINUED_COURSE and (
+            current["assets"]["original_online_limit"]
+            != original["assets"]["original_online_limit"]
+        ):
+            raise ValueError("课程接续不能改变累计授权上限")
         for key in ("model", "observation", "action", "control", "reward", "ppo"):
             if json_digest(original[key]) != json_digest(current[key]):
                 raise ValueError("课程准备不得改变来源合同: " + key)
@@ -232,7 +256,7 @@ def require_allocated(job):
     if record["version"] == PREPARATION:
         raise ValueError("课程准备不是训练分配；必须先完成旧attempt结算和显式接续")
     training = (
-        record["version"] in (ALLOCATED_TRAINING, ALLOCATED_COURSE)
+        record["version"] in (ALLOCATED_TRAINING, ALLOCATED_COURSE, CONTINUED_COURSE)
         and record.get("budget_status") == "MOTION_TRAINING"
     )
     if not training and (
