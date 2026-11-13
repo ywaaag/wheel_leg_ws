@@ -6,6 +6,8 @@
 
 本轮续做：已补齐UnifiedReward v2对意外下落SETTLE的站高约束，以及Isaac请求在1.5s后等待首次BALANCE的单次调度。成功门控/安全边界不变；Jump相关CPU83项通过，新版正常PPO按用户性能要求改为14+2完整恢复，已正常结算16次；累计431/10000、剩9569。Critic批量读回/编码和显式环境扩容已完成CPU92项、portable1925项及真实GPU两环境I/O逐位对照，正在准备32/128/256环境各2次的性能实测。旧远端v44准备包为旧语义，暂不可用于新版开训。
 
+当前覆盖：用户指定4096×64/minibatches64。原cd24127正常完成1次并精确恢复核验，累计436、剩9564；checkpoint SHA197c84743987de0d497576d3482b2e2e93928aaec297c25de7b1a535318a5b49。等价FK/packet/schema性能版本97a3765已在原worker退出后合入，最终portable1948通过；GPU短I/O v69自然PASS，原v66手动中断诊断证据保留。新版8次有界PPO待启动，预算不能叠加旧未用局部额度。远端GPU0且SSH后转拒绝连接，等待用户通知，不自动开平台或长训。
+
 ## 主仓基线与依赖归档（2026-11-12，当前收尾）
 
 主源码仓固定为`/home/kellen/wheel_leg_refactor_ws`，独立Git/main；旧仓及其.git保留，不交换目录、不转发软链接、不配置remote或push。源码/测试/CI/两套共享C源码及小型契约纳入基线；run、预算、模型、机器映射和原始证据留文件存储。精确提交与干净clone收据保存在本地`artifacts/repository_baseline`，不提交运行数据。

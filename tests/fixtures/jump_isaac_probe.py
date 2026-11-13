@@ -7,6 +7,7 @@ extra scored episodes. The normal public trainer remains the only PPO loop.
 import argparse
 from dataclasses import replace
 from pathlib import Path
+from time import perf_counter
 
 import torch
 
@@ -28,6 +29,7 @@ def main():
     job = load_job_config(args.config)
     job = replace(job, runtime=replace(job.runtime, envs=args.envs))
     env = None
+    rows = []
     receipt = dict(
         status="STARTED",
         scope="bounded PhysX/C/V4 wiring only",
@@ -42,13 +44,11 @@ def main():
         actor = DirectActor(job.model.actor_hidden_dims)
         actor.load_state_dict(source.payload["actor"])
         actor.to(job.runtime.device).eval()
-        rows = []
         critic_comparisons = 0
         for index in range(args.steps):
+            started = perf_counter()
             obs = env.observations()
-            if args.verify_critic_readback and (
-                index % 40 == 0 or index in (11, args.steps - 1)
-            ):
+            if args.verify_critic_readback and (index % 40 == 0 or index in (11, args.steps - 1)):
                 # Compare the optimized snapshot path with direct live tensor
                 # reads at the same tick. This does not advance any physics.
                 host = env.host()
@@ -68,12 +68,22 @@ def main():
                     done=out["dones"].tolist(),
                     actual_engine_ticks=out["extras"]["actual_physics_steps"],
                     episode_ticks=out["extras"]["episode_physics_steps"],
+                    step_wall_s=perf_counter() - started,
                 )
             )
             if index == 10 and env.num_envs > 1:
                 before = bytes(env.execution.c.states[1])
                 env.reset([0])
                 assert bytes(env.execution.c.states[1]) == before
+            if index % 10 == 0 or index == args.steps - 1:
+                progress = dict(
+                    policy_steps_completed=index + 1,
+                    explicit_engine_ticks=env.scene.actual_ticks,
+                    PPO_updates=0,
+                    elapsed_step_wall_s=rows[-1]["step_wall_s"],
+                )
+                write_json(args.output / "progress.json", progress)
+                print(progress, flush=True)
         state = env.runtime_state()
         env.load_runtime_state(state)
         assert env.rewards[0].elapsed_s == 0
@@ -90,7 +100,9 @@ def main():
             direct_vs_batched_critic_bitwise_comparisons=critic_comparisons,
         )
     except BaseException as exc:
-        receipt.update(status="FAILED", error=repr(exc))
+        receipt.update(status="FAILED", error=repr(exc), completed_policy_rows=rows)
+        if env is not None:
+            receipt["actual_engine_ticks"] = env.scene.actual_ticks
         raise
     finally:
         write_json(args.output / "receipt.json", receipt)

@@ -138,3 +138,11 @@ Packet仍在同一构造边界检查每个字段长度、contact类型、phase/o
 正式4096首更已正常STOPPED_BOUNDED/failure=null：262144样本，Actor/Critic各256个Adam步，warmup保持5；完整checkpoint SHA `197c84743987de0d497576d3482b2e2e93928aaec297c25de7b1a535318a5b49`，173305601字节。整轮1673.86s、rollout1611.90s、inverse706.88s、learning59.14s。仅0.64s物理时间不能覆盖1.5s请求；30个active短故障、请求/accepted均0，其余回合未结束；没有能力accepted。累计436/10000，剩9564。
 
 首更perf新增allocator/mask字段曾在adapter产生却被公共MetricsWriter的白名单过滤，不能声称该run已记录峰值/有效样本。已改用既有peak_memory_allocated_bytes/peak_memory_reserved_bytes和performance_counters，并补实际writer回归；不扩大公共writer白名单。NVML观察到11.55GiB左右为当时进程占用，不是峰值证书。v65联合117通过、portable1948通过/31历史skip/10warning（143.76s）；writer修复后实际消费者42项通过（13.53s），Ruff/架构通过。旧缺失收据如实保留。
+
+## 性能版本实际加载与探针收据
+
+本机4096 u1的GPU load-only复验`checkpoint4096_receipt_v67.json`通过：Actor/Critic/双Adam/std/Python、NumPy、CPU、CUDA RNG及预测逐位相同，没有新增物理或PPO。最终97a3765源码portable1948通过/31历史skip/10warning（137.46s）。原worker已退出后才fast-forward合入当前Jump分支，未热改运行版本。
+
+`gpu_fast_io_v66`原320步探针仅有首尾收据，耗时长无法分辨内部进度。本会话只对自己的零PPO探针SIGINT，FAILED/KeyboardInterrupt原证据保留；traceback在V4 report观测读回，没有新增物理错误。没有停止/重启其他owner，也没有PPO退款。探针新增内部每10策略步的进度收据和失败时实际已完成行，新目录`gpu_fast_io_v69`32步自然PASS（320显式tick、6次Critic逐位比较、partial reset及fresh reset）。收据证明在推进，单策略步约5s，不能从旧无进度日志断言deadlock。
+
+当前完整学习恢复源为4096 u1，累计436、剩9564；拟新性能版本8次有界正常PPO，先1次后同run恢复，覆盖正常回合和保存恢复。所有更新仍计入原10000，远端无GPU且SSH最近拒绝连接，未上传冒充新版ready；等待用户通知，不设自动开训watcher。
