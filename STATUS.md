@@ -1,5 +1,12 @@
 # 当前任务
 
+## Jump 最终轮凸包验收（2026-11-14）
+
+显式wheel_convex30_v1已完成本机CPU/GPU cooked读回（60顶点/32面，support差0～0.331mm）；4096环境6400tick零PPO随机闭环通过，6634正常结束行，Critic54次逐位、inverse48次对照、fresh reset通过。两环境CPU/GPU各400tick冲量/reset通过，未reset行全部测量差0。保留1mm穿入/2mm闭链门禁，不改奖励/限矩/时序；原Cylinder动态倾斜接触内部根因未确认，未声称几何完全等价。实际入口仍CLI→owner/worker→公共driver。
+
+相关CPU42通过，portable1953通过/31历史skip；Ruff0.8.4 check/format与当前main架构检查218/0通过。预算已耗452/10000、剩9548，新物理cohort从v13有效u1完整学习状态继承，2次未保存更新不退款。正式配方含显式轮碰撞；下一步统一CLI有界16次正常PPO与完整恢复，再同run续训。站稳/跳跃尚无能力认证。收据artifacts/jump_diagnosis_20261113/convex30_acceptance_v150.json；各run实际状态优先于本导航。
+
+
 ## Jump 独立本机修复（2026-11-13接替）
 
 分支`jump/isaac-training`保持独立。已修复单个128m薄盒造成的轮接触丢失、真实u407因exp舍入被误拒完整恢复、C把去抖未确认误作支撑不可用导致25ms故障。执行合同`jump_PhysX_tiled_flat_ground_support_valid_v3`，源USD、ABI4输入/输出、40/4.8Nm和1/5/10ms不变。新增8次有界PPO及同run完整resume已终态结算：累计415/10000、剩9585；原失败证据与账本保留。最终完整模型SHA `2ea1f5c9f42d2e7519e6daa41fc7850c8b1188679145fc536ec71c3c1c276f42`。相关CPU155通过、portable1915通过/31历史skip、Ruff0.8.4与当前main架构检查通过。本机CPU/GPU接触/冲量/reset及远端实际6.2 CPU PhysX通过；远端GPU仍0，修复后GPU验收未完成，长训未放行。继承Actor仍约0.25m/SETTLE，站稳与跳跃未认证，三类池均无accepted。远端新源码、完整模型、33依赖SHA、三段预算和剩9585配方已准备；当前结果与剩余门槛见`docs/JUMP_DIAGNOSIS_20261113.md`末节，原始收据`artifacts/jump_diagnosis_20261113/`。以下公共历史记录不覆盖此独立分支新状态。

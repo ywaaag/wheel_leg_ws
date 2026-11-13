@@ -1,5 +1,9 @@
 # Jump Isaac GPU 执行链
 
+当前新增显式 `assets.jump_wheel_collision="wheel_convex30_v1"`，由正式 Jump factory 传入 Scene 与 execution identity。运行时仅将两轮 Cylinder 碰撞改为30侧外切凸包；原USD、轮心/轴/宽、质量/COM/惯量与sensor路径保留。60mm半径增加0～0.331mm，不能宣称几何完全不变。本机CPU/GPU cooked读回均60顶点/32面，20000方向support差7.6nm～330.501um。旧配置未声明时保留原Cylinder，供冻结来源与对照使用；两种物理合同不能无声明full互换，需显式transition与新cohort。
+
+最终候选零PPO4096环境6400tick通过，6634个正常结束行，Critic54次逐位对照、inverse48次容差对照、fresh reset通过。CPU/GPU各两环境400tick，partial reset未reset行全部测量差0；最大闭链分别0.185/0.141mm，GPU最小解析净空-1.628um，冲量竖向余额最大0.0268Ns。仍逐1ms执行1mm穿入/2mm闭链门禁，不改变奖励/控制/限矩。证据`artifacts/jump_diagnosis_20261113/convex30_acceptance_v150.json`。这是物理接线验收，未认证站稳/跳跃；当前正在完成正常PPO与完整恢复验收。以下旧版本结论按各自冻结身份读取。
+
 当前执行修复冻结`ab6dc16`，合同`jump_PhysX_tiled_flat_ground_support_valid_v3`。接替后新增8次PPO含真实同run完整resume，累计415/10000、余9585，最终完整模型已搬迁远端并核对SHA。新版本本机CPU/GPU与远端6.2 CPU工程通过；远端无GPU，GPU复验和有界窗口尚未执行。0.34m站稳与主动跳能力未认证。最新收据及原始失败见`JUMP_DIAGNOSIS_20261113.md`末节和`artifacts/jump_diagnosis_20261113/DELIVERY_20261113.md`。下方旧长训RUNNING等为各自日期历史快照。
 
 

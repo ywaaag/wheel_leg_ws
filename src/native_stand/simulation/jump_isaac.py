@@ -110,7 +110,9 @@ class IsaacJump:
         self.serial = 0
         from native_stand.simulation.jump_isaac_scene import physical_contract
 
-        self.physical_contract = physical_contract(self.num_envs)
+        self.physical_contract = physical_contract(
+            self.num_envs, job.assets.get("jump_wheel_collision")
+        )
         self.training_semantics = dict(TRAINING_SEMANTICS)
         if self.job.assets.get("jump_compute") == "cuda_firmware_warp_inverse_v1":
             self.training_semantics["compute"] = "cuda_firmware_warp_inverse_v1"

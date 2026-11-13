@@ -146,3 +146,12 @@ Packet仍在同一构造边界检查每个字段长度、contact类型、phase/o
 `gpu_fast_io_v66`原320步探针仅有首尾收据，耗时长无法分辨内部进度。本会话只对自己的零PPO探针SIGINT，FAILED/KeyboardInterrupt原证据保留；traceback在V4 report观测读回，没有新增物理错误。没有停止/重启其他owner，也没有PPO退款。探针新增内部每10策略步的进度收据和失败时实际已完成行，新目录`gpu_fast_io_v69`32步自然PASS（320显式tick、6次Critic逐位比较、partial reset及fresh reset）。收据证明在推进，单策略步约5s，不能从旧无进度日志断言deadlock。
 
 当前完整学习恢复源为4096 u1，累计436、剩9564；拟新性能版本8次有界正常PPO，先1次后同run恢复，覆盖正常回合和保存恢复。所有更新仍计入原10000，远端无GPU且SSH最近拒绝连接，未上传冒充新版ready；等待用户通知，不设自动开训watcher。
+
+
+## 最终30侧碰撞表示验收（2026-11-14）
+
+初始化排查未发现预埋1mm：root=0.339976m、两腿0.28m、出生解析净空约0。独立只读SciPy复核确认原1.102507mm失败不是quat/link/COM误读。原Cylinder完整articulation动态倾斜接触曾超1mm；其PhysX内部具体接触算法根因仍未确认。采用显式规则30侧凸轮廓纠正该执行路径，不能将其描述为修复某个已证实SDK内部bug。
+
+128侧候选虽6400tick通过，但cooking实际62顶点/33面，support差-0.493～+1.028mm，已废弃，不能沿用18um声明。最终30侧CPU/GPU cooked均60顶点/32面，支撑差0～0.331mm；新合同jump_PhysX_wheel_convex30_v5。最终4096x6400tick独立通过，6634正常结束行；CPU/GPU冲量与partial reset均完成，原门禁不放宽，完整收据convex30_acceptance_v150.json。v134保存的是全局最坏行样本，涉及5行不代表4096全量超限行普查。fresh replay未恢复隐藏solver，不反证原门禁。
+
+slip仍用轮心下方半径处速度作为既有奖励代理，倾斜时不是精确接触点。此项与正确的解析净空分开，不以它解释或放宽穿入；本次碰撞修复不改变奖励定义。GPU全面计算实现db0fcf9/1d26cdc保持，预算已耗452、剩9548；准备统一CLI有界正常PPO与保存恢复，不另建训练循环。
