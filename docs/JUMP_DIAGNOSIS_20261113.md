@@ -67,3 +67,5 @@
 真实C旧/新库回放同一力序列，旧库25ms故障、新库30ms正常完成分类（`support_replay_v35/receipt.json`）。GPU `gpu_support_valid_v36`2500tick两环境未发生该早期故障；仍长时间SETTLE，未证明0.34m站稳或起跳。执行合同更新为`jump_PhysX_tiled_flat_ground_support_valid_v3`，C manifest绑定新源码SHA与controller revision，ABI4布局及Actor输出合同不变，硬件输出仍OFF/UNVERIFIED。三类候选只消费正常PPO回合；新增C请求/接受次数仅记录实际事件，不作为额外评估。
 
 原8次工程划分余下4次从v3/u4完整学习状态启动新cohort；所有实际消耗继续累计。新物理证据不沿用旧失败域的课程窗口，课程RNG和累计episode/request计数保留。后续验收与预算以对应run/artifacts收据更新。
+
+C修复后的第一次联合回归为146通过/7失败，7项均由两份现用配方的execution_manifest仍绑定旧SHA触发身份拒绝；没有放宽校验。已原地将两份配方绑定当前worktree的新manifest，复跑155通过（50.16s）。历史run/spec及旧SHA证据保持原样。
