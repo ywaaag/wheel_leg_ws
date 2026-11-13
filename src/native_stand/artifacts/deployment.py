@@ -7,7 +7,9 @@ from .io import file_sha256, read_json, write_json, write_npz
 VERSION = "wheel_leg_deployment_v1"
 
 
-def export_package(source, spec, output, *, execution, dependencies=(), onnx=False, index=None):
+def export_package(
+    source, spec, output, *, execution, dependencies=(), onnx=False, index=None, golden=None
+):
     import os
     import uuid
 
@@ -20,6 +22,8 @@ def export_package(source, spec, output, *, execution, dependencies=(), onnx=Fal
         existing = sorted((ref["sha256"], ref.get("role")) for ref in record["dependencies"])
         if wanted != existing or (onnx and "actor.onnx" not in record["files"]):
             raise ValueError("Existing deployment dependencies/export target differ")
+        if record.get("golden_source") != golden:
+            raise ValueError("Existing deployment golden source differs")
         if (
             record["source"]["sha256"] != source.sha256
             or json_digest(record["inference_spec"]) != json_digest(spec.record())
@@ -29,7 +33,13 @@ def export_package(source, spec, output, *, execution, dependencies=(), onnx=Fal
     else:
         temporary = output.with_name("." + output.name + ".building-" + uuid.uuid4().hex)
         record = _export_new(
-            source, spec, temporary, execution=execution, dependencies=dependencies, onnx=onnx
+            source,
+            spec,
+            temporary,
+            execution=execution,
+            dependencies=dependencies,
+            onnx=onnx,
+            golden=golden,
         )
         os.rename(temporary, output)
     if index is not None:
@@ -61,7 +71,7 @@ def export_package(source, spec, output, *, execution, dependencies=(), onnx=Fal
     return record
 
 
-def _export_new(source, spec, output, *, execution, dependencies=(), onnx=False):
+def _export_new(source, spec, output, *, execution, dependencies=(), onnx=False, golden=None):
     import shutil
 
     import torch
@@ -73,7 +83,17 @@ def _export_new(source, spec, output, *, execution, dependencies=(), onnx=False)
         raise FileExistsError("Deployment output must be new: " + str(output))
     model = from_source(source, spec)
     output.mkdir(parents=True)
-    x = torch.linspace(-0.5, 0.5, 4 * spec.input_dim).reshape(4, spec.input_dim)
+    if golden is not None:
+        if file_sha256(golden["path"]) != golden["sha256"]:
+            raise ValueError("Real golden dataset SHA differs")
+        import numpy as np
+
+        with np.load(golden["path"], allow_pickle=False) as data:
+            x = torch.as_tensor(data["states"][golden["indices"]], dtype=torch.float32)
+        if x.ndim != 2 or x.shape[1] != spec.input_dim or not len(x) or not torch.isfinite(x).all():
+            raise ValueError("Invalid real golden observations")
+    else:
+        x = torch.linspace(-0.5, 0.5, 4 * spec.input_dim).reshape(4, spec.input_dim)
     y = model.mean(x)
     actor = output / "actor.pt"
     torch.save(
@@ -87,6 +107,12 @@ def _export_new(source, spec, output, *, execution, dependencies=(), onnx=False)
         actor,
     )
     write_npz(output / "golden.npz", dict(inputs=x.numpy(), outputs=y.numpy()))
+    if spec.kind == "recovery_physical":
+        with torch.no_grad():
+            mean = model.actor.mean(x)
+        write_npz(
+            output / "golden.npz", dict(inputs=x.numpy(), mean=mean.numpy(), outputs=y.numpy())
+        )
     copied = []
     for number, ref in enumerate(dependencies):
         path = Path(ref["path"])
@@ -129,6 +155,21 @@ def _export_new(source, spec, output, *, execution, dependencies=(), onnx=False)
         else:
             raise ValueError("Unsupported deployment C ABI")
         c_build = build(output / "control.so")
+    C_decoder_error = None
+    if c_build and spec.kind == "recovery_physical":
+        import numpy as np
+
+        from native_stand.simulation.control_core import ControlCore
+
+        core = ControlCore(c_build, spec.output_contract)
+        decoded = np.stack(
+            [
+                core.decode(row, float(obs[24] * 0.5))
+                for row, obs in zip(mean.numpy(), x.numpy(), strict=True)
+            ]
+        )
+        np.testing.assert_allclose(decoded, y.numpy(), atol=2e-5, rtol=1e-6)
+        C_decoder_error = float(np.abs(decoded - y.numpy()).max())
     record = dict(
         version=VERSION,
         source=dict(path=str(source.path), sha256=source.sha256),
@@ -136,10 +177,12 @@ def _export_new(source, spec, output, *, execution, dependencies=(), onnx=False)
         actor_output_space="physical_target" if spec.kind == "recovery_physical" else "policy_raw",
         decoder_in_actor=spec.kind == "recovery_physical",
         execution=execution,
+        golden_source=golden,
         C_host_build=c_build,
         dependencies=copied,
         checks=dict(
             torch_golden=True,
+            C_decoder_max_abs_error=C_decoder_error,
             ONNX_reference=True if onnx else "NOT_RUN",
             ORT="NOT_RUN",
             ARM="NOT_RUN",

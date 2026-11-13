@@ -264,3 +264,9 @@ r10/r11的实际故障已定位为rough穿透检测位置错误：lower-leg的�
 - 当前活动 run：[run.json](runs/2026_11_5-21_21__motion442_scale_corrected_resume9546/run.json)、[state.json](runs/2026_11_5-21_21__motion442_scale_corrected_resume9546/state.json)、[budget](runs/2026_11_5-21_21__motion442_scale_corrected_resume9546/budget.json)
 - 前段 run：[spec](configs/experiments/2026_11_5-16_51__motion_smoke12_supported015_dqgain_formal9988/spec.json)、`formal/supervisor_terminal.json`、`formal/terminal_report.json`、`formal/completion_error.json`
 - 重构范围与验证：[迁移报告](docs/MIGRATION_20261105.md)
+
+## Recovery 2100 小模型蒸馏（2026-11-13，独立任务）
+
+电控/蒸馏会话在 `/home/kellen/wheel_leg_distill_ws`、`recovery/2100-distillation` 负责；基点main `299b8dc`。教师2100 SHA `5aec83df…d12a9` 已匹配，不混其他教师。用户明确总预算不限、CPU/GPU可用；原Recovery训练与MuJoCo GUI仍由原owner管理，不停止、不接管。
+
+首块准备：31D/256-128-64/Recovery物理三次输出，128环境，三批各1000次监督更新、两次学生真实状态补教、独立延迟比较，执行块7200s/8GiB，每round保存。实际run、物理/监督消耗与终态以新run产物为准，未启动前不能称已训练。来源/合同与正式入口见 `docs/RECOVERY2100_DISTILLATION.md`。公共main和活动训练冻结源码未更改。

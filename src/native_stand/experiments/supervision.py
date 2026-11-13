@@ -20,13 +20,21 @@ class PhaseConfig:
     operation: str
     steps: int = 0
     rounds: int = 0
+    policy: str = "student"
 
     def __post_init__(self):
+        if self.policy != "student" and self.operation != "collect":
+            raise ValueError("Explicit behavior policy only belongs to collect")
         if self.operation not in ("collect", "label", "fit", "compare", "export"):
             raise ValueError("Unknown supervision phase")
         if type(self.steps) is not int or type(self.rounds) is not int:
             raise ValueError("Phase counts must be integers")
-        if self.operation != "collect" and self.steps or self.operation != "fit" and self.rounds:
+        if (
+            self.operation not in ("collect", "compare")
+            and self.steps
+            or self.operation != "fit"
+            and self.rounds
+        ):
             raise ValueError("steps only belongs to collect; rounds only belongs to fit")
         if self.steps < 0 or self.rounds < 0:
             raise ValueError("Negative supervision consumption")
@@ -50,8 +58,15 @@ class SupervisionConfig:
     holdout_fraction: float = 0.2
     initial_student: dict | None = None
     rehearsal: tuple[dict, ...] = ()
+    objective: dict | None = None
 
     def __post_init__(self):
+        from native_stand.learning.distillation.objective import validate_objective
+
+        validate_objective(self.objective, self.student.get("kind"))
+        names = {t.name for t in self.teachers}
+        if any(p.policy != "student" and p.policy not in names for p in self.phases):
+            raise ValueError("Collection policy must name an explicit Teacher")
         if not self.teachers or len({t.name for t in self.teachers}) != len(self.teachers):
             raise ValueError("Unique explicit Teachers required")
         if self.repetitions < 1 or self.batch_size < 1 or self.learning_rate <= 0:
@@ -108,7 +123,8 @@ class SupervisionConfig:
             phases=[asdict(p) for p in self.phases],
             repetitions=self.repetitions,
             supervised_rounds=self.rounds,
-            collection_policy_steps=self.repetitions * sum(p.steps for p in self.phases),
+            collection_policy_steps=self.repetitions
+            * sum(p.steps * (2 if p.operation == "compare" else 1) for p in self.phases),
             PPO_updates=0,
             starts_engine=False,
             writes=False,

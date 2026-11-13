@@ -184,3 +184,5 @@ Space停止，Esc停止并暂停，R归零并重置；键盘不自动解除暂�
 彻底断网时浏览器无法保证送达，服务器仍保持最后收到的命令，不伪称断网自动停车。
 数值/按钮与键盘复用同一串行`/command`请求队列，避免松键请求超越按下请求；不重复后台发送静态命令。
 曲线最多300点、最近30秒，reset清空；缺失信号留空，不补零，不写浏览器存储或文件。
+
+Recovery 2100 小模型蒸馏使用 `configs/jobs/recovery2100_distillation.json`：复用监督生命周期，固定2100教师、三次物理输出、按回合/阶段均衡的归一化Huber、学生真实闭环补教和独立延迟比较。运行前先 `wheel-leg distill --config configs/jobs/recovery2100_distillation.json --dry-run`。参数、来源、预算与部署边界见 [蒸馏说明](docs/RECOVERY2100_DISTILLATION.md)。
