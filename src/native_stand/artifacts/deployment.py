@@ -118,15 +118,23 @@ def _export_new(source, spec, output, *, execution, dependencies=(), onnx=False,
         path = Path(ref["path"])
         if file_sha256(path) != ref["sha256"]:
             raise ValueError("Deployment dependency SHA differs: " + str(path))
-        dest = output / "dependencies" / f"{number}_{path.name}"
+        dest = (
+            output / "control_core_source" / path.name
+            if ref.get("role") in ("C_manifest", "C_source")
+            else output / "dependencies" / f"{number}_{path.name}"
+        )
         dest.parent.mkdir(exist_ok=True)
         shutil.copyfile(path, dest)
         copied.append(dict(**ref, package_path=str(dest.relative_to(output))))
     if onnx:
 
         class Mean(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.actor = model.actor
+
             def forward(self, inputs):
-                return model.actor({"student_actor": inputs}, stochastic_output=False)
+                return self.actor({"student_actor": inputs}, stochastic_output=False)
 
         torch.onnx.export(
             Mean(),
@@ -140,7 +148,10 @@ def _export_new(source, spec, output, *, execution, dependencies=(), onnx=False,
         )
     if onnx:
         import numpy as np
+        import onnx as onnx_format
         from onnx.reference import ReferenceEvaluator
+
+        onnx_format.checker.check_model(onnx_format.load(output / "actor.onnx"), full_check=True)
 
         actual = ReferenceEvaluator(str(output / "actor.onnx")).run(
             None, {"observation": x.numpy()}
@@ -174,7 +185,15 @@ def _export_new(source, spec, output, *, execution, dependencies=(), onnx=False,
     if c_build and spec.kind == "recovery_physical":
         from .c_actor import export_recovery_actor
 
-        C_actor = export_recovery_actor(model.actor, output, x.numpy(), y.numpy())
+        C_actor = export_recovery_actor(
+            model.actor,
+            output,
+            x.numpy(),
+            y.numpy(),
+            core_source=output / "control_core_source"
+            if (output / "control_core_source" / "manifest.json").exists()
+            else None,
+        )
     record = dict(
         version=VERSION,
         source=dict(path=str(source.path), sha256=source.sha256),

@@ -20,6 +20,9 @@ def summarize(arrays):
                 episode=str(key),
                 complete=ended,
                 cohort=int(arrays["condition_validation_cohort"][mask][0]),
+                environment_id=int(arrays["environment_id"][mask][0])
+                if "environment_id" in arrays
+                else None,
                 Swing=bool(arrays["condition_initial_Swing"][mask][0]),
                 rise=bool(entered.any()) if ended else None,
                 lost_contact=bool((entered & ~dual).any()) if ended else None,
@@ -56,3 +59,63 @@ def summarize(arrays):
         },
         episodes=rows,
     )
+
+
+def paired_retention(teacher, student):
+    """Extra success on Teacher-failed cases never offsets lost Teacher capability."""
+
+    def mapping(report):
+        result = {}
+        for row in report["episodes"]:
+            key = (row.get("environment_id"), row["cohort"])
+            if key in result:
+                raise ValueError("Paired retention needs explicit unique environment/case identity")
+            result[key] = row
+        return result
+
+    left, right = mapping(teacher), mapping(student)
+    if left.keys() != right.keys():
+        raise ValueError("Teacher/student condition identities differ")
+    rows = []
+    for key, t in left.items():
+        s = right[key]
+        if bool(t["Swing"]) != bool(s["Swing"]):
+            raise ValueError("Teacher/student reset pose identity differs")
+        if not t["complete"] or not s["complete"]:
+            category = "UNKNOWN"
+        else:
+            expected = t["rise"] if t["Swing"] else t["hold10"]
+            actual = s["rise"] if s["Swing"] else s["hold10"]
+            category = (
+                ("RETAINED" if actual else "STUDENT_ONLY_LOSS")
+                if expected
+                else ("EXTRA_NOT_REQUIRED" if actual else "TEACHER_BOUNDARY")
+            )
+        rows.append(
+            dict(
+                environment_id=key[0],
+                cohort=key[1],
+                Swing=t["Swing"],
+                category=category,
+                teacher_complete=t["complete"],
+                student_complete=s["complete"],
+                teacher_rise=t["rise"],
+                student_rise=s["rise"],
+                teacher_hold10=t["hold10"],
+                student_hold10=s["hold10"],
+            )
+        )
+    result = dict(version="teacher_success_condition_retention_v1", cases=rows)
+    for metric, kind in [("teacher_rise_retention", "rise"), ("teacher_hold_retention", "hold10")]:
+        eligible = [
+            r
+            for r in rows
+            if r["teacher_complete"] and r["teacher_" + kind] and (kind != "rise" or r["Swing"])
+        ]
+        unknown = sum(not r["student_complete"] for r in eligible)
+        kept = sum(bool(r["student_" + kind]) for r in eligible if r["student_complete"])
+        result[metric] = kept / len(eligible) if eligible and not unknown else None
+        result[metric + "_counts"] = dict(
+            teacher_success=len(eligible), student_retained=kept, UNKNOWN=unknown
+        )
+    return result

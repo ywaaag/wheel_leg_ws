@@ -3,7 +3,7 @@
   "name": "recovery2100_mujoco_rise_dagger",
   "algorithm": "distillation",
   "backend": "mujoco",
-  "source_root": "/home/kellen/wheel_leg_distill_mujoco_ws/src",
+  "source_root": "/home/kellen/wheel_leg_distill_review_ws/src",
   "model": {
     "actor_hidden_dims": [
       256,
@@ -664,8 +664,8 @@
       "sha256": "21be7ac5d5ef3eb7c6f679a947c434025331b307b16090b119063b6faa8796de"
     },
     "selection_metrics": [
-      "rise_success_rate",
-      "continuous_10s_rate"
+      "teacher_rise_retention",
+      "teacher_hold_retention"
     ]
   },
   "experiment_variables": {

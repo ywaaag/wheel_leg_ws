@@ -16,7 +16,7 @@ FROZEN_TEST_SCOPE = "PORTABLE"
 
 def test_recipe_has_disjoint_real_dr_conditions_and_rise_first_selection():
     job = load_job_config(Path(__file__).parents[1] / "configs/jobs/recovery2100_mujoco_rise.json")
-    assert job.supervision.selection_metrics == ("rise_success_rate", "continuous_10s_rate")
+    assert job.supervision.selection_metrics == ("teacher_rise_retention", "teacher_hold_retention")
     cases = job.assets["recovery_mujoco"]["cases"]
     seeds = [{c["seed"] for c in cases[role]} for role in ("train", "development", "holdout")]
     assert not seeds[0] & seeds[1] and not seeds[0] & seeds[2] and not seeds[1] & seeds[2]
@@ -137,3 +137,75 @@ def test_actual_C_network_and_shared_decoder_match_physical_actor(tmp_path):
     assert result["wheel_max_abs_error_rad_s"] < 1e-3
     assert result["scratch_array_bytes"] == 2 * 31 * 4
     assert result["hardware"] == "OFF"
+
+
+def test_teacher_failure_extra_success_cannot_offset_lost_teacher_success():
+    from native_stand.tasks.recovery.distillation_metrics import paired_retention
+
+    def row(cohort, success, complete=True):
+        return dict(
+            cohort=cohort,
+            environment_id=cohort,
+            Swing=True,
+            complete=complete,
+            rise=success,
+            hold10=success,
+        )
+
+    teacher = dict(episodes=[row(0, True), row(1, True), row(2, False)])
+    student = dict(episodes=[row(0, True), row(1, False), row(2, True)])
+    paired = paired_retention(teacher, student)
+    assert paired["teacher_rise_retention"] == 0.5
+    assert paired["teacher_hold_retention"] == 0.5
+    assert [r["category"] for r in paired["cases"]] == [
+        "RETAINED",
+        "STUDENT_ONLY_LOSS",
+        "EXTRA_NOT_REQUIRED",
+    ]
+    student["episodes"][1]["complete"] = False
+    assert paired_retention(teacher, student)["teacher_rise_retention"] is None
+
+
+def test_recovery_physical_ONNX_is_valid_and_matches_multiple_batch_sizes(tmp_path):
+    import onnx
+    from onnx.reference import ReferenceEvaluator
+
+    from native_stand.artifacts.checkpoint import load_actor_source
+    from native_stand.artifacts.deployment import export_package
+    from native_stand.artifacts.io import write_npz
+    from native_stand.learning.inference import InferenceSpec
+    from native_stand.learning.ppo.recovery_cubic import PhysicalActor
+
+    contract = dict(
+        action_version="recovery_cubic_physical_Gaussian_v2",
+        center_rad=[-0.13, -0.15, 0.13, -0.15],
+        leg_lower_rad=[-1.5] * 4,
+        leg_upper_rad=[1.5] * 4,
+    )
+    spec = InferenceSpec("recovery_physical", 31, (16, 8, 4), 6, {"version": "test31"}, contract)
+    actor = PhysicalActor(contract, hidden_dims=spec.hidden_dims).eval().requires_grad_(False)
+    checkpoint = tmp_path / "actor.pt"
+    torch.save(
+        dict(actor=actor.state_dict(), inference_spec=spec.record(), output_contract=contract),
+        checkpoint,
+    )
+    x = torch.randn(7, 31) * 0.2
+    x[:, 24] = 0.68
+    data = tmp_path / "received.npz"
+    write_npz(data, dict(states=x.numpy()))
+    output = tmp_path / "package"
+    export_package(
+        load_actor_source(checkpoint),
+        spec,
+        output,
+        execution={},
+        onnx=True,
+        golden=dict(path=str(data), sha256=file_sha256(data), indices=list(range(7))),
+    )
+    model = onnx.load(output / "actor.onnx")
+    onnx.checker.check_model(model, full_check=True)
+    assert len(model.graph.initializer) > 0
+    evaluator = ReferenceEvaluator(model)
+    for n in (1, 7):
+        got = evaluator.run(None, {"observation": x[:n].numpy()})[0]
+        np.testing.assert_allclose(got, actor.physical_mean(x[:n]).numpy(), atol=1e-5, rtol=1e-5)

@@ -206,3 +206,5 @@ Recovery collector通过显式collection/validation cases区分采集与评分�
 Recovery原XML MuJoCo采集由`simulation/recovery_mujoco.py`实现，通过`execution_service`和公共collection进入既有监督worker。只支持显式Recovery distillation合同，不开放MuJoCo PPO；执行器/生命周期用factory注入，禁止全局替换。原XML二进制模型、版本和源SHA属于外部构建产物；正式源码不导入旧scripts/isolated工具。源物理快照构建是一次性准备，不构成新训练入口。
 
 `artifacts/c_actor.py`仅在部署边界生成FP32 ELU/Tanh Actor C源码，复用`simulation.control_core.build(additional_sources=...)`和原`RLPolicyDecode`。生成模型不另建编译launcher或控制实现，golden核对包括完整C网络及一次解码，主机时延与MCU认证分开。
+
+Recovery逐条件保留指标在`tasks/recovery/distillation_metrics.paired_retention`，匹配显式environment/case身份，教师失败不计入必须保留分母；候选选择可配置此指标。部署真实golden由CLI `export --golden`声明，源码/数据SHA在边界核验；显式六通道stack修复当前ONNX导出器对高级索引回填的非法空输入图，不改变decoder物理定义。

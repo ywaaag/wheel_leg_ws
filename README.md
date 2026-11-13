@@ -190,3 +190,5 @@ Recovery 2100 小模型蒸馏使用 `configs/jobs/recovery2100_distillation.json
 Recovery 2100 小模型蒸馏当前使用 `configs/jobs/recovery2100_delay_dagger.json`（长延迟学生补教）；初始 `recovery2100_distillation.json`仅保留首轮复现。当前配方：复用监督生命周期，固定2100教师、三次物理输出、按回合/阶段均衡的归一化Huber、学生真实闭环补教和独立延迟比较。运行前先 `wheel-leg distill --config configs/jobs/recovery2100_delay_dagger.json --dry-run`。参数、来源、预算与部署边界见 [蒸馏说明](docs/RECOVERY2100_DISTILLATION.md)。
 
 Recovery 2100 起身小模型：`wheel-leg distill --config configs/jobs/recovery2100_mujoco_rise.json --dry-run`。正式采集复用原XML MuJoCo模型快照、完整V4与统一owner/worker；起身优先，慢速漂移单独记录。配置依赖本机SHA绑定资源，使用前核对可用性。接口与数据边界见[蒸馏说明](docs/RECOVERY2100_DISTILLATION.md)。
+
+真实状态导出可用 `wheel-leg export --run RUN --checkpoint CHECKPOINT --output PACKAGE --onnx --golden GOLDEN.json`，golden JSON声明states NPZ的path/SHA/indices。Recovery ONNX与C完整网络直接输出物理目标，decoder只执行一次；C源码在包内按原名保存，可独立重编译。
