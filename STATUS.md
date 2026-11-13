@@ -199,3 +199,11 @@ r10/r11的实际故障已定位为rough穿透检测位置错误：lower-leg的�
 ## Jump大并行增量（2026-11-13）
 
 用户明确选择4096环境，不执行256测量。32/128性能各2次已终态；累计435/10000、剩9565。4096×64/minibatches64，地面256m/8m tiles、实际出生边界33.5m，零PPO120tick/partial reset/6次Critic逐位对照PASS。正式4096首更冻结cd24127在原worktree运行，尚未完成优化；另在jump/isaac-throughput worktree开发等价FK性能补丁，未热改活动源码。远端连接后转拒绝连接，无卡；等待用户GPU通知，不启动平台或watcher。课程/候选均无能力accepted，原ready_support_v44已过时，不用于新版开训。
+
+
+## Jump本机长训授权与接触门禁（2026-11-13当前）
+
+用户明确授权本机GPU、原任务总10000次、墙钟不限。实际fast4096 v8在3次已计费后因`wheel penetration 0.00101678818m`退出FAILED；最后有效完整保存u2，模型回退1次不退款。累计439/10000，剩9561；原分配未用5次退役，旧run不resume。结算`artifacts/jump_diagnosis_20261113/task_settlement_v82.json`。本机长训pending配置已dry-run，接触失败根因尚待确认，因此尚未提交。新增失败原始packet持久化，1mm阈值不变；portable1948通过/31skip，Ruff和架构212/0通过。u2完整GPU学习状态/双Adam/std/RNG/预测精确核验PASS。32环境自由下落/随机有界力矩、128环境6s随机Actor及独立轮倾斜/冲击证据在v76-v83；4096接触探针v84正在执行，均零PPO且不作能力评估。Motion与本会话已协商各用一台：Motion远端4090，Jump本机4080；远端当前仅约12GiB余量，Jump不迁移。新SSH30548，不包含认证信息。
+
+
+Jump本机v88启动准备：v84实际4096环境零PPO2000tick物理/C/随机Actor接线自然PASS，未处理奖励/课程，不是能力评估；先前罕见1.017mm超限根因仍未确认。用户已明确授权在本机执行，决定保留原1mm fail-fast启动剩9561、不设墙钟。新run完整初始化u2 SHA7c2394d6，439已耗（含未保存1次）不退款；checkpoint每10次、最近2份+里程碑；故障packet进入execution/physical_failure.json。长训配置与授权/结算位于artifacts的v82/v88；启动收据后续以真实run为准，不能因启动声明全部前置或能力accepted。
