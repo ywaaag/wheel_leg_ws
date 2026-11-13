@@ -536,6 +536,9 @@ class IsaacJump:
                     else None,
                     balance_seconds=float(self.balance_s[i]),
                     balance_good_seconds=float(self.balance_good[i]),
+                    C_requests=int(self.execution.c.states[i].request_id),
+                    C_accepted_jumps=int(self.execution.c.states[i].epoch),
+                    C_final_phase=int(terminal[i]["phase"]),
                 )
             )
             phases[i] = terminal[i]["phase"]

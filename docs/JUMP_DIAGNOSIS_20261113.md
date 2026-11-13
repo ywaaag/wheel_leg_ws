@@ -57,3 +57,13 @@
 ## 完整u407恢复的std逐位校验缺陷
 
 本机首个新run `2026_11_13__jump_tiled_u407_local8_v2`在PPO之前FAILED，已耗0；失败与旧run保持只读。真实u407保存的GPU exp(log_std)与CPU重算在3通道各差1 ULP（7.45e-9），`learning/ppo/jump_unified.py::restore_state`原逐位比较将其误判为std冲突。现在允许派生exp值最多2 ULP舍入差异，仍严格检查shape/dtype/有限正值；完整恢复使用原始log_std，不重建或替换std/Adam。实际u407验证通过，新增分布被改、NaN/Inf/零、shape/dtype冲突仍拒绝的CPU回归。后继本机v3仍只占用原8次工程划分，不因失败增加总预算。
+
+## C支撑可用性与接触分类混淆：已修复，能力仍未认证
+
+本机v3完整u407初始化后4次PPO正常STOPPED_BOUNDED；非零reward、每次Actor/Critic各16个Adam步、warmup仍5，完整学习状态/双Adam/std/RNG/预测逐位恢复通过。实际累计411/10000、剩9589，保留0消耗的v2恢复失败run与已耗4次的v3run；没有退款。正常PPO的42个结束回合中，19个主动跳均在25ms左右C_fault=5，23个下落timeout且零成功，不能放行长训。
+
+`gpu_u407_actor_v34/trace.json`显示25ms时两侧支撑残差有效，且与真实轮力接近；右侧先约19N、15ms超过20N、20ms变OFF，25ms仍在8ms去抖。根因是`jump_control_source/rl_jump_core.c`把contact_valid的去抖/滞回未确认当成估计不可用，用phase年龄24ms故障。共享C现在分别表达估计可用性和接触确认：真正缺失/过期/奇异估计仍触发原故障；分类未确认仍禁止站稳确认、起跳、着陆事件，但不冒充传感失效。8/20N、5/8ms、100ms进入、1s稳定、力矩/Actor输入输出/1-5-10ms均未改。
+
+真实C旧/新库回放同一力序列，旧库25ms故障、新库30ms正常完成分类（`support_replay_v35/receipt.json`）。GPU `gpu_support_valid_v36`2500tick两环境未发生该早期故障；仍长时间SETTLE，未证明0.34m站稳或起跳。执行合同更新为`jump_PhysX_tiled_flat_ground_support_valid_v3`，C manifest绑定新源码SHA与controller revision，ABI4布局及Actor输出合同不变，硬件输出仍OFF/UNVERIFIED。三类候选只消费正常PPO回合；新增C请求/接受次数仅记录实际事件，不作为额外评估。
+
+原8次工程划分余下4次从v3/u4完整学习状态启动新cohort；所有实际消耗继续累计。新物理证据不沿用旧失败域的课程窗口，课程RNG和累计episode/request计数保留。后续验收与预算以对应run/artifacts收据更新。

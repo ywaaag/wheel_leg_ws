@@ -8,7 +8,8 @@ import torch
 from native_stand.tasks.jump.geometry import CHANNELS
 
 PHYSICAL_CONTRACT = {
-    "version": "jump_PhysX_tiled_flat_ground_v2",
+    "version": "jump_PhysX_tiled_flat_ground_support_valid_v3",
+    "support_timeout": "unavailable_estimate; undecided_contact_blocks_events",
     "ground_size_m": [128.0, 128.0, 0.1],
     "maximum_tile_side_m": 8.0,
     "ground_top_m": 0.0,

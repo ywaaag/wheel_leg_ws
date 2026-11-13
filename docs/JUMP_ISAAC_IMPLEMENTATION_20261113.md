@@ -57,3 +57,5 @@ CPU减负原提交`148bcbc`已由公共负责人以`bb22253`集成到主仓；�
 当前物理合同`jump_PhysX_tiled_flat_ground_v2`、CPU/GPU接触与reset证据及u407取回见`JUMP_DIAGNOSIS_20261113.md`首节。正式host读回增加物理不变量拒绝门槛；没有新积分、控制补偿或奖励改动。新run允许SHA绑定的完整学习状态迁移及显式新物理cohort，旧run恢复仍严格检查原身份。远端6.2修复后GPU复验尚待资源。
 
 共享资源helper仍位于`simulation/recovery_isaac/backend.py`。零PPO两环境诊断须双重具名授权；正式Jump共享训练另须policy与SHA绑定授权同时标记`shared_training_task=jump`。Recovery默认调用仍拒绝Recovery冲突，Jump具名调用拒绝同任务或未知任务owner，不把诊断例外扩大为默认并发放行。
+
+C支撑修正执行版本为`jump_PhysX_tiled_flat_ground_support_valid_v3`。真实C区分新鲜可解的力残差与滞回/去抖未确认的接触分类；前者不可用仍故障，后者仍阻止相关FSM事件。接口ABI4与Actor合同不变，C源码及构建manifest SHA明确变更；部署必须携带对应新C包，不能混用旧库。硬件验收没有执行。正常结束回合额外记录C请求次数、接受次数和终态phase，统计不增加推理、积分或独立评价。

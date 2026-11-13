@@ -127,7 +127,7 @@ int RLJumpEstimateSupport(const RLJumpInput *i, float f[2], uint32_t valid[2]) {
   }
   return 0;
 }
-static void contacts(RLJumpState *s, const RLJumpInput *i) {
+static int contacts(RLJumpState *s, const RLJumpInput *i) {
   uint32_t v[2];
   float f[2];
   RLJumpEstimateSupport(i, f, v);
@@ -158,6 +158,7 @@ static void contacts(RLJumpState *s, const RLJumpInput *i) {
     } else
       s->off_valid[k] = 0;
   }
+  return v[0] && v[1];
 }
 /* ABI4: one Jump actor owns balance, locomotion, passive drops and jumps.
  * Physical truth is never an input. Driver/internal-load support remains required.
@@ -190,7 +191,7 @@ int RLJumpStep(RLJumpState *s, const RLJumpInput *i, const RLJumpConfig *c) {
     if (!isfinite(i->leg_length[k]) || i->leg_length[k]<=.126f || i->leg_length[k]>=.373f)
       return fail(s,J_MECHANICAL_RANGE,i->now);
   s->owner=J_JUMP;
-  contacts(s,i);
+  const int support_available=contacts(s,i);
   const int known=s->contact_valid[0] && s->contact_valid[1];
   const int both=known && s->contact[0] && s->contact[1];
   const int off=known && !s->contact[0] && !s->contact[1] &&
@@ -198,7 +199,10 @@ int RLJumpStep(RLJumpState *s, const RLJumpInput *i, const RLJumpConfig *c) {
   const int posture=i->gravity[1]<-.98f &&
     fabsf(i->gyro[0])+fabsf(i->gyro[1])+fabsf(i->gyro[2])<.3f;
   const uint32_t a=age(i->now,s->phase_tick);
-  if (!known && a>24u) return fail(s,J_SUPPORT_UNKNOWN,i->now);
+  /* A fresh residual in the 8..20N hysteresis band, or still completing
+   * debounce, is not a missing support estimate. Unknown contact continues
+   * to block entry/takeoff/landing; unavailable estimates retain the timeout. */
+  if (!support_available && a>24u) return fail(s,J_SUPPORT_UNKNOWN,i->now);
   if (rising) {
     ++s->request_id;
     if (s->phase!=J_BALANCE) s->status=J_REJECT_BUSY;
