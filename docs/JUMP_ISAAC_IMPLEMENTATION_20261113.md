@@ -10,7 +10,7 @@ Actor继承已蒸馏的大模型SHA `2a4d94517943559eaed51841e27be51e4672162a862
 
 新Critic5591D/226字段，布局由真实C/V4状态类型和明确PhysX字段生成，实际引擎构造后逐字段核验。保留全部C/输入、V4/response队列、reward/event memory；删除MuJoCo专用qacc_warmstart、solver/material参数，改为具名实际root/joint/COM/接触/弹簧/闭链/力路由/物理参数读回。不是零填或把相同形状当作相同语义。Actor-only继承物理输出合同不变；CPU full checkpoint不可冒充GPU恢复。
 
-PhysX场景直接复用Isaac的SimulationContext/InteractiveScene/Articulation/ContactSensor和已有PhysicalParameters。原USD和机械参数保持来源身份。motor通过唯一effort目标；NET和主动关节被动力通过成对body wrench，与motor cap分开。V4身体质量/惯量只应用一次。场景采用top Z=0的有限运动学薄板：SDK6.2的GPU过滤不支持普通plane collider，薄板提供可读回的真实ground-filtered接触矩阵。所有body-ground接触保留。自碰撞开关沿用来源YAML的False；没有把机械上互相交叠的闭链连杆全部启用自碰撞。
+PhysX场景直接复用Isaac的SimulationContext/InteractiveScene/Articulation/ContactSensor和已有PhysicalParameters。原USD和机械参数保持来源身份。motor通过唯一effort目标；NET和主动关节被动力通过成对body wrench，与motor cap分开。V4身体质量/惯量只应用一次。场景采用top Z=0的128m有限运动学地面：用8m无重叠薄盒tile共用一个ground actor与材质，避免单个128m薄盒在本机CPU/GPU对照中的轮接触丢失。SDK6.2的GPU过滤不支持普通plane collider，因此保留可读回的ground-filtered接触矩阵。所有body-ground接触保留。自碰撞开关沿用来源YAML的False；没有把机械上互相交叠的闭链连杆全部启用自碰撞。
 
 ## C桥、采样与费用
 
@@ -51,3 +51,9 @@ CPU联合252项通过，新增实际n环境C桥验证跨128环形边界、partia
 交付复核发现`jump_backend.preflight`的返回标签沿用“MuJoCo CPU/Isaac_GPU=False”，实际GPU消费者已经运行，错误仅在主机预检收据（修复位置`src/native_stand/simulation/jump_backend.py`）。本地后续小提交让标签跟随实际后端，并显式`GPU_initialized=False`，避免把CPU预检称作GPU验收；没有向活动远端热同步该修改，训练仍冻结在上述600261c。
 
 CPU减负原提交`148bcbc`已由公共负责人以`bb22253`集成到主仓；本次实际核对主仓HEAD已推进到`1cc65e1`，未恢复到历史16f81c。新集成只需按序承接`bc95acb`、`707b6bf`、`600261c`及本交付小提交，公共3提交和已集成CPU改动不重复提交。GPU在冻结快照上通过；与最新主仓其他领域增量的联合验收应由集成方完成，不能拿本分支的252项代替该结果。
+
+## 本机接替后的物理合同
+
+当前物理合同`jump_PhysX_tiled_flat_ground_v2`、CPU/GPU接触与reset证据及u407取回见`JUMP_DIAGNOSIS_20261113.md`首节。正式host读回增加物理不变量拒绝门槛；没有新积分、控制补偿或奖励改动。新run允许SHA绑定的完整学习状态迁移及显式新物理cohort，旧run恢复仍严格检查原身份。远端6.2修复后GPU复验尚待资源。
+
+共享资源helper仍位于`simulation/recovery_isaac/backend.py`。零PPO两环境诊断须双重具名授权；正式Jump共享训练另须policy与SHA绑定授权同时标记`shared_training_task=jump`。Recovery默认调用仍拒绝Recovery冲突，Jump具名调用拒绝同任务或未知任务owner，不把诊断例外扩大为默认并发放行。

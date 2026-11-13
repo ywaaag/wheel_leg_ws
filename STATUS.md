@@ -1,5 +1,9 @@
 # 当前任务
 
+## Jump 独立本机修复（2026-11-13接替）
+
+分支`jump/isaac-training`保持独立。单个128m薄盒地面导致的轮接触异常已在本机CPU/GPU对照定位；8m tile保留地面包络和机器人资产，200tick接触、闭链及GPU partial reset通过。正式读回加入物理不变量门槛。继承Actor尚未证明0.34m站稳/起跳；正常环境已真实跑到短故障终态和fresh reset。完整u407及旧账本已自无GPU远端取回，SHA匹配，407已耗/9593剩余；新本机8次工程配方只划分原余额。远端6.2修复后GPU验收仍待GPU恢复。完整证据及当前边界见`docs/JUMP_DIAGNOSIS_20261113.md`首节；以下公共历史记录不覆盖此独立分支新状态。
+
 ## 主仓基线与依赖归档（2026-11-12，当前收尾）
 
 主源码仓固定为`/home/kellen/wheel_leg_refactor_ws`，独立Git/main；旧仓及其.git保留，不交换目录、不转发软链接、不配置remote或push。源码/测试/CI/两套共享C源码及小型契约纳入基线；run、预算、模型、机器映射和原始证据留文件存储。精确提交与干净clone收据保存在本地`artifacts/repository_baseline`，不提交运行数据。

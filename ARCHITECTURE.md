@@ -139,3 +139,7 @@ wheel-leg / python -m native_stand          cli.py：参数、展示、退出码
 driver只对优化、计费、任务后处理全部完成的边界补存。优化完成收据只证明应计费，不证明当前课程/执行现场可恢复；半完成rollout不得用旧update号发布新物理现场。保存失败保留上一有效引用，cleanup错误附注在primary异常上供worker结算。普通resume不放宽计数一致校验。
 
 sim2sim不是训练课程或另一套worker：显式协议经CLI直接顺序拥有两个后端会话，不创建子进程。collection adapter复用make_environment和公共推理factory；MuJoCo adapter复用playback.create_player、同一控制循环与模型合同。实际条件/积分接触定义、原始信号及真实子步形成统一trace后调用已有diagnose。故障保留partial数据与原因；不更改评分口径，不做隐式独立能力评估。
+
+## Jump PhysX物理边界
+
+`simulation/jump_isaac_scene.py`拥有分块运动学平地与物理读回不变量；复用现有scene、ground actor及ContactSensor，不修改源USD。`jump_isaac.py`在已有host读回上验证，无额外设备同步；物理合同参与恢复身份。跨物理版本仅经配置声明的full初始化迁移，新物理证据与旧物理窗口分开，Actor-only不冒充完整学习恢复。正式训练仍经CLI→owner/worker→公共driver/JumpAdapter。

@@ -7,11 +7,74 @@ import torch
 
 from native_stand.tasks.jump.geometry import CHANNELS
 
+PHYSICAL_CONTRACT = {
+    "version": "jump_PhysX_tiled_flat_ground_v2",
+    "ground_size_m": [128.0, 128.0, 0.1],
+    "maximum_tile_side_m": 8.0,
+    "ground_top_m": 0.0,
+    "maximum_wheel_penetration_m": 0.001,
+    "maximum_closure_residual_m": 0.002,
+}
+
+
+def validate_physical_measurement(measured):
+    """Reject broken contact/constraint geometry before it becomes PPO evidence.
+
+    Consume the existing host readback; no additional device transfer or step.
+    Falling, non-wheel contacts and zero task success remain normal task events.
+    """
+    for name, values in measured.items():
+        if not np.isfinite(values).all():
+            raise RuntimeError(f"Jump PhysX nonfinite readback: {name}")
+    penetration = -float(np.min(measured["clearance"]))
+    closure = float(np.max(measured["closure"]))
+    if penetration > PHYSICAL_CONTRACT["maximum_wheel_penetration_m"]:
+        raise RuntimeError(f"Jump PhysX wheel penetration {penetration:.9g}m")
+    if closure > PHYSICAL_CONTRACT["maximum_closure_residual_m"]:
+        raise RuntimeError(f"Jump PhysX closure residual {closure:.9g}m")
+
 
 def tensor(value):
     if torch.is_tensor(value):
         return value
     return value.torch
+
+
+def spawn_tiled_ground(prim_path, cfg, translation=None, orientation=None, **kwargs):
+    """Preserve the flat slab envelope using small convex contact shapes.
+
+    A single 128m thin box loses wheel contacts in PhysX near touching resets.
+    Tiles share one kinematic actor and one material; no overlapping surfaces.
+    """
+    import isaaclab.sim as sim_utils
+
+    stage = sim_utils.get_current_stage()
+    sim_utils.create_prim(
+        prim_path, prim_type="Xform", translation=translation, orientation=orientation, stage=stage
+    )
+    material_path = prim_path + "/material"
+    cfg.physics_material.func(material_path, cfg.physics_material)
+    nx, ny = (
+        int(np.ceil(size / PHYSICAL_CONTRACT["maximum_tile_side_m"])) for size in cfg.size[:2]
+    )
+    dx, dy = cfg.size[0] / nx, cfg.size[1] / ny
+    tile_cfg = sim_utils.CuboidCfg(size=(dx, dy, cfg.size[2]), collision_props=cfg.collision_props)
+    for x in range(nx):
+        for y in range(ny):
+            path = f"{prim_path}/tile_{x}_{y}"
+            tile_cfg.func(
+                path,
+                tile_cfg,
+                translation=(
+                    (x + 0.5) * dx - cfg.size[0] / 2,
+                    (y + 0.5) * dy - cfg.size[1] / 2,
+                    0.0,
+                ),
+            )
+            sim_utils.bind_physics_material(path + "/geometry/mesh", material_path, stage=stage)
+    sim_utils.define_mass_properties(prim_path, cfg.mass_props, stage=stage)
+    sim_utils.define_rigid_body_properties(prim_path, cfg.rigid_props, stage=stage)
+    return stage.GetPrimAtPath(prim_path)
 
 
 class TickDerivatives:
@@ -42,7 +105,9 @@ class TickDerivatives:
 
 
 class IsaacScene:
-    def __init__(self, job, description, springs, mechanics, V4, initial):
+    def __init__(
+        self, job, description, springs, mechanics, V4, initial, *, physical_parameters_factory=None
+    ):
         import isaaclab.sim as sim_utils
         from isaaclab.actuators import IdealPDActuatorCfg
         from isaaclab.assets import ArticulationCfg, AssetBaseCfg
@@ -65,7 +130,8 @@ class IsaacScene:
                 prim_path="/World/ground",
                 collision_group=-1,
                 spawn=sim_utils.CuboidCfg(
-                    size=(128.0, 128.0, 0.1),
+                    func=spawn_tiled_ground,
+                    size=tuple(PHYSICAL_CONTRACT["ground_size_m"]),
                     rigid_props=sim_utils.RigidBodyPropertiesCfg(
                         kinematic_enabled=True, disable_gravity=True
                     ),
@@ -210,7 +276,8 @@ class IsaacScene:
         from native_stand.simulation.recovery_isaac.physics import PhysicalParameters
         from native_stand.tasks.recovery.cubic_randomization import draw
 
-        self.physics = PhysicalParameters(self, V4, mechanics)
+        factory = physical_parameters_factory or PhysicalParameters
+        self.physics = factory(self, V4, mechanics)
         self.physics.reset(
             torch.arange(self.num_envs, device=self.device),
             [draw(0.0, np.random.default_rng(0)) for _ in range(self.num_envs)],

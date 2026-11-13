@@ -57,6 +57,11 @@ def validate_job(job):
         raise ValueError(
             "Jump Isaac uses one formal stage; bound initial updates with --max-updates"
         )
+    policy = job.assets["jump_isaac"].get("resource_policy", {})
+    if policy.get("bounded_physical_io_only") is True and (
+        job.runtime.envs > 2 or job.limits.formal_updates or job.limits.sample_limit is not None
+    ):
+        raise ValueError("Bounded shared-GPU diagnosis cannot carry PPO work")
 
 
 class IsaacJump:
@@ -79,12 +84,16 @@ class IsaacJump:
         self._obs = None
         self.completed = []
         self.serial = 0
+        from native_stand.simulation.jump_isaac_scene import PHYSICAL_CONTRACT
+
+        self.physical_contract = copy.deepcopy(PHYSICAL_CONTRACT)
         self.identity = json_digest(
             dict(
                 contract=job.assets["jump_contract_data"],
                 schema=job.assets["jump_critic_schema"],
                 course=job.assets["jump_course"],
                 backend=TRAINING,
+                physics=self.physical_contract,
                 envs=self.num_envs,
             )
         )
@@ -109,7 +118,12 @@ class IsaacJump:
         from native_stand.simulation.recovery_isaac.runtime_safety import preserve_worker_signals
 
         resources = self.job.assets["jump_isaac"]
-        readback = require_idle_gpu(resources["gpu_uuid"], resources["resource_policy"])
+        readback = require_idle_gpu(
+            resources["gpu_uuid"],
+            resources["resource_policy"],
+            allow_bounded_diagnostic_owner=True,
+            shared_training_task=resources["resource_policy"].get("shared_training_task"),
+        )
         # Runtime imports below occur only after the existing AppLauncher.
         from isaaclab.app import AppLauncher
 
@@ -202,6 +216,7 @@ class IsaacJump:
                 actual_runtime_schema=self.critics[0].schema.contract(),
                 physics_restore="fresh_reset",
                 startup_engine_ticks=self.scene.actual_ticks,
+                physical_contract=self.physical_contract,
             ),
         )
 
@@ -231,6 +246,9 @@ class IsaacJump:
                 row = packed[:, start : start + width].reshape(tuple(value.shape))
                 host[name] = row.astype(bool) if value.dtype == torch.bool else row
                 start += width
+        from native_stand.simulation.jump_isaac_scene import validate_physical_measurement
+
+        validate_physical_measurement(host)
         self._host_key, self._host_cache = key, host
         return host
 
@@ -557,6 +575,7 @@ class IsaacJump:
         return dict(
             version=TRAINING,
             identity=self.identity,
+            physical_contract=self.physical_contract,
             restore="fresh_reset",
             execution=self.execution.state_dict(),
             courses=[c.state_dict() for c in self.courses],
@@ -581,7 +600,43 @@ class IsaacJump:
         self.reset()
 
     def initialize_from_training_state(self, value):
-        self.load_runtime_state(value)
+        if value["identity"] != self.identity:
+            transition = self.job.assets.get("jump_physics_transition", {})
+            if (
+                self.job.initialization.mode != "full"
+                or transition.get("source_checkpoint_sha256") != self.job.initialization.sha256
+                or not self.job.initialization.sha256
+                or transition.get("source_execution_identity") != value["identity"]
+                or transition.get("source_physical_contract") != value.get("physical_contract")
+                or transition.get("target_physical_contract") != self.physical_contract
+                or transition.get("course_evidence")
+                != "fresh_physics_cohort_preserve_rng_and_counters"
+                or value["version"] != TRAINING
+                or value["restore"] != "fresh_reset"
+                or len(value["courses"]) != self.num_envs
+                or any(c["level"] != 0 for c in value["courses"])
+            ):
+                raise ValueError("Explicit full-state Jump physics transition required")
+            # A new run may preserve ALL learning state while changing the plant.
+            # The old physical world and incomplete episodes are never resumed.
+            # Do not pass a forged target identity into same-run restoration.
+            write_json(
+                self.output / "physics_transition.json",
+                dict(**transition, target_execution_identity=self.identity, restore="fresh_reset"),
+            )
+            for course, prior in zip(self.courses, value["courses"], strict=True):
+                # Old failed-plant windows cannot certify the corrected plant.
+                # Preserve scheduling RNG and cumulative episode identities,
+                # while starting explicit new-plant evidence at level zero.
+                course.rng.bit_generator.state = copy.deepcopy(prior["rng"])
+                course.serial = prior["serial"]
+                course.episodes = prior["episodes"]
+                course.generation = prior["generation"] + 1
+                course.pending.clear()
+            self.requests = [None] * self.num_envs
+            self.reset()
+        else:
+            self.load_runtime_state(value)
         self.completed = []
         self.serial = 0
 

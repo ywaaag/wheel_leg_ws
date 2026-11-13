@@ -1,5 +1,21 @@
 # Jump 失败排查
 
+## 本机接替：大薄盒地面已定位并修复
+
+本机 IsaacSim6.0.1 CPU/GPU 对照将轮地异常定位到单个128×128×0.1m运动学地面盒。保持完整机器人资产、质量、控制、reset与传感器不变，8×8×0.1m地面消除异常；轮轴等价改写未解决。正式实现将原128m地面包络分成8m无重叠tile，共用一个ground actor及材质，上表面仍为Z=0。尚未确认PhysX内部数值根因，不能将该结论扩展成所有Cylinder或所有articulation失效。
+
+原始对照：`artifacts/jump_diagnosis_20261113/cpu_shapes_v15`、`cpu_swap_v20`、`cpu_axis_v21`、`cpu_small_floor_v22`。正式分块CPU/GPU对照分别为`cpu_tiled_floor_v23`、`gpu_tiled_floor_v24`：200 world ticks，最大轮净空穿入约1.1µm、闭链残差小于0.04mm、无非轮接触；tick128只reset行0，行1全部测量变化为0。独立轮体不同姿态/接触初态的`cpu_pose_v19`正常，保留全部失败证据。
+
+正式host消费者每个已有读回边界检查非有限值、轮穿入>1mm及闭链残差>2mm，失败抛出工程异常，不作为可学习回合继续优化；不增加GPU回读或物理积分。倒下、非轮接触、零成功仍按原任务终止处理。临时scene query开关已删除。物理合同为`jump_PhysX_tiled_flat_ground_v2`，完整恢复身份包含该合同。
+
+`gpu_actor_tiled_v25`只诊断继承Actor的2秒控制：支撑估计接近实际接触力，但根高度降至约0.25m、长时间SETTLE，不证明已继承站稳/起跳。`gpu_normal_io_v26`沿正式环境完成3200 world ticks、真实1ms故障终态、partial reset和fresh reset，未做PPO或能力认证。
+
+远端以无GPU模式恢复后，u407完整checkpoint及预算/run/终态已取回数据根`jump_handoff_20261113/remote_u407`。SHA `fa1a51169c3048260e720077a71ff41dd0fda359a11c9be26b1bd9025f4f5296`、74803819字节匹配。原远端run与账本只读。新物理版本只能显式full初始化，保留Actor/Critic/双Adam/std/全局RNG及已完成warmup；物理fresh reset。新物理cohort保留课程RNG、累计episode/request计数，旧故障物理窗口不用于新物理晋级，新run重新累计候选证据。同run恢复不允许借迁移声明绕过身份检查。
+
+已消耗407/10000，余9593；本机有界工程配方单独划8次，非重发10000。实际新增消耗以新run账本及后续收据为准。远端无GPU，尚不能对修复后6.2的实际PhysX作通过声明。
+
+以下保留修复前历史排查记录；其“尚未修复”“本机未启动”等描述只代表当时状态。
+
 实际轮地接触异常尚未修复，不能继续原长训期待网络消除它。独立Jump已通过统一CLI的request-only协议在更新边界保存退出：407/10000次、833536策略样本、剩9593次，状态STOPPED_BOUNDED、failure=null。最终u407 SHA `fa1a51169c3048260e720077a71ff41dd0fda359a11c9be26b1bd9025f4f5296`，74803819字节。没有退款、刷新额度或新增PPO更新；Motion/Recovery没有被修改或停止。
 
 本轮范围是冻结训练统计、原始资产与源码核对、两环境有界物理I/O和CPU工程修复。不做独立PPO能力评估，不用诊断回合晋级课程或发布候选。远端原candidate与run证据保持原样；实验改动分别放candidate_v2/v3，没有热改600261c的冻结源码。
