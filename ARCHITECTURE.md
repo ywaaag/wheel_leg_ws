@@ -139,6 +139,10 @@ wheel-leg / python -m native_stand          cli.py：参数、展示、退出码
 
 ## Motion／Spin领域组合
 
+Motion目标与能力证据的共同入口为[Motion能力矩阵](docs/MOTION_CAPABILITY_MATRIX.md)，版本`motion_capability_matrix_v1`。涉及Motion课程、奖励/评分、播放器和部署的开发先按该矩阵核对场景约束及证据等级；0.34m基础持续保留，只有平地站立/直线要求双腿对称，转弯允许内倾和腿长差。目标文档不表示运行实现已接通或模型已通过。
+
+配方复用`configs/jobs`，课程/统计/候选复用`tasks/motion`，执行复用生产adapter，逐模型成绩和引用复用`artifacts`及ModelIndex；不新增平行训练、评估或模型索引。矩阵中的基础保留门槛、跨能力解锁和新组合由后续配方及实际消费者显式接线，不回写冻结训练。
+
 两者保持task=motion，由不同配置选择`CourseStrategy`中的`SplitCourse`、统计目标与独立候选比较域；同用生产adapter、环境工厂、受控PPO和公共保存/引用。分支初始化在LoadedSource边界显式消费公共选中模型契约，领域层只重建目标/窗口/确认，不重建Actor、Critic、Adam、std、RNG或已完成warmup，也不放宽同run恢复。
 
 课程确认绑定实际方向/目标/高度/DR和执行合同，不能跨条件累计，不因无关revision丢失其他方向确认。Spin只生成有限且可表示的机体yaw端点；轮±80rad/s包络是独立动作合同。候选资格、任务成绩与独立认证分开，输出交给公共ModelIndex；领域模块不删除产物。

@@ -4,6 +4,8 @@
 
 ## 主仓与本地依赖
 
+Motion后续配方、评分、选模和交互测试先读[Motion能力矩阵](docs/MOTION_CAPABILITY_MATRIX.md)：0.34m基础优先，转弯、地形和0.20～0.40m高度逐级扩展。它是目标入口，尚未将新目标接入训练配置；训练窗口、固定checkpoint验证与实机成绩分别记录，当前后端支持仍以实际实现为准。
+
 后续源码开发以 `/home/kellen/wheel_leg_refactor_ws` 为主仓，Git独立于旧生产仓。旧仓 `/home/kellen/wheel_leg_native_train` 原路径保留，保存历史模型、账本和冻结依赖；不交换目录、不建立旧路径转发软链接。
 
 本地依赖根为 `/home/kellen/wheel_leg_training_data`。`manifest.json`记录来源SHA、实际位置和消费者，`runtime_paths.json`为现有RuntimePaths逐文件映射，`models.json`沿用ModelIndex。它不是独立备份；同内容只在数据根内部硬链接，未链接可变原run文件。旧142份缺失数据与失效候选继续UNAVAILABLE。
