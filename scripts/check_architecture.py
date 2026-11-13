@@ -559,12 +559,14 @@ def main(argv=None) -> int:
     script_findings, reviews = [], []
     # Other executable/script languages are reported rather than silently
     # certified by a Python AST checker. Data files are not treated as scripts.
-    for path in changed:
-        if not path.is_relative_to(root / "scripts") or path in scripts:
-            continue
-        if path.suffix in (".js", ".mjs", ".pl", ".rb", ".ps1") or path.open("rb").read(2) == b"#!":
-            reviews.append((_rel(path, root), 1, "未支持的脚本语言需人工审阅"))
     try:
+        for path in changed:
+            if not path.is_relative_to(root / "scripts") or path in scripts:
+                continue
+            with path.open("rb") as handle:
+                shebang = handle.read(2) == b"#!"
+            if path.suffix in (".js", ".mjs", ".pl", ".rb", ".ps1") or shebang:
+                reviews.append((_rel(path, root), 1, "未支持的脚本语言需人工审阅"))
         for path in scripts:
             findings, notes = (check_script if path.suffix == ".py" else check_shell)(path, root)
             script_findings.extend(findings)
