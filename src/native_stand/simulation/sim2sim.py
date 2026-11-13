@@ -19,6 +19,10 @@ REQUIRED = (
 
 
 def plan(config):
+    if config.get("version") == "recovery_motion_handoff_v1":
+        from .recovery_motion_handoff import plan as handoff_plan
+
+        return handoff_plan(config)
     if config.get("version") == "sim2sim_live_protocol_v1":
         return live_plan(config)
     if config.get("version") != "sim2sim_recorded_protocol_v1":
@@ -121,6 +125,10 @@ def from_file(path, output=None, *, dry_run=False):
     config = read_json(Path(path))
     if dry_run:
         return plan(config)
+    if config.get("version") == "recovery_motion_handoff_v1":
+        from .recovery_motion_handoff import run
+
+        return run(config, output)
     return (
         run_live(config, output)
         if config.get("version") == "sim2sim_live_protocol_v1"

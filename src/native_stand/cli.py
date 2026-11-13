@@ -444,7 +444,15 @@ def cmd_sim2sim(args):
     if not args.dry_run and args.output is None:
         raise CommandError("sim2sim需要显式--output", EXIT_INVALID)
     result = from_file(args.config, args.output, dry_run=args.dry_run)
-    _emit(args, result, text="跨引擎既有轨迹诊断；无新增积分")
+    if args.dry_run:
+        message = "sim2sim只读计划；未启动引擎、未创建输出"
+    elif "actual_integration_steps" in result:
+        message = f"sim2sim {result['status']}；实际积分{result['actual_integration_steps']}子步"
+    elif result.get("extra_simulation_steps") == 0:
+        message = "既有轨迹诊断；无新增积分"
+    else:
+        message = "跨引擎顺序采集完成；实际积分与覆盖见输出报告"
+    _emit(args, result, text=message)
     return EXIT_OK
 
 
@@ -720,11 +728,22 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.set_defaults(func=cmd_evaluate)
 
     sim2sim = sub.add_parser(
-        "sim2sim", help="显式跨引擎顺序采集或既有轨迹诊断", parents=[json_flag]
+        "sim2sim",
+        help="跨引擎诊断或同世界Recovery→Motion切换探查",
+        description="按version选择recorded轨迹诊断、live跨引擎顺序采集或handoff同世界切换。handoff使用0.5ms积分、10ms策略周期，dwell为门槛持续时间；不训练、不操作硬件。",
+        parents=[json_flag],
     )
-    sim2sim.add_argument("--config", type=Path, required=True)
-    sim2sim.add_argument("--output", type=Path)
-    sim2sim.add_argument("--dry-run", action="store_true")
+    sim2sim.add_argument(
+        "--config", type=Path, required=True, help="显式协议JSON；handoff需物理步/墙钟/空间上限"
+    )
+    sim2sim.add_argument(
+        "--output",
+        type=Path,
+        help="recorded/live为结果JSON，live另建同名_traces目录；handoff为新目录",
+    )
+    sim2sim.add_argument(
+        "--dry-run", action="store_true", help="只读校验和计划，不创建输出或启动引擎"
+    )
     sim2sim.set_defaults(func=cmd_sim2sim)
 
     distill = sub.add_parser("distill", help="同接口策略蒸馏", parents=[json_flag])

@@ -192,3 +192,50 @@ Recovery 2100 小模型蒸馏当前使用 `configs/jobs/recovery2100_delay_dagge
 Recovery 2100 起身小模型：`wheel-leg distill --config configs/jobs/recovery2100_mujoco_rise.json --dry-run`。正式采集复用原XML MuJoCo模型快照、完整V4与统一owner/worker；起身优先，慢速漂移单独记录。配置依赖本机SHA绑定资源，使用前核对可用性。接口与数据边界见[蒸馏说明](docs/RECOVERY2100_DISTILLATION.md)。
 
 真实状态导出可用 `wheel-leg export --run RUN --checkpoint CHECKPOINT --output PACKAGE --onnx --golden GOLDEN.json`，golden JSON声明states NPZ的path/SHA/indices。Recovery ONNX与C完整网络直接输出物理目标，decoder只执行一次；C源码在包内按原名保存，可独立重编译。
+
+## Recovery → supported015 Motion 仿真探查
+
+统一入口：`wheel-leg sim2sim` → `simulation.sim2sim.from_file` → `simulation.recovery_motion_handoff`。
+复用 `RecoveryMuJoCoCollection` 原 XML、公共推理 factory、C control_core 解码器及 SHA 绑定 C gate，不创建训练 worker。
+
+```bash
+PYTHONPATH=src /home/kellen/anaconda3/envs/issaclab/bin/python -m native_stand sim2sim \
+  --config configs/jobs/recovery2100_motion015_handoff_multicase.json --dry-run --json
+# 实际运行时去掉 --dry-run，并指定不存在的 --output 目录。
+```
+
+现有 `recovery2100_motion015_handoff_probe.json` 保留单 case 六 variant 对照。
+新增 multicase 配置使用同一 31D supported015 Motion（腿 C0_poly5(height)+0.15×mean、轮80×mean），不是旧31D Motion。
+输入腿位置/previous仍按1.5rad，previous轮目标按100rad/s；命令为高度0.34m、零速度/零yaw。
+`gate_source/gate_header` 绑定 supported015-recovery2100 路径及 finite 配置校验后的 SHA（source 192289e0…、header 4f861000…），本模块不修改电控。
+
+multicase 覆盖源配置全部7个 development Swing 条件（nominal、yaw+90°、DR0.25×yaw−90°、DR0.25、DR0.5×yaw±90°、DR1.0）× Recovery-only/100ms/200ms dwell，共21回合，每回合13s。
+100/200ms是gate条件连续满足的持续时间，不是通信延迟。
+DR仅采用既有reset-only子集，具体启用范围见 `tasks/recovery/cubic_randomization.py`；覆盖既有7条件矩阵，不宣称DR×yaw全组合或最终留出验收。
+保留模型通道顺序，不交换网络数组。
+
+切换使用同一世界，不重置状态、previous、PD或运输队列；Motion影子输出不写执行缓存。
+Motion观察沿用Recovery测量编码，保持命令槽22:25=[0,0,.68]，仅替换技能槽25:28为[1,0,0]，由既有C解码器产生supported015物理目标。
+门槛高度/倾角/支撑/腿速度来自1kHz物理轨迹；角速度使用该策略步收到的Actor观测范数，在10个1ms样本内保持。
+因此本探查不是电控完整采样时相或传感链等价证明。
+
+预算在dry-run校验完整计划：最多546000个0.5ms子步、900s墙钟、1GiB空间。
+执行前按不可分割的10ms调用预留20子步；异常按引擎报告的实际子步记账。
+墙钟从输出建立后开始，含编译/模型加载，逐策略步检查；不抢占执行中的原生调用，最坏超时量取决于单调用/关闭/文件写入耗时，不承诺硬实时截止。
+空间在计划中采用保守原始数组上界及16MiB编译/元数据余量，并在每回合轨迹写入前检查当前目录和未压缩数组大小；不是文件系统配额。
+回合达到truncated立即结束，避免下一步自动reset后拼接证据。
+
+输出包含protocol/plan、逐回合trace.npz与SHA、episodes.json、terminal.json。
+原始轨迹区分network_mean、requested、adopted、motor、NET、owner及1kHz物理状态；记录实际延迟与真实子步数。
+Motion hold10仅计切换后连续质量窗口：高度0.34±0.02m、pitch/roll≤0.18rad、双支撑>2N、闭链误差≤0.005。
+Recovery-only单独写`recovery_only_hold10`，绝不计入`post_switch_hold10`。
+未切换或窗口不足不能当作Motion通过；故障、速度漂移和HP10 RMS另报。hold10仅说明存在连续质量窗口，不包含速度上限，不等于整回合无故障或完整能力accepted。
+旧Motion失败对照保留原配置与原输出身份，不重新跑或覆盖；此路径保留用于历史对照。
+
+CPU测试用脚本I/O引擎替身贯穿正式分派，验证预算、异常记账、完整/不足窗口、基线与连续切换；真实闭环结果另存数据根，不写入旧run。
+
+015普通ChassisTask仍为5ms；RecoverySession由电控负责人接1ms motor callback，以承载5/7/11ms运输。仿真使用既有1ms执行，不验证硬件callback实际调用。
+015 raw current limit为16384；本配置没有使用8192包络。仿真轮限矩4.8N·m低于提供的理论换算4.8939N·m，物理电流/力矩标定仍UNKNOWN，不能据此证明硬件限矩等价。
+
+`firmware_motion015_contract_r1/actor.pt` 是原supported015模型的输入合同元数据更正版，原产物只读。全部权重张量相同，128组随机输入推理最大差0；更名不改变编码或模型输出。原模型与新模型SHA及核验记录位于同目录verification.json。
+电控实际支撑证据与实际高度生产者尚缺，仿真直接读取物理真值不能代替生产传感证据；本轮不构成硬件交接放行。
