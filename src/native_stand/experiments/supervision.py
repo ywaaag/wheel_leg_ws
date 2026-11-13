@@ -21,8 +21,11 @@ class PhaseConfig:
     steps: int = 0
     rounds: int = 0
     policy: str = "student"
+    final: bool = False
 
     def __post_init__(self):
+        if type(self.final) is not bool or self.final and self.operation != "compare":
+            raise ValueError("Final holdout flag only belongs to compare")
         if self.policy != "student" and self.operation != "collect":
             raise ValueError("Explicit behavior policy only belongs to collect")
         if self.operation not in ("collect", "label", "fit", "compare", "export"):
@@ -84,9 +87,13 @@ class SupervisionConfig:
                 and teacher.labels.get("kind") != "physical"
             ):
                 raise ValueError("Recovery Teacher output must not be cubic-decoded twice")
+        final_seen = False
         labelled = False
         fitted = False
         for phase in self.phases:
+            if final_seen and phase.operation != "export":
+                raise ValueError("Final closed-loop holdout cannot select or feed later fitting")
+            final_seen |= phase.final
             if phase.operation == "collect":
                 labelled = False
             if phase.operation == "label":
@@ -165,18 +172,6 @@ def preflight(job):
 def semantic_identity(recipe):
     """Relocation changes paths, not the contract or dependency digest."""
 
-    def identity(value):
-        if isinstance(value, dict):
-            bound = (
-                isinstance(value.get("path"), str)
-                and isinstance(value.get("sha256"), str)
-                and len(value["sha256"]) == 64
-            )
-            return {k: identity(v) for k, v in value.items() if not (bound and k == "path")}
-        if isinstance(value, list | tuple):
-            return [identity(v) for v in value]
-        return value
+    from native_stand.artifacts.io import identified_digest
 
-    from native_stand.artifacts.io import json_digest
-
-    return json_digest(identity(recipe.record()))
+    return identified_digest(recipe.record())
