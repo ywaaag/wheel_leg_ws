@@ -194,3 +194,7 @@ sim2sim不是训练课程或另一套worker：显式协议经CLI直接顺序拥�
 
 网页监听由同一播放器`--panel-host/--panel-port`显式配置，默认loopback；无需新增代理或控制循环。
 本机路径映射留数据根，不提交机器运行配置；源码示例只指向已核验的数据材料。
+
+网页展示与键盘适配位于`simulation/playback_panel.html/.js`，由现有`start()`内联加载为同一页面；
+JS作为package data打包。借鉴历史Motion面板的焦点保护、物理按键和有界曲线，不搬入其斜坡、手柄或技能仲裁。
+键盘/数值/按钮通过同一个串行命令队列接既有HTTP owner，不直接调用物理、不引入第二个控制循环。

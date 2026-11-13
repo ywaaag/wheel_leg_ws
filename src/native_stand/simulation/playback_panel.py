@@ -128,6 +128,8 @@ def start(plan, port, *, host="127.0.0.1"):
     import threading
 
     html = Path(__file__).with_name("playback_panel.html").read_text()
+    script = Path(__file__).with_name("playback_panel.js").read_text()
+    html = html.replace("/*PLAYBACK_SCRIPT*/", script)
     server = ThreadingHTTPServer((host, port), handler_for(plan, html))
     server.daemon_threads = True
     thread = threading.Thread(target=server.serve_forever, daemon=True, name="playback-panel")
