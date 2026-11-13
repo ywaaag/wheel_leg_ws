@@ -69,6 +69,23 @@ def test_full_learning_transfer_explicitly_starts_new_physical_evidence(tmp_path
         env.load_runtime_state(state)
 
 
+def test_explicit_engine_change_starts_new_evidence_with_same_layout_identity(tmp_path):
+    env, state = transition_env(tmp_path)
+    env.identity = state["identity"]
+    transition = env.job.assets["jump_physics_transition"]
+    transition.update(force_new_cohort=True, reason="local6.0.1_to_remote6.2_engine_build")
+    env.initialize_from_training_state(state)
+    assert env.reset_calls == 1
+    for course, prior in zip(env.courses, state["courses"], strict=True):
+        assert course.rng.bit_generator.state == prior["rng"]
+        assert course.episodes == prior["episodes"]
+        assert course.generation == prior["generation"] + 1
+        assert not any(course.windows.values()) and not course.pending
+    transition["source_checkpoint_sha256"] = "b" * 64
+    with pytest.raises(ValueError, match="full-state Jump physics transition"):
+        env.initialize_from_training_state(state)
+
+
 @pytest.mark.parametrize("bad", ["sha", "target", "source", "mode", "course", "envs"])
 def test_transition_does_not_loosen_same_run_or_implicit_initialization(tmp_path, bad):
     env, state = transition_env(tmp_path)

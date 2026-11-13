@@ -118,3 +118,15 @@ Isaac执行identity加入reward与request调度语义，同run不允许旧版本
 本机4096环境短时GPU I/O v56真实PASS：12个policy步、120个显式物理tick，全部行finite/轮净空/闭链门槛保持；首/中/末行6次direct-vs-batched Critic逐位相同，partial reset未reset C字节不变，完整运行状态fresh-reset读回通过。此探针使用用户明确4096授权和具名Jump共享资源策略，PPO=0，不扩大原两环境诊断例外，不发布课程/候选或能力证书。CUDA插件启动警告保留。
 
 CPU联合98通过（26.44s），另有26项覆盖allocator/mask收据与扩容/地面；portable1932通过/31历史skip/10warning（138.09s）。正式PPO仍待首更与保存恢复：I/O通过不代表4096×64 rollout/优化已通过。新增perf收据同时记录有效Actor样本数及Torch allocator峰值，NVML总显存包含PhysX等，二者分开表述。
+
+## 4096采样CPU瓶颈的等价FK（独立性能worktree）
+
+4096正式首更冻结cd24127运行，活动源码不热改。另建`jump/isaac-throughput` worktree完成等价优化。离线剖析显示InverseFeedback约78%时间在`geometry.measure`，但C输入只使用两个腿长；measure还计算38关节FK、碰撞下沿、COM/弹簧/闭链等未消费字段。新增`ClosedChain.leg_lengths`只算轮祖先的6关节，复用原frame0/axis/inverse_frame1及相同矩阵顺序，批量SciPy旋转；完整measure/IK与物理读回不变。InverseFeedback仍逐5ms使用完整真实状态与相同支撑逆动力学，没有加滤波/近似或第二积分。
+
+v59离线微基准：256份真实C输入逐字节相同；1000份扰动腿长float32相同且float64最大差0。完整inverse中位0.286s→0.082s/256行；不是4096整轮提速结果。替代forward阶段仅约3%收益、四线程反慢，均未进入正式实现。新增回归覆盖宽角度、随机dq/ddq/motor/NET的完整C输入字节。
+
+显式full transition还支持`force_new_cohort=true`：本机6.0.1到远端6.2即使列序/物理配置identity相同，也应单独保留RNG/累计身份而重开证据cohort，不能将本机成绩自动用于远端课程。仍要求源checkpoint SHA/源execution身份/源目标physical contract及full模式全部匹配，同run不开放此绕过。
+
+等价FK实现后的CPU联合102项通过（32.14s）；source在独立worktree，实际4096运行仍cd24127，不存在热改。跨引擎显式新cohort回归已覆盖SHA拒绝、旧行RNG/累计计数保留与成功窗口清空。
+
+独立性能补丁portable1933通过/31历史skip/10warning（150.16s）、Ruff0.8.4与当前main架构检查通过。正式入口仍CLI/owner/worker/公共driver，新增文件仅实际消费者CPU回归，没有新增trainer、watcher或独立PPO评估。

@@ -70,3 +70,5 @@ C支撑修正执行版本为`jump_PhysX_tiled_flat_ground_support_valid_v3`。�
 Isaac Critic现按dtype批量读回全体V4/response行，保持原字段顺序和全部5591列；PackedCritic与原归一化编码逐位一致。snapshot只覆盖一次观测或终态打包，不跨observe/reset复用。扩容必须在既有full transition中声明environment_expansion，保留旧行课程RNG/计数、新行独立seed；同run仍不能改变环境数。性能验收以正常PPO的有效样本/s、整轮墙钟和峰值显存为准，不以GPU利用率或单个CPU组件收益替代。
 
 当前用户指定4096环境：Isaac配方4096×64，minibatches64。物理合同v4按3m间距的clone网格扩展ground，保持每侧至少32m出生点余量；4096对应256m方形、8m tiles，实际最小33.5m，地面Z/材质与机器人不变。构造时核对实际origins余量。performance_measurement同时记录既有mask有效/无效数及Torch allocator峰值（不含全部PhysX显存）。远端仍需GPU恢复后的真实6.2复验，不把本机4096通过冒充远端通过。
+
+逆动力学桥的腿长采用`ClosedChain.leg_lengths`，与完整measure相同的轮心FK，仅消除未消费的弹簧/碰撞/COM计算及非祖先关节。宽角度腿长与随机完整C输入字节回归比较，完整物理/支撑模型及周期不变。跨本机/远端引擎版本可显式full transition声明force_new_cohort，即使张量布局identity相同也不能沿用能力窗口；保留学习状态和课程RNG/累计计数。

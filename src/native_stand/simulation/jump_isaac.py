@@ -646,8 +646,8 @@ class IsaacJump:
         self.reset()
 
     def initialize_from_training_state(self, value):
-        if value["identity"] != self.identity:
-            transition = self.job.assets.get("jump_physics_transition", {})
+        transition = self.job.assets.get("jump_physics_transition", {})
+        if value["identity"] != self.identity or transition.get("force_new_cohort") is True:
             source_envs = len(value["courses"])
             expansion = transition.get("environment_expansion")
             count_matches = source_envs == self.num_envs

@@ -193,3 +193,7 @@ r10/r11的实际故障已定位为rough穿透检测位置错误：lower-leg的�
 - 当前活动 run：[run.json](runs/2026_11_5-21_21__motion442_scale_corrected_resume9546/run.json)、[state.json](runs/2026_11_5-21_21__motion442_scale_corrected_resume9546/state.json)、[budget](runs/2026_11_5-21_21__motion442_scale_corrected_resume9546/budget.json)
 - 前段 run：[spec](configs/experiments/2026_11_5-16_51__motion_smoke12_supported015_dqgain_formal9988/spec.json)、`formal/supervisor_terminal.json`、`formal/terminal_report.json`、`formal/completion_error.json`
 - 重构范围与验证：[迁移报告](docs/MIGRATION_20261105.md)
+
+## Jump大并行增量（2026-11-13）
+
+用户明确选择4096环境，不执行256测量。32/128性能各2次已终态；累计435/10000、剩9565。4096×64/minibatches64，地面256m/8m tiles、实际出生边界33.5m，零PPO120tick/partial reset/6次Critic逐位对照PASS。正式4096首更冻结cd24127在原worktree运行，尚未完成优化；另在jump/isaac-throughput worktree开发等价FK性能补丁，未热改活动源码。远端连接后转拒绝连接，无卡；等待用户GPU通知，不启动平台或watcher。课程/候选均无能力accepted，原ready_support_v44已过时，不用于新版开训。

@@ -56,7 +56,7 @@ class InverseFeedback:
         d.qfrc_actuator[self.vids] = motor
         self.actual_NET = NET - self.coulomb * np.sign(d.qvel[self.vids])
         support = estimate(self)
-        shape = self.geometry.measure(dict(zip(self.joint_names, joint[0], strict=True)))
+        lengths = self.geometry.leg_lengths(dict(zip(self.joint_names, joint[0], strict=True)))
         q = d.qpos[[self.model.jnt_qposadr[self.refs[n]] for n in CHANNELS]]
         spread = (47.1033888 + 47.1080837) * np.pi / 180 + np.array([q[0] + q[1], -q[3] + q[4]])
         gyro = rotation.T @ root[10:13]
@@ -79,7 +79,7 @@ class InverseFeedback:
             support_J=support["support_J"],
             support_tick=tick,
             support_valid=3 if support["valid"] else 0,
-            leg_length=shape.length,
+            leg_length=lengths,
             leg_spread=spread,
             motion_entry=bool(
                 gravity[1] < -0.98
