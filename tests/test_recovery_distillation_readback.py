@@ -158,10 +158,33 @@ def test_formal_flow_compares_separate_closed_loops_and_final_does_not_reselect(
         on_physical_steps=charged.append,
     )
     assert done and env.closed and sum(charged) == 320
-    assert env.seeds == [0, 0, 100000, 100000]
+    assert env.seeds == [50000, 50000, 100000, 100000]
     dev = read_json(tmp_path / "flow/phase_002_compare/closed_loop.json")
     final = read_json(tmp_path / "flow/phase_003_compare/closed_loop.json")
     assert dev["partition"] == "development" and final["partition"] == "final_holdout"
     assert final["reports"]["student"]["continuous_10s_rate"] == 1
     assert state["closed_loop_candidate"] == state["selected"] and state["no_improvement"] == 0
     assert len(state["collections"]) == 1  # independent comparisons never feed BC
+
+
+def test_mapped_asset_module_uses_its_actual_package_root(tmp_path):
+    import pytest
+
+    from native_stand.simulation.recovery_isaac.bindings import asset_module_root
+
+    package = tmp_path / "agent_world"
+    assets = package / "assets"
+    assets.mkdir(parents=True)
+    for folder in (package, assets):
+        (folder / "__init__.py").write_text("")
+    module = assets / "robot.py"
+    module.write_text("ACTUAL=1\n")
+    template = dict(
+        asset_module_path=str(module),
+        asset_module_sha256=file_sha256(module),
+        asset_module_root="/stale/source",
+    )
+    assert asset_module_root(template) == tmp_path
+    module.write_text("CHANGED=1\n")
+    with pytest.raises(ValueError, match="identity differs"):
+        asset_module_root(template)

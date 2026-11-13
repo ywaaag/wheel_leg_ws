@@ -426,7 +426,7 @@ def execute(
                         ),
                     ]:
                         environment.reset_collection(
-                            fresh=True, seed_offset=100000 if phase.final else 0
+                            fresh=True, seed_offset=100000 if phase.final else 50000
                         )
                         ref = collect(
                             job,
