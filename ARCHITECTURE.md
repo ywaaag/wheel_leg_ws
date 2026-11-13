@@ -73,12 +73,37 @@ wheel-leg / python -m native_stand          cli.py：参数、展示、退出码
 
 这些文件可能被新作业复用的环境直接读取，不能在运行时修改。
 
-## 新增配方
+## 扩展位置与完成边界
 
-1. 在 `configs/jobs/` 写配置：`preset` 加需要覆盖的节。
-2. 只声明与本配方相关的字段；未知字段会在入口报错。
-3. `wheel-leg train --config ... --dry-run` 核对计划与预计保存量。
-4. 不复制旧 spec，不新增日期型 trainer，不新增包装层。
+在现有组件内接线，不设计插件发现系统，不要求每个功能新建类。配置可表达的差异先用配置；未知或未实现的操作/任务/后端组合由dispatch在引擎前拒绝，不用静默fallback或补零伪造支持。
+
+| 变化 | 落点与复用方式 | 正式消费者/接线 |
+|---|---|---|
+| 超参、网络宽度、实验配方 | `configs/jobs`、`experiments/config.py`，复用网络构造器 | CLI解析与dry-run消费同一JobConfig |
+| 新技能、奖励、课程、终止 | `tasks`；任务声明在`tasks/registry.py`，任务内课程/统计 | 接任务定义、观测/奖励/结束摘要及实际adapter |
+| 网络、损失、算法 | `learning`；`learning/policies/factory.py`与PPO装配 | PPO/BC数学循环不同，复用owner/worker/driver/预算与恢复 |
+| 后端、场景/地形、时序/执行 | `simulation`；`dispatch.py`能力选择、backend factory、`scenes.py` | 当前任务环境实际消费并读回，不只注册名称 |
+| 多Teacher、聚合、补教 | `experiments/supervision_flow.py`、`learning/distillation/routing.py`、`artifacts/dataset.py` | 原collect/label/fit流程、数据/episode/split身份，不另建监督worker |
+| 播放、sim2sim、部署 | `learning/inference.py`公共推理factory，`simulation/playback.py`与`simulation/sim2sim.py` | 任务合同/执行适配，复用唯一GUI/headless循环与部署golden |
+| 模型/数据、恢复与保留 | `artifacts`；`ModelIndex`、`RuntimePaths`、LoadedSource/checkpoint/handoff | 唯一引用权威与加载边界；预算不随路径搬迁重置 |
+
+实现前说明所属模块、复用能力和新增必要性。完成必须同时具有实现、正式入口/注册、必要配置/合同、实际消费者测试及当前文档。helper/独立演示不是正式接通证据。替换旧实现须审阅剩余消费者：无用途分支退役，冻结历史依赖保持原身份；不因抽象一致而合并不同控制语义。
+
+新增配方在`configs/jobs`使用preset加显式覆盖，入口严格拒绝未知字段；执行`wheel-leg train --config ... --dry-run`检查计划，不复制旧spec或日期trainer。公开CLI/任务/后端支持变化必须一起审阅help、配置示例或当前说明，内部bug不要求机械修改README。
+
+## 工具与脚本边界
+
+一次性定位、打印、复现和微基准先放临时目录；有用证据持久化到run/artifacts，不把/tmp当长期依赖。长期训练、蒸馏、播放、导出、数据处理进入正式模块与统一CLI，不新增另一套launcher或训练循环。已有历史工具不批量整改；判断实际职责，不按文件名一刀切。
+
+`scripts`允许离线分析、编译/打包、契约验证、受控测试和可复用微基准。工具调用正式模块，正式模块不导入scripts。新增工具需在此简述职责及与已有工具的区别，无需另建README/报告。例如现有`benchmark_recovery_reset_cpu.py`只测脚本I/O下reset组件与调用数；`prepare_recovery_continuation.py`只读核对来源/预算并派生准备材料，不提交worker；`test_portable_cpu.py`选择明确PORTABLE测试并启用物理/CUDA保护。
+
+`check_architecture.py`为纯标准库静态检查，不执行目标脚本：无参数维持全量正式源码依赖/入口/全局替换检查；`--base refactor-migration-v1`额外审查tag之后的Python/shell脚本（含已提交、暂存、工作树和未忽略新增文件）。Git使用NUL列表，删除跳过、重命名检查目标。无效/缺失基点退出2；确定违规退出1；动态命令/进程target输出REVIEW供人工核对，不声称理解任意动态行为、跨文件间接调用或所有代码重复。编译器、pytest和打包subprocess不是一律违规。公开入口/声明变化输出PUBLIC-REVIEW，不因任意文档被修改就自动认证内容正确。
+
+## 集成门槛
+
+按`.github/PULL_REQUEST_TEMPLATE.md`回答问题、扩展位置/消费者、复用/新增理由、替代路径、文档影响、验证与限制。合入main前审阅正式调用链、唯一生命周期、支持说明、相关测试/架构/Ruff，以及模型/数据/预算/控制合同未意外改变。CI获取完整历史和tag，执行增量检查；当前没有remote或required checks，CI文件存在不代表合并已被平台阻止。未来配置远端后再设置required checks，本次不新增远端或push。
+
+迁移已按`refactor-migration-v1`冻结范围结项；模型能力、持续提速、Recovery新配方、Jump新后端均为后续普通任务，不重启迁移项目。新工作从当前main建独立分支/worktree，活动领域worktree及训练冻结版本不被rebase或热改。
 
 ## 生产路径与公共驱动器
 

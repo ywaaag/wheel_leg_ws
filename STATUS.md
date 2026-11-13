@@ -1,5 +1,15 @@
 # 当前任务
 
+## 重构迁移v1结项（2026-11-13）
+
+公共架构重构、主仓建立及已有功能迁移按冻结CPU验收范围**完成并结项**。本地tag `refactor-migration-v1`固定指向`1cc65e1234839870d24e31eac95214fbf88a0514`；61项交付文件SHA重新核对无漂移，原干净clone核心636通过/10历史skip、portable1920通过/32历史skip保留原身份。本轮治理改动另做静态/CPU验收，不冒用旧测试覆盖新检查器。后续统一从新仓main建立独立分支/worktree；领域未合入增量按正常功能或修复任务推进，不再以模型效果、Jump故障或持续提速判定“重构未结束”。
+
+冻结支持范围包含Motion／Spin已有链、Recovery **v8**/909D/BC+prior与完整恢复，以及Jump **ABI4 MuJoCo CPU**/6370D链、监督聚合、播放/sim2sim/部署和依赖保护。Recovery新v9配方在`recovery/continuation-reset`，Jump Isaac GPU实现位于`jump/isaac-training`（核对时HEAD `876af89`），两者不属于本tag或main既有验收，不把CPU链说成已合入GPU链。各owner继续独立维护其执行版本、授权与能力证据；本轮不合并领域实现、不改活动训练。旧142份蒸馏数据与失效候选仍UNAVAILABLE；未验证物理/平台/能力如实保留，均不是结项前置条件。
+
+开发约定已收敛到根AGENTS和ARCHITECTURE；正式能力须实现、接线、配置/合同、实际消费者测试、当前文档同时交付。迁移报告保留为一次性结项证据；后续普通改动维护当前文档及对应run/artifacts。新增脚本从固定tag做轻量静态增量检查，不整改未修改的历史脚本。
+
+以下为冻结范围与各阶段原始记录，历史PID/余额/“当前”“未完成”按各自日期理解；不据此覆盖上方结项状态。
+
 ## Motion领域窗口统计与性能观测增量（2026-11-13）
 
 Motion独立分支已接入公共`Measurement`（公共提交`455a198`）：训练计时仍由公共driver创建并共享给adapter、环境和PPO；领域只记录实际消费者的关闭、构造、首次reset/readback、编译、缓存命中/失效、材质getter/setter、整池行数、实际使用行数和明确的host transfer bytes。计数不读取GPU张量，不新增CUDA同步。`after_save_total`下分别记录candidate引用和课程重建子项。

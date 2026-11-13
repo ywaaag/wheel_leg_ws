@@ -1,5 +1,15 @@
 # 工程架构重构迁移报告
 
+## 一次性结项记录（2026-11-13）
+
+本次公共重构迁移正式结项。本地不可移动tag `refactor-migration-v1`指向已验收`1cc65e1234839870d24e31eac95214fbf88a0514`，本轮重新核对main与交付收据61项文件SHA一致。验收范围为下文冻结快照：核心636通过/10历史skip，portable1920通过/32历史skip；结果不是新领域代码或模型能力证书。治理收尾只修改协作文档、架构检查器及反例、CI/PR模板，不改奖励、课程、控制、模型、预算或活动训练依赖。
+
+主仓main已有Jump ABI4 MuJoCo CPU链；独立`jump/isaac-training`中的Isaac GPU链尚未合入本结项基线，其进展由领域owner独立记录。Recovery v8验收与后续v9配方同样分开。旧缺失数据/无效候选保留UNAVAILABLE，真实物理、GPU性能、模型能力及新后端按正常任务验收，不阻止迁移结项。
+
+从此新功能和普通修复不再追加本迁移报告：用README维护支持与用法、ARCHITECTURE维护职责/扩展、AGENTS维护稳定约定、STATUS维护当前任务、run/artifacts维护实验与故障证据。结项治理CPU命令/结果/最终提交身份留`artifacts/migration_closeout`及数据根对应小型收据；无remote、未push，CI required checks尚未在平台强制。
+
+以下原文及收据保持各自身份，不因结项改写旧证据。
+
 公共性能观测与Recovery/Jump增量已集成，冻结`b60f0d7`在干净clone验收：核心636通过/10历史skip/3既有ONNX warning（122.43s），portable1920通过/32历史skip/10warning（125.69s），架构209/0，CI Ruff0.8.4 check及208文件format通过。61项准确文件与SHA、完整命令、前两次fixture失败和最终通过结果绑定`artifacts/integration_final/performance_delivery.json`及`performance_final_checks.json`，数据根归档`integration/performance_observability/b60f0d7`。后续文档提交不改已测执行文件。旧结果保留各自身份，不拼接。
 
 公共Measurement只保留一份：driver→GenericPPO→ControlledPPO→环境显式共享，关闭时不访问CUDA；嵌套子项默认CPU墙钟、父项inclusive不可重复相加。`after_save_total`与候选/引用、旧环境close、新建、首次reset-readback、编译分开；启动单列，计数在update边界集中落盘。MetricsWriter修复性能摘要被白名单丢弃。保存/计费/引用/重建/轮换顺序与原异常保留不变。Recovery只对reset行处理V4、合并结束读回、缓存合法模板和partial profile，保留真实物理读回/909D/BC/prior/双Adam；Jump复用ABI4 C构建及输入，避免重复V4/观测/terminal/临时分配，保留6370D/235字段和C/FSM。运动2交付窗口/累计与候选多原因、重建输入归因，不改变资格或是否重建。

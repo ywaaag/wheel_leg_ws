@@ -2,7 +2,7 @@
 
 ## 执行原则
 
-- 先读本文件，再从 `STATUS.md` 定位当前任务；用当前源码、配置和原始结果核实事实，文档只作导航。
+- 开始先核对cwd、Git根目录、分支/基点、本文件和STATUS；沿正式入口核实已有实现及实际消费者，确认不触及活动任务或冻结依赖。新开发从当前main建立独立分支和worktree；已有训练继续使用冻结版本，代码修复进入新版本。
 - 使用中文，结论在前。用户当前指令优先；授权内的实现、CPU测试和可逆修复直接完成。
 - 保留无关修改；不使用 `git reset`/`clean`；不停止、不重启、不热改他人正在运行的任务。
 - 不编造路径、命令、数据或测试结果。文档与代码不一致时，以实际运行的冻结源码与spec为准。
@@ -14,25 +14,23 @@
 | 命令、参数、退出码 | `wheel-leg --help`、`README.md` |
 | 当前任务、负责人、证据 | `STATUS.md` |
 | 模块职责与依赖方向 | `ARCHITECTURE.md` |
-| 本次重构范围、删除项、未完成项 | `docs/MIGRATION_20261105.md` |
-| 训练经验、课程与选模 | `TRAINING_EXPERIENCE_REUSE.md` |
-| 长期方向 | `PROJECT_MASTER_PLAN.md` |
-| 历史原文 | `docs/history/navigation_20261105/` |
+| 已结项重构范围与冻结证据 | `docs/MIGRATION_20261105.md` |
+| 扩展位置、工具与集成门槛 | `ARCHITECTURE.md` |
 
-日期报告按需查阅，不列为每次必读。
+原始历史报告与数据根证据按需读取；未提交或缺失材料不能成为干净检出的必需入口。迁移已结项，模型能力、提速和新后端按普通领域任务推进。
 
 ## 架构规则（稳定，改动需评审）
 
 1. 统一入口：正式训练/蒸馏只经 `wheel-leg` CLI（`cli.py`）；训练进程创建只允许 `experiments/owner.py`。新增并行入口或绕过 owner 的 worker 创建会被 `python scripts/check_architecture.py` 拦截。
 2. 生命周期复用：PPO 与 BC 共用 owner、worker、状态、停止恢复与预算机制（`experiments/`）；各算法只保留自己的数学训练循环。BC 只写 `rounds_used`，不写 PPO `updates_used`。
-3. 扩展位置：网络宽度/层数/超参→配置；新网络/损失/算法→`learning`；观测/动作/奖励/终止→`tasks`；后端与时序→`simulation`；checkpoint/评估读写→`artifacts`；一次性分析→`scripts`。
+3. 扩展位置：网络宽度/层数/超参→配置；新网络/损失/算法→`learning`；观测/动作/奖励/终止→`tasks`；后端与时序→`simulation`；checkpoint/评估读写→`artifacts`；一次性探查→临时目录；可复用离线/构建/验证工具→`scripts`。
 4. 依赖方向：tasks↛cli/owner/report；learning↛cli；simulation↛integrations；artifacts↛tasks；正式源码↛scripts。配置数据类型（`experiments.config`）允许被各层导入。执行判定收敛在 `dispatch.execution_service()`。
 5. 禁止跨模块改写实现对象：不得 `module.Implementation = Other` 替换已导入模块的全局对象；用显式参数注入 factory。
 6. 模型形状 ≠ 物理语义：相同输入维度不证明兼容；观测列序、归一化、动作中心/单位/包络、控制时序变化必须有明确来源与目标契约（以冻结 spec 为准）。
 7. 初始化边界清楚：完整恢复（LoadedSource）、Actor 初始化、部署导出使用各自接口；完整恢复不得退化为 Actor 初始化或裁剪 checkpoint。
 8. 校验在必要边界：配置入口、外部产物加载、恢复入口；内部已建立的约束不逐函数重复核验。
 9. 新能力先问"能否只用配置"：能用配置组合表达的实验不新增 launcher/训练循环；替换旧实现时删除失去用途的分支，不保留两套有效入口。
-10. 必跑检查：`python scripts/check_architecture.py`；相关回归 `tests/test_new_*.py + test_phase2/3 + test_architecture_rules.py`；Ruff check/format。
+10. 必跑检查：`python scripts/check_architecture.py --base refactor-migration-v1`；实际消费者相关CPU回归与CI portable、固定版本Ruff。检查只辅助静态识别，动态行为和文档内容仍须审阅。
 
 ## 核心契约
 
@@ -55,6 +53,12 @@
 
 ## 实现与验证
 
+- 实现前在正常进度说明中简述：修改哪个现有模块、复用什么、为什么需要新文件或接口。这不是额外审批；证据充分的常规工作直接完成。
+- 正式功能交付 = 所属模块实现 + 正式入口/注册接线 + 必要配置与语义合同 + 实际消费者测试 + 对应当前文档。只有helper、脚本或独立演示不算完成，测试数量不代替调用链证据。
+- 配置优先；复用已有factory、registry和协议，不复制owner、worker、预算、停止恢复、播放器、Teacher路由或模型索引。替代旧路径时处理失去用途的分支；冻结消费者仍依赖的代码保留。语义不同的合同/后端不强行合并。
+- 一次性定位、打印、微基准与复现放临时目录；有长期用途的证据进入run/artifacts。正式训练/蒸馏/播放/导出/数据处理接统一入口，不能新增日期trainer、train_new/play_v2或复制生命周期的launcher。判断实际职责，不只看文件名。
+- 新工具确需进入scripts时，在ARCHITECTURE工具说明写清职责与已有工具的区别；工具调用正式模块，正式源码不能反向依赖工具。
+
 - 新代码进 `src/native_stand/{cli,experiments,tasks,learning,simulation,artifacts,integrations}`；依赖方向见 `ARCHITECTURE.md`，禁止任务模块导入CLI或报告器。
 - 复用公共准备器、物理环境与受控PPO；不另建日期型trainer，不整树复制源码。
 - 纯计算模块只接收明确数据；文件读写与身份检查放在入口。`AppLauncher` 必须先于 Isaac runtime 导入。
@@ -67,7 +71,9 @@
 ## 文档维护
 
 - `README`：用途、环境与统一CLI；`AGENTS`：稳定规则与契约；`STATUS`：当前任务卡；`ARCHITECTURE`：模块与依赖；命令参数由 `--help` 维护。
-- 逐次实验进度写进对应 run 的报告与 `artifacts/`，不追加回 AGENTS。
+- 普通内部bug不必改全部文档；公开用法、配置、职责或支持范围变化时原地更新对应说明和必要help/示例。判断文档影响，不以随便改一行文档代替审阅。
+- 完成时说明正式入口/调用链、复用与新增、测试和实际验证边界、文档变更（无需时说明原因）、替代路径及保留理由；合入main前按PR模板检查。当前无remote，不宣称required checks已强制生效。
+- 逐次实验进度写进对应run/artifacts，不追加回AGENTS；新功能和普通修复不再续写已结项迁移报告，不要求每bug新增REPORT或每模块新增AGENTS。
 - 历史原文留在 `docs/history/`，不因清理导航宣称旧证据重新可复核。
 
 ## 中文输出规则
