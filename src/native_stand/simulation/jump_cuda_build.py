@@ -92,7 +92,9 @@ def build_cuda(output):
         compiler_sha256=file_sha256(compiler),
         flags=args,
         library_sha256=file_sha256(output / "control.so"),
-        generated={p.name: file_sha256(p) for p in output.glob("*.h")},
+        generated={
+            p.name: file_sha256(p) for p in output.iterdir() if p.suffix in {".h", ".c", ".cu"}
+        },
         source_semantics="only device qualifier insertion; no body rewrite",
     )
     write_json(output / "receipt.json", receipt)

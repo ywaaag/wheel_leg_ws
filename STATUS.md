@@ -216,3 +216,6 @@ Jump GPU采样提速：实现25e9968，Critic5080列V4/response历史留设备�
 
 
 Jump v11后续真实整轮：3次449.77/451.61/461.20秒，随后物理tick2515因轮穿入1.04868mm FAILED；故障行636接触164.90N、闭链最大0.02418mm，根因未确认，保留原1mm保护。用户显式要求重启；完整u1 SHA c2f174e8接续新run`2026_11_13__jump_IsaacGPU_restart9554_v12`，未保存2次不退款，累计446/10000、剩9554，save100、墙钟null、4096×64。启动收据artifacts/jump_diagnosis_20261113/local_restart_receipt_v99.json；首更尚未确认。CPU奖励/编码进一步GPU化仍未实现，不将本次重启称新一轮提速完成。
+
+
+Jump全面GPU改造db0fcf9已实现并实测：C源码CUDA FSM/PD/编码、Warp仅inverse、device reward/terminal/Critic，正式Isaac物理不变。相关CPU41/portable1949、4096x640tick对照/reset、两行3200tick/inverse对照通过。真实PPO u2=24.545s、u3=37.442s，随后tick2239原1mm门禁因1.102507mm退出FAILED；轮接触216.817/103.189N，闭链0.0161mm，根因未确认。不是当前RUNNING。u1完整学习状态GPUroundtrip PASS；模型落后2已耗不退款。累计452/10000，余9548未分配，save100/墙钟null偏好保持。拒绝姿态fresh replay200tick仅证短暂恢复，不恢复hidden solver。指标旧CPU_batch_uploads误名已纠正为device_packs，构建补生成c/cu SHA。详见artifacts/jump_diagnosis_20261113/DELIVERY_FULLGPU_v125.md和task_settlement_v125.json。

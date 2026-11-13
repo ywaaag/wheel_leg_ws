@@ -204,5 +204,9 @@ class BatchCritic:
         result = (torch.cat(output, -1) / self.scales).float()
         if not bool(torch.isfinite(result).all()):
             raise ValueError("Batched Isaac Critic nonfinite")
-        env.measurement.count("jump_critic_CPU_batch_uploads")
+        env.measurement.count(
+            "jump_critic_device_packs"
+            if hasattr(env.execution, "gpu")
+            else "jump_critic_CPU_batch_uploads"
+        )
         return result
