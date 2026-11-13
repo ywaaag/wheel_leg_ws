@@ -79,7 +79,7 @@
     "conditions": []
   },
   "runtime": {
-    "envs": 32,
+    "envs": 4096,
     "steps_per_env": 64,
     "seed": 2026110501,
     "device": "cuda:0",
@@ -89,7 +89,7 @@
     "learning_rate": 1e-05,
     "critic_learning_rate": 9e-05,
     "epochs": 4,
-    "minibatches": 4,
+    "minibatches": 64,
     "critic_warmup_updates": 5,
     "entropy_coef": 0.0,
     "gamma": 0.9980019986673331,
@@ -2317,7 +2317,7 @@
       }
     },
     "jump_course": {
-      "plant_id": "Isaac_ABI4_originalV4_wheel48",
+      "plant_id": "Isaac_ABI4_tiled_grid_covered_v4_wheel48",
       "DR_id": "nominal"
     },
     "jump_restore_mode": "fresh_reset",

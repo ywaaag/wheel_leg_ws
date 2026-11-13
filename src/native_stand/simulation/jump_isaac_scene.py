@@ -1,5 +1,6 @@
 """Small PhysX scene/physical I/O consumer; runtime imports follow AppLauncher."""
 
+from math import ceil, sqrt
 from types import SimpleNamespace
 
 import numpy as np
@@ -8,14 +9,28 @@ import torch
 from native_stand.tasks.jump.geometry import CHANNELS
 
 PHYSICAL_CONTRACT = {
-    "version": "jump_PhysX_tiled_flat_ground_support_valid_v3",
+    "version": "jump_PhysX_tiled_flat_ground_grid_coverage_v4",
     "support_timeout": "unavailable_estimate; undecided_contact_blocks_events",
     "ground_size_m": [128.0, 128.0, 0.1],
     "maximum_tile_side_m": 8.0,
+    "env_spacing_m": 3.0,
+    "minimum_spawn_floor_margin_m": 32.0,
     "ground_top_m": 0.0,
     "maximum_wheel_penetration_m": 0.001,
     "maximum_closure_residual_m": 0.002,
 }
+
+
+def physical_contract(envs):
+    """Keep every clone on tiled ground, including the outer rows of 4096."""
+    result = dict(PHYSICAL_CONTRACT)
+    grid_span = (ceil(sqrt(envs)) - 1) * result["env_spacing_m"]
+    side = max(
+        result["ground_size_m"][0],
+        ceil((grid_span + 2 * result["minimum_spawn_floor_margin_m"]) / 8) * 8,
+    )
+    result["ground_size_m"] = [side, side, result["ground_size_m"][2]]
+    return result
 
 
 def validate_physical_measurement(measured):
@@ -120,6 +135,7 @@ class IsaacScene:
 
         self.apply, self.inverse = quat_apply, quat_apply_inverse
         self.device, self.num_envs = job.runtime.device, job.runtime.envs
+        self.physical_contract = physical_contract(self.num_envs)
         self.dt = job.control.physics_dt_s
         self.sim = SimulationContext(
             SimulationCfg(dt=self.dt, device=self.device, render_interval=10)
@@ -132,7 +148,7 @@ class IsaacScene:
                 collision_group=-1,
                 spawn=sim_utils.CuboidCfg(
                     func=spawn_tiled_ground,
-                    size=tuple(PHYSICAL_CONTRACT["ground_size_m"]),
+                    size=tuple(self.physical_contract["ground_size_m"]),
                     rigid_props=sim_utils.RigidBodyPropertiesCfg(
                         kinematic_enabled=True, disable_gravity=True
                     ),
@@ -206,8 +222,22 @@ class IsaacScene:
             )
 
         self.scene = InteractiveScene(
-            SceneCfg(num_envs=self.num_envs, env_spacing=3.0, replicate_physics=True)
+            SceneCfg(
+                num_envs=self.num_envs,
+                env_spacing=self.physical_contract["env_spacing_m"],
+                replicate_physics=True,
+            )
         )
+        self.minimum_floor_margin_m = float(
+            (
+                self.scene.env_origins.new_tensor(self.physical_contract["ground_size_m"][:2]) / 2
+                - self.scene.env_origins[:, :2].abs()
+            )
+            .min()
+            .item()
+        )
+        if self.minimum_floor_margin_m < self.physical_contract["minimum_spawn_floor_margin_m"]:
+            raise ValueError("Jump clone grid exceeds the declared tiled ground margin")
         self.robot = self.scene["robot"]
         self.sensor = self.scene["contact_forces"]
         self.cfg = SimpleNamespace(ground_dynamic_friction=0.5)

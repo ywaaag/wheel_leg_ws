@@ -108,3 +108,13 @@ Isaac执行identity加入reward与request调度语义，同run不允许旧版本
 显式full transition新增环境扩容声明：原行保留课程RNG/累计身份，新增行以job.seed+row独立播种，没有伪造旧成绩；全部从新cohort开始。只允许声明后的扩容，不开放隐式缩容或同run变更环境数。Actor/Critic/双Adam/std/global RNG仍走原完整加载。
 
 相关CPU92通过（27.62s）、portable1925通过/31历史skip/10warning（136.74s），Ruff0.8.4及架构通过。拟同一完整u16源、32/128/256环境各2次正常PPO，属于原余额内6次互斥运行，不并发启动Jump；实测吞吐和显存后决定长训并行度，不能把CPU微基准3.8倍收益外推整段训练。
+
+## 用户指定4096环境（覆盖前述256测量计划）
+
+32与128环境各2次正常PPO已完成；累计435次、剩9565次。未启动256环境，原未用划分退役。按用户明确要求改用4096环境、64步、每次262144样本、64个minibatch（约4096样本/mini）；Actor/Critic等合同和限矩不变，仍从真实u16完整学习状态显式扩容。
+
+原128m地面不能覆盖64×64、间距3m的clone网格。物理合同v4根据网格跨度扩展分块地面，4096时256×256m、仍为8m无重叠tile，Z=0与材质不变。实际最小出生点边界余量33.5m；32/128/256环境仍128m包络。没有修改机器人USD。新cohort使用grid_covered_v4的plant_id，旧物理窗口不作为新域成绩。
+
+本机4096环境短时GPU I/O v56真实PASS：12个policy步、120个显式物理tick，全部行finite/轮净空/闭链门槛保持；首/中/末行6次direct-vs-batched Critic逐位相同，partial reset未reset C字节不变，完整运行状态fresh-reset读回通过。此探针使用用户明确4096授权和具名Jump共享资源策略，PPO=0，不扩大原两环境诊断例外，不发布课程/候选或能力证书。CUDA插件启动警告保留。
+
+CPU联合98通过（26.44s），另有26项覆盖allocator/mask收据与扩容/地面；portable1932通过/31历史skip/10warning（138.09s）。正式PPO仍待首更与保存恢复：I/O通过不代表4096×64 rollout/优化已通过。新增perf收据同时记录有效Actor样本数及Torch allocator峰值，NVML总显存包含PhysX等，二者分开表述。

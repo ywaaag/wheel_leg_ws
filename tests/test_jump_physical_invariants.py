@@ -13,6 +13,22 @@ from native_stand.simulation.jump_isaac_scene import validate_physical_measureme
 FROZEN_TEST_SCOPE = "PORTABLE"
 
 
+@pytest.mark.parametrize("envs", [1, 32, 128, 256, 4096, 8192])
+def test_tiled_ground_covers_clone_grid_with_declared_margin(envs):
+    from math import ceil, sqrt
+
+    from native_stand.simulation.jump_isaac_scene import physical_contract
+
+    contract = physical_contract(envs)
+    half_span = (ceil(sqrt(envs)) - 1) * contract["env_spacing_m"] / 2
+    assert contract["ground_size_m"][0] / 2 - half_span >= 32
+    assert contract["ground_size_m"][0] % contract["maximum_tile_side_m"] == 0
+    if envs <= 256:
+        assert contract["ground_size_m"] == [128, 128, 0.1]
+    if envs == 4096:
+        assert contract["ground_size_m"] == [256, 256, 0.1]
+
+
 def packet():
     return {
         "root": np.array([[0, 0, 0.17, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0]]),

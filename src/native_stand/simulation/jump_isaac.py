@@ -106,9 +106,9 @@ class IsaacJump:
         self._obs = None
         self.completed = []
         self.serial = 0
-        from native_stand.simulation.jump_isaac_scene import PHYSICAL_CONTRACT
+        from native_stand.simulation.jump_isaac_scene import physical_contract
 
-        self.physical_contract = copy.deepcopy(PHYSICAL_CONTRACT)
+        self.physical_contract = physical_contract(self.num_envs)
         self.identity = json_digest(
             dict(
                 contract=job.assets["jump_contract_data"],
@@ -240,6 +240,7 @@ class IsaacJump:
                 physics_restore="fresh_reset",
                 startup_engine_ticks=self.scene.actual_ticks,
                 physical_contract=self.physical_contract,
+                minimum_spawn_floor_margin_m=self.scene.minimum_floor_margin_m,
             ),
         )
 

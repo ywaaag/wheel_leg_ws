@@ -46,11 +46,13 @@ def main():
         critic_comparisons = 0
         for index in range(args.steps):
             obs = env.observations()
-            if args.verify_critic_readback and index % 40 == 0:
+            if args.verify_critic_readback and (
+                index % 40 == 0 or index in (11, args.steps - 1)
+            ):
                 # Compare the optimized snapshot path with direct live tensor
                 # reads at the same tick. This does not advance any physics.
                 host = env.host()
-                for row in range(env.num_envs):
+                for row in sorted({0, env.num_envs // 2, env.num_envs - 1}):
                     direct = env.row_observation(row, host, obs["student_actor"][row].cpu().numpy())
                     assert torch.equal(torch.from_numpy(direct), obs["student_critic"][row].cpu())
                     critic_comparisons += 1

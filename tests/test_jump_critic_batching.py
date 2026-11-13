@@ -49,3 +49,37 @@ def test_packed_critic_retains_dynamic_field_shape_and_finite_checks(bad):
     for encoder in (old, packed):
         with pytest.raises(ValueError, match="missing/extra|shape/finite"):
             encoder.encode(values)
+
+
+def test_performance_receipt_reuses_existing_mask_and_allocator_metadata(monkeypatch):
+    from types import SimpleNamespace
+
+    import torch
+
+    from native_stand.learning.ppo.performance import Measurement
+    from native_stand.simulation.jump_adapter import JumpAdapter
+
+    adapter = JumpAdapter.__new__(JumpAdapter)
+    adapter.measurement = Measurement(True, "cpu")
+    adapter.ppo = SimpleNamespace(
+        mask_summary=dict(valid_actor_samples=17, invalid_actor_samples=3)
+    )
+    adapter.job = SimpleNamespace(runtime=SimpleNamespace(device="cuda:0"))
+    calls = []
+
+    def metadata(device):
+        calls.append(device)
+        return 1234
+
+    monkeypatch.setattr(torch.cuda, "max_memory_allocated", metadata)
+    monkeypatch.setattr(torch.cuda, "max_memory_reserved", metadata)
+    result = dict(reward_mean=0.25)
+    adapter.after_update(SimpleNamespace(updates_used=1), 0, result)
+    assert calls == ["cuda:0", "cuda:0"]
+    assert result == dict(
+        reward_mean=0.25,
+        valid_actor_samples=17,
+        invalid_actor_samples=3,
+        torch_peak_allocated_bytes=1234,
+        torch_peak_reserved_bytes=1234,
+    )

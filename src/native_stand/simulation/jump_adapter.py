@@ -100,6 +100,24 @@ class JumpAdapter(GenericPPOAdapter):
                 )
 
     def after_update(self, context, index, metrics):
+        if self.measurement.enabled:
+            metrics.update(
+                valid_actor_samples=self.ppo.mask_summary.get("valid_actor_samples", 0),
+                invalid_actor_samples=self.ppo.mask_summary.get("invalid_actor_samples", 0),
+            )
+            if self.job.runtime.device.startswith("cuda"):
+                import torch
+
+                # Allocator counters are host metadata; no GPU synchronization.
+                # This is Torch memory, not the PhysX/NVML process total.
+                metrics.update(
+                    torch_peak_allocated_bytes=torch.cuda.max_memory_allocated(
+                        self.job.runtime.device
+                    ),
+                    torch_peak_reserved_bytes=torch.cuda.max_memory_reserved(
+                        self.job.runtime.device
+                    ),
+                )
         with self.measurement.section("jump_candidate_summary", synchronize=False):
             self._after_update(context, index, metrics)
 
