@@ -213,3 +213,6 @@ Jump保存频率调整：用户要求每100次保存。v9在u3正常边界保存
 
 
 Jump GPU采样提速：实现25e9968，Critic5080列V4/response历史留设备，5591列保持；逆模型仅消费阶段+单实例scratch，C/FSM和dense reward仍CPU。CPU46/portable1948、GPU两环境1800tick及4096×12步逐位/reset通过。同GPU短窗口平均10.5139→6.5048秒/策略步，非整轮PPO结果。旧v10正常u1退出，累计443/10000、剩9557，旧未用额度退役。正式新run`2026_11_13__jump_IsaacGPU_device4096_save100_v11`，唯一worker3525582，IsaacLab/PhysX GPU，4096×64、save100、墙钟null，启动握手RUNNING，首更尚未确认。原1mm物理门禁保留；之前罕见超限根因未确认。详细精确文件/收据见artifacts/jump_diagnosis_20261113/DELIVERY_GPU_ROLLOUT_v98.md。
+
+
+Jump v11后续真实整轮：3次449.77/451.61/461.20秒，随后物理tick2515因轮穿入1.04868mm FAILED；故障行636接触164.90N、闭链最大0.02418mm，根因未确认，保留原1mm保护。用户显式要求重启；完整u1 SHA c2f174e8接续新run`2026_11_13__jump_IsaacGPU_restart9554_v12`，未保存2次不退款，累计446/10000、剩9554，save100、墙钟null、4096×64。启动收据artifacts/jump_diagnosis_20261113/local_restart_receipt_v99.json；首更尚未确认。CPU奖励/编码进一步GPU化仍未实现，不将本次重启称新一轮提速完成。
