@@ -170,6 +170,11 @@ def _export_new(source, spec, output, *, execution, dependencies=(), onnx=False,
         )
         np.testing.assert_allclose(decoded, y.numpy(), atol=2e-5, rtol=1e-6)
         C_decoder_error = float(np.abs(decoded - y.numpy()).max())
+    C_actor = None
+    if c_build and spec.kind == "recovery_physical":
+        from .c_actor import export_recovery_actor
+
+        C_actor = export_recovery_actor(model.actor, output, x.numpy(), y.numpy())
     record = dict(
         version=VERSION,
         source=dict(path=str(source.path), sha256=source.sha256),
@@ -183,6 +188,7 @@ def _export_new(source, spec, output, *, execution, dependencies=(), onnx=False,
         checks=dict(
             torch_golden=True,
             C_decoder_max_abs_error=C_decoder_error,
+            C_actor=C_actor,
             ONNX_reference=True if onnx else "NOT_RUN",
             ORT="NOT_RUN",
             ARM="NOT_RUN",
@@ -264,6 +270,16 @@ def job_dependencies(job):
         for name, ref in bound.get("bindings", {}).items():
             if name in ("V4_contract", "initial_states", "scene_spec"):
                 result.append(dict(path=ref["path"], sha256=ref["sha256"], role=name))
+    if job.assets.get("recovery_mujoco"):
+        c = job.assets["recovery_mujoco"]
+        for name in ("catalog", "V4_contract", "V4_tensor", "model_readback"):
+            result.append(dict(**c[name], role=name))
+        for name, ref in c["execution_sources"].items():
+            result.append(dict(**ref, role="execution_" + name))
+    supervision = getattr(job, "supervision", None)
+    if supervision:
+        for teacher in supervision.teachers:
+            result.append(dict(path=teacher.path, sha256=teacher.sha256, role="teacher_checkpoint"))
     if job.assets.get("runtime_template"):
         from native_stand.simulation.playback import ASSET_BINDINGS
 

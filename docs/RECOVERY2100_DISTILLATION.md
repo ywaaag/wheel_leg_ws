@@ -1,6 +1,6 @@
 # Recovery 2100 小模型蒸馏
 
-正式入口：`wheel-leg distill --config configs/jobs/recovery2100_distillation.json`。复用 `SupervisionConfig → owner/worker → supervision_flow → learning.distillation.loop`；没有新增 launcher、训练生命周期或 PPO。开发基点 main `299b8dc`，分支 `recovery/2100-distillation`，worktree `/home/kellen/wheel_leg_distill_ws`。
+当前起身复刻入口：`wheel-leg distill --config configs/jobs/recovery2100_mujoco_rise.json`。旧 Isaac 配方 `recovery2100_distillation.json` 和额外延迟配方保留为历史复现入口。复用 `SupervisionConfig → owner/worker → supervision_flow → learning.distillation.loop`；没有新增 launcher、训练生命周期或 PPO。开发基点 main `299b8dc`，分支 `recovery/2100-distillation`，worktree `/home/kellen/wheel_leg_distill_ws`。
 
 ## 教师与接口
 
@@ -43,3 +43,15 @@ r3在20round/1000次监督更新后，开发比较中教师起身/10秒保持均
 接续配方改为`configs/jobs/recovery2100_delay_dagger.json`，在当前main `fc29da3`建立的独立worktree `/home/kellen/wheel_leg_distill_delay_ws` 实现。复用现有case/reset/factory，只增加collection case配置；四组显式时序覆盖失效条件，每组保留名义与DR=.25锚。训练数据来自新学生回合，开发/最终比较帧不回灌。`PhysicalActor.decode_mean()`只抽出原三次公式，让collector在一次网络前向后分别保存network mean和物理raw action；实际采用目标、请求及力矩仍来自原执行器，额外保存实际Actor观测年龄。
 
 用现有`wheel-leg import-checkpoint`和`resume`完成版本化完整BC交接，保留逻辑run身份、20round/1000更新、Adam/RNG、固定episode划分、已有物理消耗及phase cursor。新的累计墙钟边界为14400s，原消耗不退款；任务总预算仍不限。仅checkpoint的handoff元数据改变时，采集恢复须明确记录旧/新SHA并核对Actor所有tensor完全相同，不能将换权重伪装成metadata搬迁。新版本不向电控写入。
+
+## MuJoCo 起身复刻（当前）
+
+用户当前目标是复刻2100自主起身，站立后慢速漂移可接受。选模优先起身率，再比较连续10秒保持；接稳失触、原始1kHz保持、HF、已有延迟范围和物理目标保真独立报告。不得将教师未通过的较硬接触、原地静止或额外长延迟作为本轮必须改善的能力。
+
+当前分支从main `12c8be4`建立，worktree `/home/kellen/wheel_leg_distill_mujoco_ws`。`simulation.dispatch.execution_service`按显式`assets.recovery_mujoco`选择`simulation.recovery_mujoco.make_collection_env`。它加载SHA绑定的原XML名义模型二进制快照及readback；快照由原教师探针只构造不积分，保留原接触、闭链与V4缩放，不使用USD重建模型替代原接触。MuJoCo版本必须匹配。1ms执行/5ms PD/10ms策略不变，积分拆为两个0.5ms子步。冻结执行器与生命周期以显式factory加载；不改模块全局对象。每步保留原始1kHz真实状态、q/dq、采用目标、motor/NET和HP10，不以平均支撑力替代连续支撑。故障保留真实已完成子步，不退款。
+
+每个训练块8个环境、4600个策略时刻，保留2个完整23秒回合及自然失败/reset。首块Teacher控制，次块Student控制；均仅由2100只读查询同一31D观测给物理标签，质量默认UNKNOWN，不继承成功身份。两块各20轮、每轮50次优化。开发与最终检查各8个固定条件，使用不同DR种子，保留名义航向和站立锚；相同名义条件的重复不视作独立泛化。命令高度固定0.34m，不宣称多高度能力。原15组只用于回归，新采集数据按完整物理回合固定划分；开发/最终闭环轨迹不进入训练。
+
+本阶段明确用既有学生Actor初始化新数据域实验，Adam重新建立，不称完整BC状态恢复。旧逻辑任务已耗1000次监督更新、13,479,680个Isaac物理步另记不退款；另有3个学生MuJoCo基线共138,000子步、正式adapter smoke46,000子步。误建旧回归数据的offline r1在标签条件检查失败，监督优化0；其数据隔离，不用于本配方。累计任务不限额，当前块40轮、4小时、8GiB边界，沿统一停止/恢复/预算机制结算。
+
+部署依赖同时绑定教师SHA、三次合同、完整V4张量、名义时序、实际previous、PD与限矩、真实留出状态golden及C源码。ONNX内含decoder，仅执行一次。导出额外提供`recovery_actor.c/.h`，FP32 ELU/Tanh全网络调用共享`RLPolicyDecode`一次；真实golden同时核对C mean与物理输出。测本机C调用中位数/P95与权重/工作数组字节。主机全网络核对不代表MCU时序实测；硬件写出关闭。

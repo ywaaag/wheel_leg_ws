@@ -1,5 +1,12 @@
 # 当前任务
 
+## Recovery2100 MuJoCo起身蒸馏（2026-11-13）
+
+蒸馏/电控负责人在独立`recovery/2100-mujoco-rise`分支，从main `12c8be4`复用已有监督owner/worker、物理Huber、episode划分、停止恢复和部署。教师固定2100 SHA `5aec83df…d12a9`。本轮优先复刻起身，慢速漂移单报，不强求解决教师较硬接触缺口。原延迟扩展已正常STOPPED_BOUNDED、failure=null，累计20轮/1000优化、13,479,680物理步保留。原15组只作回归；误建offline r1在标签前失败、优化0，数据隔离。
+
+新增原XML MuJoCo collection factory及配置，通过显式SHA绑定模型/版本/V4/执行器接线，未复制训练生命周期。三航向旧学生快速MuJoCo基线3/3起身、3/3保持；正式adapter教师smoke1/1起身/100Hz和原始1kHz保持通过、实际46,000子步。它们是有限固定条件证据，不是新学生最终泛化验收。新配方计划8条件Teacher采集→20轮BC→开发比较→Student采集补教→20轮→开发/冻结候选→最终检查→部署。启动与能力结果写对应run，不把提交称完成。
+
+
 ## Motion转弯重点配方准备（2026-11-13）
 
 Motion负责人在独立`motion/turn-focused-recipe-v2`分支从main实现第二轮第一块。配置`configs/jobs/motion_u1500_turn_focus_v3_prepared.json`复用SplitCourse和生产adapter，固定0.34m，保留55%基础复习，将约36%总样本集中四方向转弯、9%保留四地形；暂缓变高采样。新增0.65/0.8 yaw中间档、75%行进转向响应门槛及基础退化/UNKNOWN时阻止focus晋级。奖励、PPO、KL、动作/输入尺度、物理/PD/电机、延迟与DR范围不变。具体门槛和边界见[能力矩阵末节](docs/MOTION_CAPABILITY_MATRIX.md#当前准备配方034m转弯重点块)。
