@@ -266,7 +266,8 @@ class IsaacJump:
                 version="jump_construction_readback_v2",
                 status="CONSTRUCTED",
                 resource_readback=readback,
-                backend="Isaac PhysX GPU",
+                backend=self.scene.collision_readback["physics_execution"]["backend_label"],
+                physics_execution=self.scene.collision_readback["physics_execution"],
                 **execution_readback(self.execution, getattr(self, "device_inverse", self.inverse)),
                 collision_readback=self.scene.collision_readback,
                 initial_geometric_gaps={

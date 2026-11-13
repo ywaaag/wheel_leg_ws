@@ -13,6 +13,26 @@ import torch
 from native_stand.artifacts.io import file_sha256, json_digest
 
 
+def physics_execution_readback(simulation):
+    """Use the live physics manager and scene, not a directory name or CLI request."""
+    path = simulation.cfg.physics_prim_path
+    prim = simulation.stage.GetPrimAtPath(path)
+    if not prim:
+        raise RuntimeError("Actual physics scene unavailable: " + str(path))
+    device = str(simulation.device)
+    gpu = prim.GetAttribute("physxScene:enableGPUDynamics").Get()
+    broadphase = prim.GetAttribute("physxScene:broadphaseType").Get()
+    return dict(
+        actual_device=device,
+        physics_scene_path=str(prim.GetPath()),
+        scene_gpu_dynamics=gpu,
+        scene_broadphase=broadphase,
+        tensor_backend=str(simulation.backend),
+        backend_label=f"PhysX; device={device}; scene_gpu_dynamics={gpu}",
+        narrowphase_device="UNVERIFIED; physics manager and scene flags do not certify each collider",
+    )
+
+
 def convex_mesh_readback(mesh):
     """Serialize the public cooked representation, including actual polygon data."""
     vertices = np.asarray([list(v) for v in mesh.vertices], dtype=float)
@@ -132,6 +152,7 @@ def capture_collision_readback(scene):
         cooking_statistics="NOT_EXPOSED_BY_PUBLIC_COOKING_API; inspect this startup log",
         buildGPUData="NOT_EXPOSED_BY_PUBLIC_REPRESENTATION_API",
         narrowphase_device="UNVERIFIED; CUDA dynamics and count limits are insufficient",
+        physics_execution=physics_execution_readback(scene.sim),
         wheels=[],
         geometry_scope="first-clone cooked prototypes; every clone authored geometry verified",
         source_asset=scene.job_asset,

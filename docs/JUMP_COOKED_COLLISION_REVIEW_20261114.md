@@ -62,3 +62,11 @@ tests/test_jump_cooked_collision.py
 4. 倾斜轮的slip仍用center-R*ez，影响奖励/Critic的接触速度口径；逆动力学接触点近似另有其实现，不能把两者当成同一根因。本轮保留奖励和支撑估计定义，后续应独立版本化验证，不借几何审查顺带改变训练目标。
 
 官方依据：PhysX5.6.1要求convex GPU contact cooking数据，并列出64顶点／64面／每面32点的限制；custom geometry在CPU处理。见[GPU Rigid Bodies](https://nvidia-omniverse.github.io/PhysX/physx/5.6.1/docs/GPURigidBodies.html)。计数通过只是必要证据，不是目标runtime执行路径认证。
+
+## 后续只读复核与收据模板
+
+用户补充v155/v6审查后，本轮单次只读核实：v14已正常STOPPED_BOUNDED、16次/failure=null；v157在独立目录6400tick/PPO0 PASS；v156因原owner冲突被拒，保持0更新；现有owner已启动v15的2次有界正常PPO。本分支未提交、恢复或停止这些任务，不能重复运行同一strict4096探针。累计额度继续由现有唯一owner结算，不能沿用本分支历史余额。
+
+contact分支`dfd0d7f`的v6热点缓存是authored30顶点的已校核代理，减去1e-7m后与Cylinder gap取min，0.1µm是保守收紧，不是给1mm门增加容差。用户复算65.8nm/70.4nm面约束残差受序列化精度影响，不能由这一证据承诺跨SDK的误差界。更换SDK、cooking参数、源几何或碰撞变换后，必须同启动重新校核。此实现与本审查分支直接缓存public representation API读回顶点的实现不同，集成时选择一种有完整身份的方案，不得混称actual hull。
+
+后续收据新增`physics_execution_readback`：actual_device取live physics manager，GPU dynamics/broadphase取实际physics scene，tensor backend单独记录；`backend_label`由该读回生成。构造收据和`artifacts/jump_collision_audit_20261114/next_receipt_template.py`均使用这一字段。原v155 trace/旧construction及已保存startup脚本/receipt保持字节原样。helper仅读取元数据，新增CPU回归故意让请求device=cuda而实际manager=cpu，确保标签不会跟随请求或目录名。buildGPUData和每碰撞体窄相设备仍为UNVERIFIED。本次不新增物理/GPU/PPO运行。

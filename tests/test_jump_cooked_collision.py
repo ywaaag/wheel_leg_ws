@@ -12,6 +12,7 @@ from native_stand.simulation.jump_collision_readback import (
     convex_clearance,
     convex_mesh_readback,
     cooked_cylinder_envelope,
+    physics_execution_readback,
 )
 from native_stand.simulation.jump_isaac import IsaacJump, execution_readback
 from native_stand.simulation.jump_isaac_scene import (
@@ -20,6 +21,30 @@ from native_stand.simulation.jump_isaac_scene import (
 )
 
 FROZEN_TEST_SCOPE = "PORTABLE"
+
+
+def test_receipt_uses_actual_physics_scene_and_manager_instead_of_requested_device():
+    values = {"physxScene:enableGPUDynamics": False, "physxScene:broadphaseType": "MBP"}
+    prim = SimpleNamespace(
+        GetAttribute=lambda name: SimpleNamespace(Get=lambda: values[name]),
+        GetPath=lambda: "/physicsScene",
+    )
+    stage = SimpleNamespace(GetPrimAtPath=lambda path: prim if path == "/physicsScene" else None)
+    sim = SimpleNamespace(
+        stage=stage,
+        cfg=SimpleNamespace(physics_prim_path="/physicsScene", device="cuda:0"),
+        device="cpu",
+        backend="warp",
+    )
+    actual = physics_execution_readback(sim)
+    assert actual["actual_device"] == "cpu"
+    assert actual["scene_gpu_dynamics"] is False
+    assert actual["scene_broadphase"] == "MBP"
+    assert "device=cpu" in actual["backend_label"]
+    assert actual["narrowphase_device"].startswith("UNVERIFIED")
+    sim.cfg.physics_prim_path = "/missing"
+    with pytest.raises(RuntimeError, match="Actual physics scene unavailable"):
+        physics_execution_readback(sim)
 
 
 def inverse_rotate(quaternions, vectors):
