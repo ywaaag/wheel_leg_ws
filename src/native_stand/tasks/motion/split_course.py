@@ -13,7 +13,9 @@ VERSIONS = {
     "motion48_travel_branch_v1": "motion",
     "motion48_spin_branch_v1": "spin",
     "motion48_height020_roughH1_branch_v2": "motion",
+    "motion48_turn_focus_branch_v3": "motion",
 }
+TURN_FOCUS_VERSION = "motion48_turn_focus_branch_v3"
 MAX_COMMAND_MAGNITUDE = 3.4028234663852886e38  # Actual command tensors use float32.
 DR_PROGRESSION = "shared_strength_independent_of_task_axes"
 
@@ -41,6 +43,28 @@ def validate_configuration(value):
         raise ValueError("分支必须显式声明DR强度共用、独立于任务方向晋级")
     if len(value.get("confirmation_execution_sha256", "")) != 64:
         raise ValueError("连续确认必须绑定明确的执行合同")
+    if value["version"] == TURN_FOCUS_VERSION:
+        levels = value.get("initial_levels", {})
+        if set(levels) != set(value["targets"]) or any(
+            type(level) is not int or not 0 <= level < len(value["targets"][axis])
+            for axis, level in levels.items()
+        ):
+            raise ValueError("重点课程初始档位必须明确且在目标范围内")
+        weights = value.get("focus_weights", {})
+        if (
+            set(weights) != set(value["targets"])
+            or any(not _finite_number(w) or w <= 0 for w in weights.values())
+            or not math.isclose(sum(weights.values()), 1.0, abs_tol=1e-12)
+        ):
+            raise ValueError("重点任务权重必须完整、为正且合计1")
+        gain = value.get("minimum_signed_yaw_gain")
+        if not _finite_number(gain) or not 0.5 <= gain <= 1.0:
+            raise ValueError("转向响应门槛必须处于[0.5,1]")
+        gate = value.get("retention_gate", {})
+        if set(gate) != {"nominal_pass", "nominal_complete", "DR_pass", "DR_complete"} or any(
+            not _finite_number(v) or not 0 < v <= 1 for v in gate.values()
+        ):
+            raise ValueError("基础能力保留门槛必须显式声明有效比例")
     if branch == "spin" and (not _finite_number(value["spin_growth"]) or value["spin_growth"] <= 1):
         raise ValueError("Spin增长倍率必须有限且大于1")
     cap = value.get("spin_terminal_cap")
@@ -112,7 +136,9 @@ class SplitCourse:
             standing_DR_level=-1,
             DR_levels={f: frontier for f in FAMILIES},
             dq_level=frontier,
-            levels={axis: 0 for axis in cfg["targets"]},
+            levels=copy.deepcopy(cfg["initial_levels"])
+            if self.VERSION == TURN_FOCUS_VERSION
+            else {axis: 0 for axis in cfg["targets"]},
             streaks={axis: 0 for axis in (*cfg["targets"], "DR")},
             regressions={axis: 0 for axis in cfg["targets"]},
             accepted_by_stage={},
@@ -181,6 +207,10 @@ class SplitCourse:
                 )
             },
         )
+        if self.VERSION == TURN_FOCUS_VERSION:
+            base["curriculum_policy"] = {
+                k: cfg[k] for k in ("focus_weights", "minimum_signed_yaw_gain", "retention_gate")
+            }
         result = {}
         for axis in (*cfg["targets"], "DR"):
             chosen = [
@@ -282,8 +312,22 @@ class SplitCourse:
                 for n, (target, p, axis) in zip(split(quota, len(cases)), cases, strict=True):
                     add(n, target, p, f"anchor_{axis}_{p}", axis=axis)
             elif name == "focus":
-                cases = [(a, p) for a in cfg["targets"] for p in (-1, 0)]
-                for n, (axis, p) in zip(split(quota, len(cases)), cases, strict=True):
+                axes = list(cfg["targets"])
+                if self.VERSION == TURN_FOCUS_VERSION:
+                    axis_counts = [int(quota * cfg["focus_weights"][a]) for a in axes]
+                    for i in range(quota - sum(axis_counts)):
+                        axis_counts[i % len(axes)] += 1
+                    cases = [
+                        (n, axis, p)
+                        for axis, count in zip(axes, axis_counts, strict=True)
+                        for p, n in zip((-1, 0), split(count, 2), strict=True)
+                    ]
+                else:
+                    pairs = [(a, p) for a in axes for p in (-1, 0)]
+                    cases = [
+                        (n, a, p) for n, (a, p) in zip(split(quota, len(pairs)), pairs, strict=True)
+                    ]
+                for n, axis, p in cases:
                     level = state["levels"][axis]
                     target = self._target(state, axis)
                     if not all(math.isfinite(v) for v in target):
@@ -313,6 +357,8 @@ class SplitCourse:
                 for r in rows
             ],
         )
+        if self.VERSION == TURN_FOCUS_VERSION:
+            result["minimum_signed_yaw_gain"] = state["configuration"]["minimum_signed_yaw_gain"]
         return result
 
     def advance(self, state, report, update, *, envs, families=FAMILIES):
@@ -352,12 +398,37 @@ class SplitCourse:
                 for r in rs
             )
 
+        retention = None
+        if self.VERSION == TURN_FOCUS_VERSION:
+            base_rows = [r for r in rows if not r["purpose"].startswith("focus_")]
+            failures = []
+            unknown = not covered(base_rows)
+            for row in base_rows:
+                if row["ended_episodes"] < cfg["minimum_ended"]:
+                    continue
+                kind = "nominal" if row["profile"] < 0 else "DR"
+                limits = cfg["retention_gate"]
+                if (
+                    row["pass_fraction"] < limits[kind + "_pass"]
+                    or row["completed_episodes"] / row["ended_episodes"]
+                    < limits[kind + "_complete"]
+                ):
+                    failures.append(row["key"])
+            retention = dict(
+                status="UNKNOWN" if unknown else ("FAILED" if failures else "PASSED"),
+                failed_keys=failures,
+                thresholds=copy.deepcopy(cfg["retention_gate"]),
+                effect="block focus promotion only; preserve independent DR and regression rules",
+            )
+        promotion_allowed = retention is None or retention["status"] == "PASSED"
         decision, changed = {}, False
         for axis in cfg["targets"]:
             rs = [r for r in rows if r["axis"] == axis and r["purpose"].startswith("focus_")]
             known, passed = covered(rs), good(rs)
             # UNKNOWN中断连续确认，但不制造失败或触发回退。
-            result["streaks"][axis] = result["streaks"][axis] + 1 if passed else 0
+            result["streaks"][axis] = (
+                result["streaks"][axis] + 1 if passed and promotion_allowed else 0
+            )
             bad = known and any(r["pass_fraction"] < cfg["regression_pass_fraction"] for r in rs)
             result["regressions"][axis] = result["regressions"][axis] + 1 if bad else 0
             promoted = regressed = False
@@ -416,6 +487,8 @@ class SplitCourse:
             decision[axis] = dict(
                 covered=known, passed=passed, promoted=promoted, regressed=regressed
             )
+            if retention is not None:
+                decision[axis]["promotion_blocked"] = not promotion_allowed
         robust = [r for r in rows if not r["purpose"].startswith("focus_")]
         result["streaks"]["DR"] = result["streaks"]["DR"] + 1 if good(robust) else 0
         dr_up = result["streaks"]["DR"] >= cfg["confirmations"] and result[
@@ -441,4 +514,5 @@ class SplitCourse:
             decisions=decision,
             DR_promoted=dr_up,
             state_revision_changed=changed,
+            **({"retention_gate": retention} if retention is not None else {}),
         )

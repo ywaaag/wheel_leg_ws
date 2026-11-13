@@ -1,5 +1,13 @@
 # 当前任务
 
+## Motion转弯重点配方准备（2026-11-13）
+
+Motion负责人在独立`motion/turn-focused-recipe-v2`分支从main实现第二轮第一块。配置`configs/jobs/motion_u1500_turn_focus_v3_prepared.json`复用SplitCourse和生产adapter，固定0.34m，保留55%基础复习，将约36%总样本集中四方向转弯、9%保留四地形；暂缓变高采样。新增0.65/0.8 yaw中间档、75%行进转向响应门槛及基础退化/UNKNOWN时阻止focus晋级。奖励、PPO、KL、动作/输入尺度、物理/PD/电机、延迟与DR范围不变。具体门槛和边界见[能力矩阵末节](docs/MOTION_CAPABILITY_MATRIX.md#当前准备配方034m转弯重点块)。
+
+u1500完整状态通过CPU准备边界，不重复877→881或高度扩展，双Adam/std/RNG/KL bank/warmup50和模型进度保留；地形碎石/坑洼0.25起点保留但确认重积累。原账本已耗1555、checkpoint1500的55次不退款，本阶段余8429。数据根`motion_recipe_preparation/20261113_turn_focus_v3/`保存SHA绑定准备快照与CPU收据；此记录不是停止结算或训练分配，零额度通过正式dry-run，正额度在正式边界拒绝。当前未做旧attempt结算、云端部署、GPU/仿真或真实PPO；模型能力改善仍未证明，欠转物理根因待确认。
+
+验证：相关联合145 passed（10.61s）；portable1959 passed/31既有skip/10warning（141.80s）；最后补严来源center一致性后，针对性22 passed（2.84s）及真实u1500准备重核通过。正式dry-run、架构209/0、Ruff0.8.4 check/format通过。真实u1500只做CPU加载/装配，生产adapter保存恢复使用小型脚本I/O fixture；不将其称为GPU恢复验证。精确命令、逐文件SHA和原始日志保存于上述数据根的`delivery.json`及日志文件。
+
 ## Motion能力目标矩阵（2026-11-13）
 
 领域负责人：接替“运动2”的Motion／Spin会话，远程Motion训练唯一负责人。已形成[Motion能力矩阵v1](docs/MOTION_CAPABILITY_MATRIX.md)，供其他Codex审阅配方、评分、播放和部署时共用。优先保留0.34m站立、±3.6m/s直线和±2rad/s普通自转；四方向转弯、四种H1及0.20～0.40m高度按前置能力逐级扩展。仅平地站立/直线约束对称，转弯允许合理内倾和腿长差。逐模型证据与目标分开，未定义的阈值/组合范围须在后续配方明确。

@@ -223,7 +223,14 @@ def episode_class(base_class, *, version=VERSION):
             if response_checked:
                 required = c[ids, 1].abs() > 0.05
                 gain = mean[:, 2] * c[ids, 1].sign() / c[ids, 1].abs().clamp_min(0.05)
-                response_ok = ~required | (gain >= MINIMUM_SIGNED_YAW_GAIN)
+                minimum_gain = torch.where(
+                    mode["travel_turn"][ids],
+                    s.new_tensor(
+                        e.stage_spec.get("minimum_signed_yaw_gain", MINIMUM_SIGNED_YAW_GAIN)
+                    ),
+                    s.new_tensor(MINIMUM_SIGNED_YAW_GAIN),
+                )
+                response_ok = ~required | (gain >= minimum_gain)
                 passed &= response_ok
                 extra = torch.cat(
                     (
@@ -324,9 +331,14 @@ def episode_class(base_class, *, version=VERSION):
                 if response_checked:
                     extra = [x / n if n else None for x in responses[i]]
                     required = abs(stage["commands"][i][1]) > 0.05
+                    minimum_gain = (
+                        stage.get("minimum_signed_yaw_gain", MINIMUM_SIGNED_YAW_GAIN)
+                        if abs(stage["commands"][i][0]) > 0.05
+                        else MINIMUM_SIGNED_YAW_GAIN
+                    )
                     rows[-1].update(
                         yaw_response_required=required,
-                        minimum_signed_yaw_gain=MINIMUM_SIGNED_YAW_GAIN if required else None,
+                        minimum_signed_yaw_gain=minimum_gain if required else None,
                         mean_signed_yaw_gain=extra[4] if required else None,
                         yaw_response_pass_fraction=extra[5] if required else None,
                         signed_roll_mean_rad=extra[0],

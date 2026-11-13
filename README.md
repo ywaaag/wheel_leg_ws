@@ -4,7 +4,9 @@
 
 ## 主仓与本地依赖
 
-Motion后续配方、评分、选模和交互测试先读[Motion能力矩阵](docs/MOTION_CAPABILITY_MATRIX.md)：0.34m基础优先，转弯、地形和0.20～0.40m高度逐级扩展。它是目标入口，尚未将新目标接入训练配置；训练窗口、固定checkpoint验证与实机成绩分别记录，当前后端支持仍以实际实现为准。
+Motion后续配方、评分、选模和交互测试先读[Motion能力矩阵](docs/MOTION_CAPABILITY_MATRIX.md)：0.34m基础优先，转弯、地形和0.20～0.40m高度逐级扩展。它描述最终目标，当前准备配方的实现范围单独列明；训练窗口、固定checkpoint验证与实机成绩分别记录，当前后端支持仍以实际实现为准。
+
+第二轮第一块的准备配置为`configs/jobs/motion_u1500_turn_focus_v3_prepared.json`：约36%转弯、9%地形和55%基础复习，0.34m固定高度，细化yaw阶梯并检查基础保留。完整u1500来源和准备记录通过数据根SHA引用，缺材料不能直接运行。正式CLI计划检查：`PYTHONPATH=src /home/kellen/anaconda3/envs/issaclab/bin/python -B -m native_stand train --config configs/jobs/motion_u1500_turn_focus_v3_prepared.json --dry-run --json`。配置为零额度，正式提交仍被拒绝；不代表已有GPU或能力验证。具体设计和接续边界见矩阵末节。
 
 后续源码开发以 `/home/kellen/wheel_leg_refactor_ws` 为主仓，Git独立于旧生产仓。旧仓 `/home/kellen/wheel_leg_native_train` 原路径保留，保存历史模型、账本和冻结依赖；不交换目录、不建立旧路径转发软链接。
 

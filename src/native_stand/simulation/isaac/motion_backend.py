@@ -77,6 +77,19 @@ def validate_job(job):
             branch = read_branch(job.assets)
             if branch is None or branch["branch"] != configuration["branch"]:
                 raise ValueError("新目标分支必须显式绑定选择与停止结算")
+            from native_stand.artifacts.branch_initialization import PREPARATION
+
+            if branch["version"] == PREPARATION and (
+                job.limits.smoke_updates
+                or job.limits.formal_updates
+                or job.assets.get("preparation_only") is not True
+            ):
+                raise ValueError("课程准备尚未结算接续，只允许零额度CPU准备")
+            if branch["version"] == PREPARATION:
+                from native_stand.artifacts.io import json_digest
+
+                if json_digest(configuration) != branch["target_course_sha256"]:
+                    raise ValueError("课程准备目标与SHA绑定记录不同")
             if job.limits.smoke_updates or job.limits.formal_updates:
                 from native_stand.artifacts.branch_initialization import require_allocated
 
@@ -501,11 +514,17 @@ class MotionProductionAdapter:
             references["branch_initialization"] = paths.view(
                 self.job.assets["branch_initialization"]
             )
-            for key in ("selection", "settlement"):
-                references["branch_" + key] = paths.view(branch[key])
-            settlement = paths.read(branch["settlement"]["path"])
-            for key in ("selected_checkpoint", "final_checkpoint"):
-                references[key] = {k: settlement[key][k] for k in ("path", "sha256")}
+            from native_stand.artifacts.branch_initialization import PREPARATION
+
+            if branch["version"] == PREPARATION:
+                for key in ("source_run", "observed_state", "observed_budget", "output_contract"):
+                    references["branch_" + key] = paths.view(branch[key])
+            else:
+                for key in ("selection", "settlement"):
+                    references["branch_" + key] = paths.view(branch[key])
+                settlement = paths.read(branch["settlement"]["path"])
+                for key in ("selected_checkpoint", "final_checkpoint"):
+                    references[key] = {k: settlement[key][k] for k in ("path", "sha256")}
             references["source_center_binding"] = paths.view(
                 branch["selection_record"]["source_center_binding"]
             )

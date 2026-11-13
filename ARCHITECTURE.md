@@ -141,7 +141,9 @@ wheel-leg / python -m native_stand          cli.py：参数、展示、退出码
 
 Motion目标与能力证据的共同入口为[Motion能力矩阵](docs/MOTION_CAPABILITY_MATRIX.md)，版本`motion_capability_matrix_v1`。涉及Motion课程、奖励/评分、播放器和部署的开发先按该矩阵核对场景约束及证据等级；0.34m基础持续保留，只有平地站立/直线要求双腿对称，转弯允许内倾和腿长差。目标文档不表示运行实现已接通或模型已通过。
 
-配方复用`configs/jobs`，课程/统计/候选复用`tasks/motion`，执行复用生产adapter，逐模型成绩和引用复用`artifacts`及ModelIndex；不新增平行训练、评估或模型索引。矩阵中的基础保留门槛、跨能力解锁和新组合由后续配方及实际消费者显式接线，不回写冻结训练。
+配方复用`configs/jobs`，课程/统计/候选复用`tasks/motion`，执行复用生产adapter，逐模型成绩和引用复用`artifacts`及ModelIndex；不新增平行训练、评估或模型索引。目标按配方及实际消费者逐项接线，不回写冻结训练；当前范围见下述v3准备配方。
+
+`motion48_turn_focus_branch_v3`复用SplitCourse，增加显式focus权重、初始档位、基础保留晋级门槛；stage将75%行进转弯响应门槛传给同一maneuver_statistics，原地自转和旧课程默认不变。未实现全矩阵自动调度或高度前置门槛。u1500的`full_motion_course_preparation_v1`由既有artifacts.branch_initialization读取真实run/state/budget快照及SHA，在完整来源边界只重建课程证据，保留学习状态和独立模型进度；生产adapter复用同一依赖登记、课程、保存恢复，不增加owner或worker。该记录仅支持零额度准备，require_allocated始终拒绝，不能替代终态结算与正式接续。
 
 两者保持task=motion，由不同配置选择`CourseStrategy`中的`SplitCourse`、统计目标与独立候选比较域；同用生产adapter、环境工厂、受控PPO和公共保存/引用。分支初始化在LoadedSource边界显式消费公共选中模型契约，领域层只重建目标/窗口/确认，不重建Actor、Critic、Adam、std、RNG或已完成warmup，也不放宽同run恢复。
 

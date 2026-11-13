@@ -8,6 +8,58 @@ from .runtime_paths import RuntimePaths
 VERSION = "selected_full_training_branch_v1"
 ALLOCATED = "selected_full_bounded_branch_v2"
 ALLOCATED_TRAINING = "selected_full_allocated_branch_v3"
+PREPARATION = "full_motion_course_preparation_v1"
+
+
+def _read_preparation(record, paths):
+    """SHA-bound observation for CPU preparation, never a terminal settlement/grant."""
+    if (
+        record.get("branch") != "motion"
+        or record.get("branch_updates") != 0
+        or record.get("budget_status") != "PREPARATION_ONLY"
+    ):
+        raise ValueError("课程准备记录不能分配额度")
+    values = {}
+    for key in (
+        "source_run",
+        "observed_state",
+        "observed_budget",
+        "output_contract",
+        "center_binding",
+    ):
+        ref = record[key]
+        if file_sha256(paths.resolve(ref["path"])) != ref["sha256"]:
+            raise ValueError("课程准备来源SHA不同: " + key)
+        values[key] = paths.read(ref["path"])
+    selected = paths.view(record["source"])
+    if file_sha256(selected["path"]) != selected["sha256"] or not selected["full_checkpoint"]:
+        raise ValueError("课程准备完整来源SHA不同")
+    state, budget, run = (values[k] for k in ("observed_state", "observed_budget", "source_run"))
+    used = sum(budget["used"].values())
+    historical = run["config"]["assets"]["historical_online_updates"]
+    original = run["config"]["assets"]["original_online_limit"]
+    if (
+        state["run_id"] != run["run_id"]
+        or state["updates_used"] != used
+        or selected["sha256"] != state["latest_model"]["sha256"]
+        or selected["path"] != state["latest_model"]["checkpoint"]
+        or selected["model_local_update"] != state["latest_model"]["update"]
+        or selected["model_local_update"] > used
+        or record["source_model_online_updates"] != historical + selected["model_local_update"]
+        or record["authorization_spent_updates"] != historical + used
+        or record["shared_remaining_updates"] != sum(budget["limits"].values()) - used
+        or record["authorization_spent_updates"] + record["shared_remaining_updates"] != original
+        or record["rolled_back_updates_not_refunded"] is not True
+    ):
+        raise ValueError("课程准备的模型进度与实际消耗不一致")
+    return {
+        **record,
+        "selected": selected,
+        "selection_record": {
+            "source_center_binding": paths.view(record["center_binding"]),
+            "output_contract_sha256": record["output_contract"]["sha256"],
+        },
+    }
 
 
 def read_branch(assets):
@@ -19,6 +71,8 @@ def read_branch(assets):
     if file_sha256(path) != reference["sha256"]:
         raise ValueError("分支初始化契约SHA不同")
     record = read_json(path)
+    if record.get("version") == PREPARATION:
+        return _read_preparation(record, paths)
     if record.get("version") not in (VERSION, ALLOCATED, ALLOCATED_TRAINING) or record.get(
         "branch"
     ) not in (
@@ -79,6 +133,38 @@ def validate_source(job, loaded):
     if record is None:
         return None
     source = loaded.payload
+    if record["version"] == PREPARATION:
+        if (
+            job.limits.smoke_updates
+            or job.limits.formal_updates
+            or job.assets.get("preparation_only") is not True
+            or json_digest(job.assets["branch_course"]) != record["target_course_sha256"]
+            or source.get("model_online_updates") != record["source_model_progress_updates"]
+        ):
+            raise ValueError("课程准备只允许零额度并绑定明确目标与模型进度")
+        paths = RuntimePaths.from_assets(job.assets)
+        original = paths.read(record["source_run"]["path"])["config"]
+        current = job.as_run_record()
+        for key in ("model", "observation", "action", "control", "reward", "ppo"):
+            if json_digest(original[key]) != json_digest(current[key]):
+                raise ValueError("课程准备不得改变来源合同: " + key)
+        for key in (
+            "runtime_template_sha256",
+            "output_contract_sha256",
+            "delayed_execution",
+            "motor_limits",
+            "wheel_contact_dr",
+            "terrain_scene",
+            "source_policy_retention",
+            "source_anchor_identity",
+            "center_definition_canonical_json_sha256",
+            "center",
+            "wheel_identification_sha256",
+            "motion_execution_optimization",
+            "framework_dependency",
+        ):
+            if original["assets"].get(key) != job.assets.get(key):
+                raise ValueError("课程准备不得改变来源执行或保护: " + key)
     if (
         job.initialization.mode != "full"
         or loaded.sha256 != record["selected"]["sha256"]
@@ -117,6 +203,8 @@ def require_allocated(job):
     record = read_branch(job.assets)
     if record is None:
         return None
+    if record["version"] == PREPARATION:
+        raise ValueError("课程准备不是训练分配；必须先完成旧attempt结算和显式接续")
     training = (
         record["version"] == ALLOCATED_TRAINING and record.get("budget_status") == "MOTION_TRAINING"
     )

@@ -53,12 +53,15 @@ def confirmation_execution_identity(job):
 
 
 def prepare_branch_source(source, job, record):
-    from .height_extension import extend_source
+    from native_stand.artifacts.branch_initialization import PREPARATION
 
-    source = extend_source(source, job)
-    from .contact_randomization import extend_source as extend_contact
+    if record["version"] != PREPARATION:
+        from .height_extension import extend_source
 
-    source = extend_contact(source, job)
+        source = extend_source(source, job)
+        from .contact_randomization import extend_source as extend_contact
+
+        source = extend_contact(source, job)
     configuration = job.assets["branch_course"]
     if configuration != job.curriculum.stages[0] or configuration["branch"] != record["branch"]:
         raise ValueError("分支课程、目标和来源选择不一致")
@@ -74,7 +77,9 @@ def prepare_branch_source(source, job, record):
         reward_refinement_state=strategy.implementation.mixtures(stage),
         symmetry_mix_state=strategy.implementation.mixtures(stage, symmetry=True),
         course_updates=0,
-        model_online_updates=record["source_model_online_updates"],
+        model_online_updates=record.get(
+            "source_model_progress_updates", record["source_model_online_updates"]
+        ),
         branch_initialization_record=copy.deepcopy(record),
         source_course_history=dict(
             checkpoint_sha256=record["selected"]["sha256"],
