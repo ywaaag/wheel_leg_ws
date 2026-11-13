@@ -115,3 +115,59 @@ PPO更新、监督round、实际监督优化步和物理子步分别记账。com
 先冻结当前源码SHA并完成对应CPU回归，再执行`wheel-leg cloud-plan --config CONFIG.json --manifest MANIFEST.json --archive BUNDLE.tar`。依赖只沿SHA引用有限展开；缺失/冲突拒绝打包，内容去重，失败保留旧包。Recovery已在旧owner空间边界自然停止，准备包仍不构成正式handoff或接续授权。显式有效依赖可用`--reference PATH SHA256 ROLE`逐条加入；失效旧候选保留为UNAVAILABLE证据，不得改SHA冒充原候选。
 
 在已确认持久盘解包后，按manifest逐条生成`runtime_path_mapping_v1.files`，将每个原path映射到解包根/archive_path；候选源码旧根可用prefixes映射。派生配置只加入assets.path_mapping(path/SHA)、实际source_root和执行资源，不改原始文件。GPU UUID、CUDA映射、输出runs-root与缓存必须按新机器实际填写，不照抄本机授权。保留指定IsaacSim6.2/IsaacLab3镜像、PhysX、uv及LD_LIBRARY_PATH。顺序为环境身份→持久盘/依赖SHA→dry-run→单链有界工程运行→保存恢复→分段计时；本侧不连接、上传或启动。
+
+## Motion MuJoCo网页交互播放
+
+正式链为 `wheel-leg play` → `simulation.playback.plan/create_player/run_loop` →
+`MotionPlayer` → 公共推理factory、共享C编码/解码/PD及`PlaybackExecution`完整V4。
+网页仅复用已有`students.motion_panel.Plan`锁与HTTP命令/遥测服务，不创建第二个物理循环。
+Motion／Recovery播放器只接受轮限矩4.8 N·m，旧轮限矩合同明确拒绝，不静默覆盖。
+
+本机u1500示例（保留数据只读，不导入远端SDK或执行远端环境脚本）：
+
+```bash
+cd /home/kellen/wheel_leg_refactor_ws
+DISPLAY=:2 XAUTHORITY=/home/kellen/.Xauthority \
+PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
+/home/kellen/anaconda3/envs/issaclab/bin/python -B -m native_stand play \
+  --run /home/kellen/wheel_leg_training_data/motion_preservation/20261113_r15_u1500/wheel_leg_motion/runs/2026_11_12__motion_contact_grid_cloud10000_r15_speed \
+  --checkpoint checkpoints/model_update_1500.pt \
+  --checkpoint-sha256 6f84a7f66f64e7a30ca4cf0b4d5a1f78acaf9f3c9e96fbe12c03756624a543d2 \
+  --path-mapping /home/kellen/wheel_leg_training_data/playback/motion_u1500/runtime_paths.json \
+  --terrain-map --solver-profile closure_tight_v1 --panel-port 8765 --no-save
+```
+
+追加`--dry-run`只做文件身份、合同和计划检查，不开引擎/端口。
+`--path-mapping`覆盖的是本次只读执行视图，原run/config/spec及已有RuntimePaths不改。
+示例映射是本机材料，其他机器必须重新核验路径/SHA。远端SDK绝对链接不作为MuJoCo依赖。
+
+打开 `http://127.0.0.1:8765`，初始暂停，点击“继续”开始积分。可发送正负vx/yaw和0.20～0.40m高度，查看待采用与策略实际采用命令、
+FLU前进/yaw速度、root距实际碰撞面高度、FLU roll/pitch、几何左右双轮接触、关节、raw、执行目标、motor与NET。
+接触表示MuJoCo轮—地接触距离≤0，不冒充实机接触传感器或承重认证。缺少的信号显示“不可用”，不补零。
+命令直接写入，没有额外滤波/速率限制/偏置；高度越合同拒绝。网页独占运动控制，GUI方向键/切模键无效。
+关闭网页不会停止仿真，最后命令保持；先按“停止命令”或“暂停”。“关闭播放器”、关闭MuJoCo窗口或启动终端Ctrl+C均可退出。
+网页“停止命令”是vx/yaw归零，并非关闭电机或固定机体位置。
+
+`--terrain-map`是一张16×15m有限碰撞地图，四块原始6×3m H1网格各一块：
+平地初始(0,0)，测试带Y=3～9m，四种地形依配置顺序中心X=-6/-2/+2/+6m。
+网页“重置到此区域”会将运动命令归零、清空控制历史并reset到该地形入口Y=3.1m；
+普通高度/速度修改不reset，手动跨区域不reset。相机跟随机器人，可用MuJoCo鼠标操作旋转和缩放。
+地形外周相邻2cm单元接周围平地，原测试网格顶点不改；这是人工测试布局，不是训练时150×9m重复道路。
+离开地图或闭链残差>5mm会暂停并显示故障，用户重置后继续，不投影状态、不自动补地面。
+
+四种USD与NPZ分别核验冻结配置SHA。周期化NPZ的`vertices_m`为旧副本；加载实际USD碰撞points/faces与
+`height_m`核对后构造MuJoCo高度场。可视几何与碰撞共用此高度场，反馈高度通过该碰撞体的实际垂直射线获得。
+MuJoCo高度场三角划分、接触求解和PhysX静态三角网格不宣称等价。
+`closure_tight_v1`复用已有显式profile：1ms步长不变，闭链solref=0.002/1、solimp=0.9999/0.9999/0.001/0.5/2，
+Newton迭代300；它改变约束柔度，不是硬件标定，接触材质/PD/电机参数不据播放效果拟合。
+原默认profile在u1500短步中触发闭链残差门，不能将其失败隐藏为策略认证。
+
+网页播放始终不保存轨迹、视频、数据集、评估结果、模型或文件日志；实时状态仅在进程与网页内存。
+`--no-save`也可单独用于headless/键盘播放；临时C编译产物仅在`/dev/shm`并在退出时清理。
+不加载训练用Critic/Adam执行优化，不启动训练worker，不写原预算/统计。
+本工具为人工交互测试，不因能播放、短步通过或训练窗口统计授予能力认证。
+
+网页默认仅监听127.0.0.1。显式追加`--panel-host 192.168.250.1`可直接供该网段浏览器控制；
+`--panel-host 0.0.0.0`同时监听本机与所有IPv4接口，使用前确认访问范围。所有客户端共享一个命令通道，最后命令生效。
+本机3006承载HAPI，不占用或替换它；当前已运行的8765转发可继续用，新的直监听实例不能与它同时占用同一地址。
+`DISPLAY=:2 XAUTHORITY=/home/kellen/.Xauthority`指独立Openbox X11会话，不是GNOME虚拟工作区。

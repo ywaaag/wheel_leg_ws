@@ -180,3 +180,17 @@ sim2sim不是训练课程或另一套worker：显式协议经CLI直接顺序拥�
 复用`learning/ppo/performance.py::Measurement`。driver在adapter.build前注入同一`context.measurement`和`adapter.measurement`，GenericPPO再传给ControlledPPO与环境的`set_measurement`。需覆盖构造/reset的后端可声明`Backend.make_measured_env(job, measurement)`，原单参数factory仍有效。计时不参与预算、模型状态、RNG或课程决策。
 
 `section(name, parent=None, synchronize=None)`记录inclusive墙钟；嵌套默认不CUDA同步，hotpath显式False。`count(name, amount=1, reason=None)`累计已知主机计数；`reset()`只在update边界清空窗口，启动摘要另存。域内记录reset行数/full/partial、材质与mass/COM/inertia调用、整池/使用行数、已知传输字节、重建原因、编译和缓存失效；不得为计数新增设备同步。环境重建保持先关闭旧环境，再构造/读回，不能以缓存请求值代替实际后端核验。
+
+## 公共播放器网页与H1碰撞地图
+
+`cli play`通过`playback.plan`读取原run及可选只读RuntimePaths视图，核对模型/资产/动作合同；
+`create_player`复用`learning.inference.from_source`，`run_loop`仍是唯一GUI/headless物理循环。
+`playback_panel`仅适配既有`students.motion_panel`的锁/HTTP handler到Controls，网页拥有命令、GUI键盘不竞争；
+`playback_panel.html`只展示此适配器实际提供的信号。网页会话强制不保存，普通批量播放可显式`--no-save`。
+`playback_terrain`属于场景/后端适配，加载SHA绑定的实际USD碰撞网格与匹配高度数组，构造单一有限MuJoCo高度场，
+碰撞射线是反馈高度唯一来源；不将旧NPZ vertices副本或平面当作rough。
+选择出生区域显式reset，平地与四块H1仍在同一model；不另建场景切换循环。
+4.8 N·m为Motion/Recovery播放器的明确轮限矩边界；求解器profile复用已有实现并显式展示非等价范围。
+
+网页监听由同一播放器`--panel-host/--panel-port`显式配置，默认loopback；无需新增代理或控制循环。
+本机路径映射留数据根，不提交机器运行配置；源码示例只指向已核验的数据材料。

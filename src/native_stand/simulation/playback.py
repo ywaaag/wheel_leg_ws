@@ -37,24 +37,51 @@ class PlaybackPlan:
             physics_steps=0,
             DR="nominal anchor",
             execution="one shared GUI/headless loop",
+            terrain_map=bool(self.assets.get("terrain_map")),
+            solver_profile=self.assets.get("solver_profile", "legacy_xml_v1"),
             capability_accepted=False,
         )
 
 
-def plan(run, checkpoint):
+def plan(
+    run,
+    checkpoint,
+    *,
+    path_mapping=None,
+    checkpoint_sha256=None,
+    terrain_map=False,
+    solver_profile="legacy_xml_v1",
+):
     run = Path(run).resolve()
     record = read_json(run / "run.json")
     if record is None:
         raise ValueError("run.json不存在")
     from native_stand.artifacts.runtime_paths import execution_job
 
-    job = execution_job(job_from_record(record["config"]))
+    config = dict(record["config"])
+    if path_mapping is not None:
+        config["assets"] = dict(
+            config["assets"],
+            path_mapping={
+                "path": str(Path(path_mapping).resolve()),
+                "sha256": file_sha256(path_mapping),
+            },
+        )
+    job = execution_job(job_from_record(config))
     path = Path(checkpoint)
     if not path.is_absolute():
         path = run / path
     path = path.resolve()
     if not path.is_file():
         raise FileNotFoundError(path)
+    if checkpoint_sha256 is not None and file_sha256(path) != checkpoint_sha256:
+        raise ValueError("播放checkpoint SHA不同")
+    if terrain_map:
+        if job.task != "motion":
+            raise ValueError("H1交互地图只支持Motion")
+        from .playback_terrain import load_atlas
+
+        load_atlas(job.assets["terrain_scene"])
     if job.task == "jump":
         from .jump_backend import validate_job
 
@@ -77,8 +104,12 @@ def plan(run, checkpoint):
                 wheel_tau_ms=[0, 0],
             ),
         )
+    if any(job.control.effort_limits_nm[i] != 4.8 for i in (2, 5)):
+        raise ValueError("播放器只接受轮限矩4.8 N·m合同；旧限矩用法已退役")
     if job.task == "motion":
-        template = read_json(job.assets["runtime_template"])
+        from native_stand.artifacts.runtime_paths import execution_json
+
+        template = execution_json(job.assets["runtime_template"], job.assets)
         if file_sha256(job.assets["runtime_template"]) != job.assets["runtime_template_sha256"]:
             raise ValueError("播放器环境模板SHA不同")
         contract_ref = {
@@ -142,6 +173,13 @@ def plan(run, checkpoint):
         0.01,
     ):
         raise ValueError("该执行版本要求显式1/5/10ms时钟")
+    from native_stand.students.mujoco_solver import PROFILES
+
+    if solver_profile not in PROFILES:
+        raise ValueError("未知MuJoCo求解器profile")
+    assets["solver_profile"] = solver_profile
+    assets["terrain_map"] = terrain_map
+    assets["checkpoint_sha256"] = checkpoint_sha256
     return PlaybackPlan(run, path, job, assets, output, timing)
 
 
@@ -153,6 +191,8 @@ class Controls:
     jump_requested: bool = False
     vx: float = 0.0
     yaw: float = 0.0
+    height: float | None = None
+    quit_requested: bool = False
 
     def key(self, keycode):
         if keycode == 32:
@@ -182,15 +222,26 @@ def run_loop(plant, controls, *, steps, viewer=None):
     while steps is None or completed < steps:
         if viewer is not None and not viewer.is_running():
             break
+        if hasattr(controls, "sync"):
+            controls.sync(plant)
+        if controls.quit_requested:
+            break
         if controls.reset_requested:
             plant.reset()
             controls.reset_requested = False
         if not controls.paused:
-            plant.step(controls)
-            completed += 1
+            try:
+                plant.step(controls)
+                completed += 1
+            except (ValueError, FloatingPointError) as error:
+                if not hasattr(controls, "fault"):
+                    raise
+                controls.fault(str(error))
         if viewer is not None:
             now = time.monotonic()
             if controls.paused or now >= render_at:
+                if getattr(plant, "web_owner", False):
+                    viewer.cam.lookat[:] = plant.data.qpos[:3]
                 viewer.sync()
                 render_at = now + 1 / 60
             time.sleep(1 / 60 if controls.paused else max(0.0, plant.physics_dt))
@@ -210,6 +261,9 @@ def create_player(prepared, *, directory=None):
     from .mujoco_playback import MotionPlayer
 
     source = load_actor_source(prepared.checkpoint)
+    expected_sha = prepared.assets.get("checkpoint_sha256")
+    if expected_sha is not None and source.sha256 != expected_sha:
+        raise ValueError("打开的实际模型SHA不同")
     output = source.payload.get("output_contract", source.payload.get("contract"))
     if (
         source.payload.get(
@@ -227,6 +281,19 @@ def create_player(prepared, *, directory=None):
         plant = JumpPlayer(prepared, source.payload, folder)
         binding = dict(ABI=4, path=plant.execution.c.library, sha256=plant.execution.c.library_sha)
         return source, plant, binding, folder
+    if prepared.job.task == "motion":
+        from native_stand.tasks.motion.encoding import INPUT_VERSION
+
+        if source.payload.get("interface_version") != INPUT_VERSION:
+            raise ValueError("Motion checkpoint缺少明确的31D语义版本")
+        if source.payload.get("execution_timing") != prepared.timing:
+            raise ValueError("Motion checkpoint时序与执行合同不同")
+        for field, value in (
+            ("input_leg_q_and_previous_scale_rad", 1.5),
+            ("input_wheel_previous_scale_rad_s", 100.0),
+        ):
+            if output.get(field) != value:
+                raise ValueError("Motion checkpoint输入尺度不同")
     from .control_core import decoder_configuration
 
     if bytes(decoder_configuration(output)) != bytes(
@@ -236,18 +303,70 @@ def create_player(prepared, *, directory=None):
     folder = Path(directory or tempfile.mkdtemp(prefix="wheel-leg-play-"))
     binding = build(folder / "control.so")
     core = ControlCore(binding, output)
-    plant = MotionPlayer(prepared, source.payload, core)
+    from native_stand.learning.inference import from_source, spec_for_job
+
+    inference = from_source(source, spec_for_job(prepared.job, prepared.output_contract))
+    plant = MotionPlayer(prepared, source.payload, core, actor=inference.actor)
     return source, plant, binding, folder
 
 
-def run(prepared, *, headless=False, steps=None):
-    source, plant, binding, folder = create_player(prepared)
-    return _run_player(prepared, source, plant, binding, folder, headless=headless, steps=steps)
+def run(
+    prepared, *, headless=False, steps=None, panel_port=None, panel_host="127.0.0.1", no_save=False
+):
+    import shutil
+    import tempfile
+
+    # Web sessions are always ephemeral, regardless of the recording default for batch playback.
+    no_save = no_save or panel_port is not None
+    # Build products are ephemeral; no-save never writes trajectory/result/log files.
+    folder = Path(tempfile.mkdtemp(prefix="wheel-leg-play-", dir="/dev/shm" if no_save else None))
+    try:
+        source, plant, binding, _ = create_player(prepared, directory=folder)
+        plant.recording = not no_save
+        return _run_player(
+            prepared,
+            source,
+            plant,
+            binding,
+            folder,
+            headless=headless,
+            steps=steps,
+            panel_port=panel_port,
+            panel_host=panel_host,
+            no_save=no_save,
+        )
+    finally:
+        if no_save:
+            shutil.rmtree(folder)
 
 
-def _run_player(prepared, source, plant, binding, folder, *, headless, steps):
+def _run_player(
+    prepared,
+    source,
+    plant,
+    binding,
+    folder,
+    *,
+    headless,
+    steps,
+    panel_port=None,
+    panel_host="127.0.0.1",
+    no_save=False,
+):
+    server = None
     try:
         controls = Controls()
+        if panel_port is not None:
+            if prepared.job.task != "motion":
+                raise ValueError("网页交互目前只支持Motion")
+            from .playback_panel import WebControls, start
+
+            controls = WebControls(plant)
+            server, _ = start(controls.plan, panel_port, host=panel_host)
+            print(
+                f"Motion panel http://{panel_host}:{server.server_port} (no-save={no_save})",
+                flush=True,
+            )
         if headless:
             if steps is None or steps < 1:
                 raise ValueError("headless必须给出正整数--steps")
@@ -258,17 +377,23 @@ def _run_player(prepared, source, plant, binding, folder, *, headless, steps):
             with mujoco.viewer.launch_passive(
                 plant.model, plant.data, key_callback=controls.key
             ) as viewer:
+                viewer.cam.distance = 2.5
+                viewer.cam.elevation = -20
+                viewer.cam.lookat[:] = plant.data.qpos[:3]
                 result = run_loop(plant, controls, steps=steps, viewer=viewer)
-        from native_stand.artifacts.io import write_json, write_npz
-
-        write_npz(folder / "trace.npz", plant.trace())
         result.update(
-            checkpoint=str(source.path),
-            sha256=source.sha256,
-            C_core=binding,
-            trace_output=str(folder / "trace.npz"),
+            checkpoint=str(source.path), sha256=source.sha256, C_core=binding, saved=not no_save
         )
-        write_json(folder / "result.json", result)
+        if not no_save:
+            from native_stand.artifacts.io import write_json, write_npz
+
+            write_npz(folder / "trace.npz", plant.trace())
+            result["trace_output"] = str(folder / "trace.npz")
+            write_json(folder / "result.json", result)
         return result
     finally:
+        if server is not None:
+            from native_stand.students.motion_panel import stop
+
+            stop(server)
         plant.close()

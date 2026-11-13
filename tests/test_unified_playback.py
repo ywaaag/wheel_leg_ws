@@ -21,6 +21,7 @@ FROZEN_TEST_SCOPE='PORTABLE'
 def test_play_dry_run_no_model_deserialize_build_engine_or_ports(tmp_path,monkeypatch,capsys):
     from dataclasses import replace
     job,contract=make_job(tmp_path,retention=False)
+    job=replace(job,control=replace(job.control,effort_limits_nm=(40.,40.,4.8,40.,40.,4.8)))
     usd=tmp_path/'asset.usd';usd.write_bytes(b'CPU-boundary-USD-fixture')
     template=json.loads(Path(job.assets['runtime_template']).read_text())
     template.update(asset_sha256=file_sha256(usd),asset_path=str(usd))

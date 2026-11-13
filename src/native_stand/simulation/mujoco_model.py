@@ -18,7 +18,14 @@ def _pose(t):
 
 
 def model_from_description(
-    description, *, V4_contract=None, mechanics=None, physical_probe=False, scene=None
+    description,
+    *,
+    V4_contract=None,
+    mechanics=None,
+    physical_probe=False,
+    scene=None,
+    terrain=None,
+    motor_caps=None,
 ):
     import mujoco
 
@@ -29,7 +36,7 @@ def model_from_description(
     ET.SubElement(xml, "compiler", angle="radian", fusestatic="false", balanceinertia="false")
     ET.SubElement(xml, "option", timestep=".001", gravity="0 0 -9.81")
     world = ET.SubElement(xml, "worldbody")
-    ET.SubElement(
+    ground = ET.SubElement(
         world,
         "geom",
         name="ground",
@@ -41,6 +48,9 @@ def model_from_description(
         pos=f"0 0 {scene.ground_z_m}",
         solref=".008 1",
     )
+    if terrain is not None:
+        world.remove(ground)
+        terrain.author(xml, world, scene)
     root = ET.SubElement(
         world, "body", name="robot", pos="0 0 .34", quat=".7071067811865476 .7071067811865476 0 0"
     )
@@ -129,7 +139,9 @@ def model_from_description(
     if physical_probe:
         act = ET.SubElement(xml, "actuator")
         for name, cap in zip(
-            CHANNELS, [40.0, 40.0, 2.44694786377709, 40.0, 40.0, 2.44694786377709], strict=False
+            CHANNELS,
+            motor_caps or [40.0, 40.0, 4.8, 40.0, 40.0, 4.8],
+            strict=False,
         ):
             ET.SubElement(
                 act,
@@ -158,6 +170,8 @@ def model_from_description(
                         solref=".008 1",
                     )
     model = mujoco.MjModel.from_xml_string(ET.tostring(xml, encoding="unicode"))
+    if terrain is not None:
+        terrain.install(model)
     refs = {n: mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, n) for n in names}
     for n in CHANNELS:
         j = refs[n]

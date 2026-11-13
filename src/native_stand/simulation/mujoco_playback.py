@@ -17,7 +17,7 @@ from .playback_execution import WHEELS, PlaybackExecution
 
 
 class MotionPlayer:
-    def __init__(self, plan, payload, core):
+    def __init__(self, plan, payload, core, *, actor=None):
         import mujoco
 
         self.mj = mujoco
@@ -30,12 +30,35 @@ class MotionPlayer:
         self.initials = initial_catalog(
             self.scene_config, read_json(refs["initial_states"]["path"])
         )
+        self.terrain = None
+        if plan.assets.get("terrain_map"):
+            from .playback_terrain import load_atlas
+
+            self.terrain = load_atlas(plan.job.assets["terrain_scene"])
+            self.ground_height = self.terrain.height
+        self.spawn = "flat"
+        self.recording = True
+        self.reset_count = -1
         self.model, self.refs = model_from_description(
             read_json(refs["description"]["path"]),
             V4_contract=read_json(refs["V4"]["path"]),
             mechanics=self.initials["mechanics"],
             physical_probe=True,
             scene=self.scene_config,
+            terrain=self.terrain,
+            motor_caps=list(plan.job.control.effort_limits_nm),
+        )
+        from native_stand.students.mujoco_solver import apply as apply_solver
+
+        solver_refs = dict(
+            ground=mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "ground"),
+            wheels=[
+                mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, n)
+                for n in ("left_wheel", "right_wheel")
+            ],
+        )
+        self.solver_readback = apply_solver(
+            self.model, solver_refs, plan.assets.get("solver_profile", "legacy_xml_v1")
         )
         self.data = mujoco.MjData(self.model)
         self.qids = np.array([self.model.jnt_qposadr[self.refs[n]] for n in CHANNELS])
@@ -48,9 +71,10 @@ class MotionPlayer:
             core, read_json(refs["V4"]["path"]), plan.timing, plan.job.control, lower, upper
         )
         self.actor_spec = spec_for_job(plan.job, plan.output_contract)
-        self.actor = build_actor(self.actor_spec)
-        self.actor = self.actor.cpu().eval().requires_grad_(False)
-        self.actor.load_state_dict(payload["actor"], strict=True)
+        self.actor = actor
+        if self.actor is None:
+            self.actor = build_actor(self.actor_spec).cpu().eval().requires_grad_(False)
+            self.actor.load_state_dict(payload["actor"], strict=True)
         self.teacher = None
         self.teacher_core = None
         if plan.job.task == "motion" and plan.job.assets.get("prefix_onnx"):
@@ -81,6 +105,8 @@ class MotionPlayer:
         if pose is None:
             raise ValueError("播放高度缺少闭链合法初态")
         root = np.array(pose["root_pose_xyzw"])
+        if self.terrain is not None:
+            root[:2] = self.terrain.spawns[self.spawn]
         self.data.qpos[:3] = root[:3]
         self.data.qpos[2] += float(self.ground_height(root[None, :2])[0])
         self.data.qpos[3:7] = root[[6, 3, 4, 5]]
@@ -89,6 +115,10 @@ class MotionPlayer:
             self.data.qvel[self.model.jnt_dofadr[j]] = pose["joint_velocity"][name]
         self.mj.mj_forward(self.model, self.data)
         self.execution.reset(self.data.qpos[self.qids], self.data.qvel[self.vids])
+        self.policy_ticks = 0
+        self.last_record = None
+        self.reset_count += 1
+        self.records.clear()
         if self.teacher_core is not None:
             self.teacher_core.adopted = self.execution.core.adopted
 
@@ -96,6 +126,8 @@ class MotionPlayer:
         e = self.execution
         d = self.data
         m = self.model
+        if self.terrain is not None:
+            self.terrain.check_bounds(d.qpos[None, :2])
         if self.plan.job.task == "recovery" and (controls.vx or controls.yaw):
             raise ValueError("Recovery播放只接受冻结静止命令")
         if e.tick % 10 == 0:
@@ -103,7 +135,14 @@ class MotionPlayer:
             gyro = rotation.T @ d.cvel[self.robot_body, :3]
             gravity = rotation.T @ np.array([0.0, 0.0, -1.0])
             command = np.array(
-                [controls.vx, controls.yaw, self.plan.job.control.height_command_m], np.float32
+                [
+                    controls.vx,
+                    controls.yaw,
+                    self.plan.job.control.height_command_m
+                    if controls.height is None
+                    else controls.height,
+                ],
+                np.float32,
             )
             observation = e.observation(
                 gyro, gravity, command, skill=0 if self.plan.job.task == "motion" else 1
@@ -132,6 +171,7 @@ class MotionPlayer:
             e.submit(requested)
             self.policy_ticks += 1
             self.last_record = dict(
+                command=command.copy(),
                 raw=raw.copy(),
                 requested=requested.copy(),
                 previous=e.core.adopted.copy(),
@@ -142,7 +182,7 @@ class MotionPlayer:
         d.ctrl[:] = motor
         d.qfrc_applied[:] = 0.0
         d.qfrc_applied[self.vids] = NET
-        if self.last_record is not None and (e.tick - 1) % 10 == 0:
+        if self.recording and self.last_record is not None and (e.tick - 1) % 10 == 0:
             self.records.append(
                 dict(
                     self.last_record,
@@ -163,6 +203,57 @@ class MotionPlayer:
             b = self.mj.mj_name2id(m, self.mj.mjtObj.mjOBJ_SITE, f"loop{i}b")
             if np.linalg.norm(d.site_xpos[a] - d.site_xpos[b]) > 0.005:
                 raise ValueError("播放器闭链残差超过5mm；未投影状态")
+
+    def telemetry(self):
+        from scipy.spatial.transform import Rotation
+
+        d, m, mj = self.data, self.model, self.mj
+        rotation = d.xmat[self.robot_body].reshape(3, 3)
+        flu = rotation[:, [2, 0, 1]] * np.array([-1.0, -1.0, 1.0])
+        velocity = np.empty(6)
+        mj.mj_objectVelocity(m, d, mj.mjtObj.mjOBJ_BODY, self.robot_body, velocity, 0)
+        roll, pitch, _ = Rotation.from_matrix(flu).as_euler("xyz")
+        contacts = {"left_wheel": False, "right_wheel": False}
+        for contact in d.contact:
+            a, b = contact.geom
+            for robot, ground in [(a, b), (b, a)]:
+                if m.geom_bodyid[ground] != 0 or contact.dist > 0:
+                    continue
+                body = mj.mj_id2name(m, mj.mjtObj.mjOBJ_BODY, m.geom_bodyid[robot])
+                if body in contacts:
+                    contacts[body] = True
+        try:
+            ground = float(self.ground_height(d.qpos[None, :2])[0])
+        except ValueError:
+            ground = None
+        cmd = None if self.last_record is None else self.last_record["command"].tolist()
+        return dict(
+            simulation_time_s=float(d.time),
+            steps=self.execution.tick,
+            resets=self.reset_count,
+            adopted_command=cmd,
+            vx=float(velocity[3:] @ flu[:, 0]),
+            yaw=float(velocity[:3] @ flu[:, 2]),
+            height=None if ground is None else float(d.qpos[2] - ground),
+            root_z=float(d.qpos[2]),
+            ground_z=ground,
+            roll=float(roll),
+            pitch=float(pitch),
+            contact_geometric_right=contacts["left_wheel"],
+            contact_geometric_left=contacts["right_wheel"],
+            q=d.qpos[self.qids].tolist(),
+            dq=d.qvel[self.vids].tolist(),
+            raw=None if self.last_record is None else self.last_record["raw"].tolist(),
+            requested=self.execution.requested.tolist(),
+            adopted=self.execution.core.adopted.tolist(),
+            motor=self.execution.motor.tolist(),
+            NET=self.execution.NET.tolist(),
+            position_xy=d.qpos[:2].tolist(),
+            spawn=self.spawn,
+            terrain="flat" if self.terrain is None else self.terrain.region(d.qpos[:2]),
+            solver_profile=self.solver_readback["version"],
+            owner="web" if getattr(self, "web_owner", False) else "keyboard",
+        )
 
     def trace(self):
         if not self.records:

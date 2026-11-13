@@ -32,6 +32,7 @@ class PlaybackExecution:
         self.control = control
         if timing["version"] not in (
             "motion_v4_wheel_reported_delay_actor20_dr_v1",
+            "motion48_v4_wheel_reported_delay_actor20_dr_v2",
             "recovery_complete_V4_actor20_target5_wheel7_11_v1",
         ):
             raise ValueError("播放器需要明确的V4/观测/运输时序版本")

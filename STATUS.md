@@ -1,5 +1,17 @@
 # 当前任务
 
+
+## Motion MuJoCo交互播放器（2026-11-13）
+
+已纳入统一`wheel-leg play`，复用公共GUI/headless循环、推理factory、共享C/V4和既有网页命令服务。
+支持SHA绑定模型/本机RuntimePaths、平地＋四种H1单地图、显式区域reset、网页独占控制、实际状态反馈与不保存模式。
+Motion/Recovery轮限矩仅接受4.8 N·m；求解器profile显式选择，非PhysX等价。默认网页仅loopback，局域网用`--panel-host`显式配置。
+当前用法见README“Motion MuJoCo网页交互播放”；本机映射留数据根`playback/motion_u1500/runtime_paths.json`，不把远端SDK链接当本机依赖。
+独立Openbox桌面使用`DISPLAY=:2 XAUTHORITY=/home/kellen/.Xauthority`，不是GNOME虚拟工作区。
+旧播放器worktree作为原运行版本保留，不热改/重启；后续新播放使用main。短步/网页可操作不构成模型能力认证。
+集成验证：相关44通过；portable1979通过/31既有skip/10warning（133.96s），架构212/0，Ruff0.8.4 check及211文件format通过。
+集成版真实u1500无保存200步通过；原五区域/网页交互证据保持原版本身份。机器映射与审阅收据位于上述数据根。
+
 ## Motion开训前审阅与欠转诊断（2026-11-13）
 
 在独立`motion/pretrain-gate-audit`分支复核保留的15个训练统计窗口。正式SplitCourse.advance的基础保留门槛：u100失败（DR±2rad/s自转），u200～u1500全部通过；近期连续6窗未见结构性晋级阻断。新75%行进转向评分缺逐回合记录，重评UNKNOWN。逐cohort结果及来源SHA位于数据根`motion_pretrain_audit/20261113_turn_focus_v3/`。
