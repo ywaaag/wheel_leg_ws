@@ -52,11 +52,14 @@ def test_untrained_falling_and_nonwheel_contact_are_task_events():
         ("root", [[float("nan")] * 13], "nonfinite readback"),
     ],
 )
-def test_formal_host_consumer_rejects_physical_failure_before_caching(field, value, message):
+def test_formal_host_consumer_rejects_physical_failure_before_caching(
+    field, value, message, tmp_path
+):
     values = packet()
     values[field] = np.asarray(value)
     env = IsaacJump.__new__(IsaacJump)
     env.num_envs = 1
+    env.output = tmp_path
     env.measurement = Measurement(False, "cpu")
     env.scene = SimpleNamespace(
         actual_ticks=21,
@@ -67,3 +70,9 @@ def test_formal_host_consumer_rejects_physical_failure_before_caching(field, val
     with pytest.raises(RuntimeError, match=message):
         env.host()
     assert not hasattr(env, "_host_cache")
+    from native_stand.artifacts.io import read_json
+
+    failure = read_json(tmp_path / "physical_failure.json")
+    assert failure["actual_engine_tick"] == 21
+    assert message in failure["error"]
+    assert failure["minimum_clearance_row"] == 0

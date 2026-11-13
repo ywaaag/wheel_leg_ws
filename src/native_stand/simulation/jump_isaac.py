@@ -272,7 +272,33 @@ class IsaacJump:
                 start += width
         from native_stand.simulation.jump_isaac_scene import validate_physical_measurement
 
-        validate_physical_measurement(host)
+        try:
+            validate_physical_measurement(host)
+        except RuntimeError as exc:
+            # Keep the actual rejected packet: the optimizer checkpoint cannot
+            # reconstruct PhysX's hidden contact state after a fresh reset.
+            row = int(np.argmin(host["clearance"]) // 2)
+            try:
+                write_json(
+                    self.output / "physical_failure.json",
+                    dict(
+                        error=str(exc),
+                        actual_engine_tick=self.scene.actual_ticks,
+                        reset_epoch=self.scene.reset_epoch,
+                        minimum_clearance_row=row,
+                        measured={
+                            name: (
+                                value[row].tolist()
+                                if np.isfinite(value[row]).all()
+                                else value[row].astype(str).tolist()
+                            )
+                            for name, value in host.items()
+                        },
+                    ),
+                )
+            except OSError as evidence_error:
+                exc.add_note(f"Physical failure evidence write failed: {evidence_error}")
+            raise
         self._host_key, self._host_cache = key, host
         return host
 
