@@ -1,6 +1,6 @@
 # Native 闭链轮腿机器人训练
 
-统一入口为 `wheel-leg`，源码在 `src/native_stand`。当前工程支持Motion／Spin、Recovery，以及Jump ABI4 MuJoCo CPU链；CPU工程验证不代表真实物理、GPU、云端或能力认证。当前事实与限制见STATUS和迁移报告首页。
+统一入口为 `wheel-leg`，源码在 `src/native_stand`。公共重构迁移已按本地tag `refactor-migration-v1`（`1cc65e1`）验收结项；后续开发从main建立独立分支/worktree。main已有Motion／Spin、Recovery v8，以及Jump ABI4 MuJoCo CPU链。领域分支的新Recovery v9与Jump Isaac GPU实现不自动属于main支持范围；它们按普通扩展任务独立验收。CPU工程通过不代表模型能力或所有平台认证。
 
 ## 主仓与本地依赖
 
@@ -80,13 +80,13 @@ PPO更新、监督round、实际监督优化步和物理子步分别记账。com
 - 当前任务、负责人与证据入口：`STATUS.md`
 - 模块职责与依赖方向：`ARCHITECTURE.md`
 - 协作规则与物理约定：`AGENTS.md`
-- 迁移范围、删除清单与未完成项：`docs/MIGRATION_20261105.md`
+- 已结项迁移的冻结范围与历史证据：`docs/MIGRATION_20261105.md`
 
 ## 验证与云端
 
-最终命令、源码SHA和结果在 `artifacts/integration/`，参见迁移报告首页。架构检查 `python scripts/check_architecture.py`；CI使用Ruff0.8.4，范围见 `.github/workflows/cpu.yml`。
+冻结验收命令、源码SHA与结果在 `artifacts/integration_final/performance_delivery.json`，数据根归档为 `integration/performance_observability/b60f0d7`；运行证据不随Git clone提供。新开发按AGENTS、ARCHITECTURE与PR模板交付：`python scripts/check_architecture.py --base refactor-migration-v1`；无参数仍只检查正式源码。CI使用Ruff0.8.4并取得完整历史/tag，范围见 `.github/workflows/cpu.yml`。当前没有remote或required checks，不能声称平台已强制阻止合并。
 
-云端包是准备材料，活动Recovery快照不是最终handoff。SSH、持久盘、镜像和GPU映射尚待确认；不连接、不上传、不安装或启动。保留PhysX与镜像LD_LIBRARY_PATH。ORT、ARM、实机与真实引擎验证未执行；ONNX reference evaluator通过不能替代它们。
+云端包与运行收据绑定各自源码版本；Motion已有owner管理的远端运行，不能继续以旧“尚未启动”快照代表当前事实，也不能将其结果外推Recovery/Jump。新任务按实际持久盘、镜像、GPU映射和授权准备；保留PhysX与镜像LD_LIBRARY_PATH。ORT、ARM、实机及各后端能力以对应证据为准；ONNX reference evaluator不能替代它们。本轮治理不连接远端或操作训练。
 
 ## 实时跨引擎诊断协议
 
