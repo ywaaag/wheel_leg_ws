@@ -1,5 +1,10 @@
 # 当前任务
 
+## 本体感知自动交接试验版（2026-11-13）
+
+用户指定机器人本体感知，电控015集成默认安全→使能先Recovery再自动接Motion。新pose gate不读取groundtruth高度/支撑；纯编码器构型+IMU+新鲜度持续200ms。posture200ms_r2七组中6组0.60–0.94s接管后保持12秒以上，另1组交接前失败，实际157180子步/90.11s。portable2011通过/31skip，架构与Ruff通过。固件hex/bin、操作和限制在独立电控仓firmware/recovery2100_motion015；本体门不证明触地，未实机输出。
+
+
 ## Recovery2100→015 Motion交接（2026-11-13）
 
 本任务在`recovery/motion-handoff`复用正式`wheel-leg sim2sim`、公共推理/ControlCore/RecoveryMuJoCoCollection，不新增训练生命周期。电控基于015最新`786a2c5`，独立分支`feature/rl-supported015-recovery2100`，使用原31D Motion。7个development Swing条件×3方案实际471540个子步；Recovery-only、100ms、200ms均6/7保持10秒，共同失败在交接前且trace相同。优先200ms，成功条件0.61–0.95s交接。新模块portable2011通过/31既有skip；能力仍限已测development条件，非硬件放行。原始证据：数据根`recovery_motion_handoff/firmware_motion015_swing7_r4_evidence/REPORT.md`。实机高度/双轮支撑证据生产者尚未验证，缺证据不得自动交接。
