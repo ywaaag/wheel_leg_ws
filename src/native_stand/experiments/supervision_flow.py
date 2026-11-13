@@ -55,6 +55,8 @@ def execute(
         raise ValueError("Old supervision state needs an explicit collection/split import")
     if state["identity"] != semantic_identity(recipe):
         raise ValueError("Teacher/data/routing/label semantics changed on resume")
+    if state.get("review_required"):
+        return state, False
     state.setdefault("collections", [recipe.dataset])
     teachers = [
         Teacher(
@@ -67,6 +69,8 @@ def execute(
         )
         for t in recipe.teachers
     ]
+    for teacher in teachers:
+        teacher.model.actor.to(job.runtime.device)
     dependencies = [dict(path=t.path, sha256=t.sha256) for t in recipe.teachers]
     dependencies += [dict(recipe.dataset), *recipe.rehearsal]
     if recipe.initial_student:
@@ -82,340 +86,487 @@ def execute(
             index.register(
                 ModelReference(ref["sha256"], ref["path"], ("distillation",), run=str(root))
             )
+    environment = None
     phases = list(recipe.phases) * recipe.repetitions
-    for cursor in range(state["phase_cursor"], len(phases)):
-        if stop_requested():
-            return state, False
-        phase = phases[cursor]
-        folder = root / f"phase_{cursor:03d}_{phase.operation}"
-        folder.mkdir(exist_ok=True)
-        if phase.operation == "collect":
-            if collector is None:
-                from native_stand.simulation.collection import collect
-
-                collector = collect
-            source = state.get("latest") or recipe.initial_student
-            if source is None:
-                raise ValueError("Student collection requires explicit incumbent")
-            options = {}
-            if collector.__module__ == "native_stand.simulation.collection":
-                options = dict(
-                    stop_requested=stop_requested,
-                    required_conditions=tuple(
-                        set().union(*(t.conditions or {} for t in recipe.teachers))
-                    ),
-                )
-            ref = collector(
-                job, source, recipe.student, phase.steps, folder, on_physical_steps, **options
-            )
-            state["dataset"] = ref
-            if not ref.get("complete", True):
-                write_json(state_file, state)
-                if index:
-                    from native_stand.artifacts.dataset import expand_sources
-                    from native_stand.artifacts.model_refs import ModelReference
-
-                    for chunk in expand_sources(ref, paths=paths):
-                        index.register(
-                            ModelReference(
-                                chunk["sha256"],
-                                chunk["path"],
-                                ("distillation",),
-                                run=str(root),
-                                kind="collection_chunk",
-                            )
-                        )
+    try:
+        for cursor in range(state["phase_cursor"], len(phases)):
+            if stop_requested():
                 return state, False
-            state["collections"].append(ref)
-        elif phase.operation == "label":
-            from native_stand.artifacts.dataset import (
-                expand_sources,
-                read_source,
-                rehearsal_sources,
-                unique_sources,
-            )
+            phase = phases[cursor]
+            folder = root / f"phase_{cursor:03d}_{phase.operation}"
+            folder.mkdir(exist_ok=True)
+            if phase.operation == "collect":
+                if collector is None:
+                    from native_stand.simulation.collection import collect
 
-            sources = []
-            for ref in state["collections"]:
-                if ref.get("kind") == "legacy_episode_index_v1":
-                    from native_stand.artifacts.dataset import import_episode_index
-
-                    sources.extend(
-                        import_episode_index(
-                            ref["path"], folder / "imported_view.json", paths=paths
-                        )["sources"]
+                    collector = collect
+                source = state.get("latest") or recipe.initial_student
+                behavior_spec = recipe.student
+                if phase.policy != "student":
+                    behavior = next(t for t in recipe.teachers if t.name == phase.policy)
+                    source = dict(path=behavior.path, sha256=behavior.sha256)
+                    behavior_spec = behavior.inference
+                if source is None:
+                    raise ValueError("Student collection requires explicit incumbent")
+                options = {}
+                if collector.__module__ == "native_stand.simulation.collection":
+                    options = dict(
+                        stop_requested=stop_requested,
+                        required_conditions=tuple(
+                            set().union(*(t.conditions or {} for t in recipe.teachers))
+                        ),
                     )
-                else:
-                    sources.extend(expand_sources(ref, paths=paths))
-            for ref in recipe.rehearsal:
-                sources.extend(rehearsal_sources(ref, paths=paths))
-            sources = unique_sources(sources)
-            chunks = [read_source(r) for r in sources]
-            # Sources may carry different extra telemetry. Only the conditions
-            # actually used by this Teacher set must exist in every source;
-            # missing routing evidence is still rejected, never filled with 0.
-            names = set().union(*(teacher.conditions for teacher in teachers))
-            if any(not names <= chunk["conditions"].keys() for chunk in chunks):
-                raise ValueError("Rehearsal routing conditions are incomplete")
-            from native_stand.artifacts.dataset import physical_keys, sample_keys
-
-            # Deduplicate actual samples, including aliases reached through views.
-            seen = set()
-            for ref, chunk in zip(sources, chunks, strict=True):
-                ids = sample_keys(ref, chunk)
-                mask = np.array([key not in seen and not seen.add(key) for key in ids])
-                for key in (
-                    "states",
-                    "episodes",
-                    "physical_episode_keys",
-                    "roles",
-                    "sample_ids",
-                    "control_owner",
-                    "behavior_valid",
+                if (
+                    collector.__module__ == "native_stand.simulation.collection"
+                    and job.backend == "isaac_recovery"
                 ):
-                    if chunk.get(key) is not None:
-                        chunk[key] = chunk[key][mask]
-                chunk["conditions"] = {k: v[mask] for k, v in chunk["conditions"].items()}
-            # Same physical episode keeps the same global key across Teachers.
-            episode_keys = []
-            for r, chunk in zip(sources, chunks, strict=True):
-                episode_keys.extend(physical_keys(r, chunk))
-            key_ids = {key: i for i, key in enumerate(sorted(set(episode_keys)))}
-            data = dict(
-                states=np.concatenate([c["states"] for c in chunks]),
-                episodes=np.array([key_ids[k] for k in episode_keys]),
-            )
-            conditions = {
-                key: np.concatenate([c["conditions"][key] for c in chunks]) for key in names
-            }
-            labels, owner, valid = label(
-                teachers,
-                torch.from_numpy(data["states"]),
-                conditions,
-                ActionLabels(**recipe.student_labels),
-                student_kind=recipe.student["kind"],
-            )
-            behavior_valid = np.concatenate(
-                [
-                    c["behavior_valid"]
-                    if c.get("behavior_valid") is not None
-                    else np.ones(len(c["states"]), dtype=bool)
-                    for c in chunks
+                    if environment is None:
+                        from native_stand.simulation.collection import make_environment
+
+                        environment = make_environment(job)
+                    else:
+                        reset = getattr(environment, "reset_collection", None)
+                        if reset is None:
+                            raise ValueError("Backend lacks explicit fresh collection reset")
+                        reset()
+                    options["environment"] = environment
+                ref = collector(
+                    job, source, behavior_spec, phase.steps, folder, on_physical_steps, **options
+                )
+                state["dataset"] = ref
+                if not ref.get("complete", True):
+                    write_json(state_file, state)
+                    if index:
+                        from native_stand.artifacts.dataset import expand_sources
+                        from native_stand.artifacts.model_refs import ModelReference
+
+                        for chunk in expand_sources(ref, paths=paths):
+                            index.register(
+                                ModelReference(
+                                    chunk["sha256"],
+                                    chunk["path"],
+                                    ("distillation",),
+                                    run=str(root),
+                                    kind="collection_chunk",
+                                )
+                            )
+                    return state, False
+                state["collections"].append(ref)
+            elif phase.operation == "label":
+                from native_stand.artifacts.dataset import (
+                    expand_sources,
+                    read_source,
+                    rehearsal_sources,
+                    unique_sources,
+                )
+
+                sources = []
+                for ref in state["collections"]:
+                    if ref.get("kind") == "legacy_episode_index_v1":
+                        from native_stand.artifacts.dataset import import_episode_index
+
+                        sources.extend(
+                            import_episode_index(
+                                ref["path"], folder / "imported_view.json", paths=paths
+                            )["sources"]
+                        )
+                    else:
+                        sources.extend(expand_sources(ref, paths=paths))
+                for ref in recipe.rehearsal:
+                    sources.extend(rehearsal_sources(ref, paths=paths))
+                sources = unique_sources(sources)
+                chunks = [read_source(r) for r in sources]
+                # Sources may carry different extra telemetry. Only the conditions
+                # actually used by this Teacher set must exist in every source;
+                # missing routing evidence is still rejected, never filled with 0.
+                names = set().union(*(teacher.conditions for teacher in teachers))
+                if recipe.objective:
+                    names.add("recovery_phase")
+                if any(not names <= chunk["conditions"].keys() for chunk in chunks):
+                    raise ValueError("Rehearsal routing conditions are incomplete")
+                from native_stand.artifacts.dataset import physical_keys, sample_keys
+
+                # Deduplicate actual samples, including aliases reached through views.
+                seen = set()
+                for ref, chunk in zip(sources, chunks, strict=True):
+                    ids = sample_keys(ref, chunk)
+                    mask = np.array([key not in seen and not seen.add(key) for key in ids])
+                    for key in (
+                        "states",
+                        "episodes",
+                        "physical_episode_keys",
+                        "roles",
+                        "sample_ids",
+                        "control_owner",
+                        "behavior_valid",
+                    ):
+                        if chunk.get(key) is not None:
+                            chunk[key] = chunk[key][mask]
+                    chunk["conditions"] = {k: v[mask] for k, v in chunk["conditions"].items()}
+                # Same physical episode keeps the same global key across Teachers.
+                episode_keys = []
+                for r, chunk in zip(sources, chunks, strict=True):
+                    episode_keys.extend(physical_keys(r, chunk))
+                key_ids = {key: i for i, key in enumerate(sorted(set(episode_keys)))}
+                data = dict(
+                    states=np.concatenate([c["states"] for c in chunks]),
+                    episodes=np.array([key_ids[k] for k in episode_keys]),
+                )
+                conditions = {
+                    key: np.concatenate([c["conditions"][key] for c in chunks]) for key in names
+                }
+                labels, owner, valid = label(
+                    teachers,
+                    torch.from_numpy(data["states"]),
+                    conditions,
+                    ActionLabels(**recipe.student_labels),
+                    student_kind=recipe.student["kind"],
+                )
+                behavior_valid = np.concatenate(
+                    [
+                        c["behavior_valid"]
+                        if c.get("behavior_valid") is not None
+                        else np.ones(len(c["states"]), dtype=bool)
+                        for c in chunks
+                    ]
+                )
+                valid &= torch.from_numpy(behavior_valid).bool()
+                from native_stand.artifacts.dataset import create_view
+
+                normalized = [
+                    {**r, "collection_id": r.get("collection_id", r["sha256"])} for r in sources
                 ]
-            )
-            valid &= torch.from_numpy(behavior_valid).bool()
-            from native_stand.artifacts.dataset import create_view
-
-            normalized = [
-                {**r, "collection_id": r.get("collection_id", r["sha256"])} for r in sources
-            ]
-            if any(r.get("role") == "holdout" for r in recipe.rehearsal):
-                raise ValueError("Final holdout cannot be rehearsal")
-            if (
-                state.get("aggregate")
-                and file_sha256(state["aggregate"]["path"]) != state["aggregate"]["sha256"]
-            ):
-                raise ValueError("Accumulated split/view identity differs")
-            previous = (
-                paths.view(read_json(state["aggregate"]["path"]))
-                if state.get("aggregate")
-                else None
-            )
-            view = create_view(
-                folder / "view.json",
-                normalized,
-                previous=previous,
-                seed=job.runtime.seed,
-                fractions=(
-                    1 - recipe.validation_fraction - recipe.holdout_fraction,
-                    recipe.validation_fraction,
-                    recipe.holdout_fraction,
-                ),
-            )
-            state["aggregate"] = dict(
-                path=str((folder / "view.json").resolve()),
-                sha256=file_sha256(folder / "view.json"),
-                kind="episode_dataset_view_v1",
-            )
-            roles = np.array([view["episode_roles"][key] for key in episode_keys])
-            teacher_records = [
-                dict(
-                    name=t.name,
-                    sha256=t.model.source.sha256,
-                    input_contract=t.model.spec.input_contract,
-                    output_contract=t.model.spec.output_contract,
-                    label_transform=recipe.teachers[i].labels,
+                if any(r.get("role") == "holdout" for r in recipe.rehearsal):
+                    raise ValueError("Final holdout cannot be rehearsal")
+                if (
+                    state.get("aggregate")
+                    and file_sha256(state["aggregate"]["path"]) != state["aggregate"]["sha256"]
+                ):
+                    raise ValueError("Accumulated split/view identity differs")
+                previous = (
+                    paths.view(read_json(state["aggregate"]["path"]))
+                    if state.get("aggregate")
+                    else None
                 )
-                for i, t in enumerate(teachers)
-            ]
-            provenance = dict(
-                teachers=teacher_records,
-                actual_owner_column="teacher_owner",
-                label_space=recipe.student_labels,
-                input_version=job.model.interface,
-                action_version=job.action.version,
-                action_units="policy_output",
-                action_dim=job.action.dim,
-                teacher_set=state["identity"],
-            )
-            output = folder / "labels.npz"
-            write_npz(
-                output,
-                dict(
-                    states=data["states"],
-                    episodes=np.array(data["episodes"]),
-                    teacher_actions=labels.numpy(),
-                    valid=valid.numpy(),
-                    teacher_owner=owner.numpy(),
-                    roles=roles,
-                    physical_episode_keys=np.array(episode_keys),
-                    sample_ids=np.array(
-                        [
-                            key
-                            for r, c in zip(sources, chunks, strict=True)
-                            for key in sample_keys(r, c)
-                        ]
-                    ),
-                    control_owner=np.concatenate(
-                        [
-                            c["control_owner"]
-                            if c.get("control_owner") is not None
-                            else np.full(len(c["states"]), 2)
-                            for c in chunks
-                        ]
-                    ),
-                    transition_valid=behavior_valid,
-                    **{"condition_" + k: v for k, v in conditions.items()},
-                    label_provenance=np.array(json.dumps(provenance)),
-                ),
-            )
-            state["dataset"] = dict(path=str(output), sha256=file_sha256(output))
-        elif phase.operation == "fit":
-            ref = state["dataset"]
-            if file_sha256(ref["path"]) != ref["sha256"]:
-                raise ValueError("Fit dataset SHA differs")
-            data = load_dataset(ref["path"])
-            with np.load(ref["path"], allow_pickle=False) as raw:
-                valid, roles = raw["valid"], raw["roles"]
-            for key in ("states", "teacher_actions"):
-                data[key] = data[key][valid]
-            data["episodes"] = np.asarray(data["episodes"])[valid].tolist()
-            roles = roles[valid]
-            split = EpisodeSplit(
-                *(
-                    tuple(sorted(set(np.array(data["episodes"])[roles == r].tolist())))
-                    for r in ("train", "development", "holdout")
-                )
-            )
-            latest = folder / "distillation_latest.pt"
-            resume = (
-                torch.load(latest, map_location="cpu", weights_only=False)
-                if latest.exists()
-                else None
-            )
-            base = state.setdefault("fit_base", state["rounds"])
-            write_json(state_file, state)
-            done = (resume["round"] - base) if resume else 0
-            initial = state.get("latest") or recipe.initial_student
-            initial_state = load_actor_source(initial["path"]).payload["actor"] if initial else None
-            prepared = dict(
-                data=data,
-                split=split,
-                student_spec=recipe.student,
-                initial_student=initial_state,
-                identity=state["identity"],
-                logical_run_id=state["logical_run_id"],
-            )
-            # Across phase boundaries retain Adam/RNG while a new aggregate supplies new data/split.
-            if resume is None and state.get("latest"):
-                resume = torch.load(state["latest"]["path"], map_location="cpu", weights_only=False)
-                prepared["new_comparison_domain"] = (
-                    resume["dataset_sha256"] != ref["sha256"]
-                    or resume["split"] != split.as_record()
-                )
-                prepared["previous_domain"] = dict(
-                    dataset_sha256=resume["dataset_sha256"],
-                    split=resume["split"],
-                    best={k: resume["best"][k] for k in ("round", "validation_loss")},
-                    full_state=state["latest"],
-                    best_state_field="best.state",
-                )
-                resume = {**resume, "dataset_sha256": ref["sha256"], "split": split.as_record()}
-            if done < phase.rounds:
-                run_distillation(
-                    job,
-                    dataset_path=ref["path"],
-                    teacher_checkpoint=recipe.teachers[0].path,
-                    output_dir=folder,
-                    rounds=phase.rounds - done,
-                    batch_size=recipe.batch_size,
-                    learning_rate=recipe.learning_rate,
+                view = create_view(
+                    folder / "view.json",
+                    normalized,
+                    previous=previous,
                     seed=job.runtime.seed,
-                    prepared=prepared,
-                    resume_state=resume,
-                    stop_requested=stop_requested,
-                    on_round_complete=on_round_complete,
-                    on_round_saved=on_round_saved,
+                    fractions=(
+                        1 - recipe.validation_fraction - recipe.holdout_fraction,
+                        recipe.validation_fraction,
+                        recipe.holdout_fraction,
+                    ),
                 )
-            saved = torch.load(latest, map_location="cpu", weights_only=False)
-            selected = folder / "student_actor.pt"
-            if selected.is_file():
-                state["selected"] = dict(path=str(selected), sha256=file_sha256(selected))
-            state["rounds"] = saved["round"]
-            state["latest"] = dict(path=str(latest), sha256=file_sha256(latest))
-            write_json(state_file, state)
-            if saved["round"] - base < phase.rounds:
-                return state, False
-            state.pop("fit_base", None)
-        elif phase.operation == "compare":
-            # Existing fit development evidence only; never extra simulation.
-            if not state.get("latest"):
-                raise ValueError("Compare requires fitted development evidence")
-            value = torch.load(state["latest"]["path"], map_location="cpu", weights_only=False)
-            write_json(
-                folder / "comparison.json",
-                dict(
-                    validation_loss=value["validation_loss"],
-                    extra_simulation_steps=0,
-                    independent_certificate=False,
-                ),
-            )
-        elif phase.operation == "export":
-            value = torch.load(state["latest"]["path"], map_location="cpu", weights_only=False)
-            actor = folder / "selected.pt"
-            if not actor.exists():
-                torch.save(dict(actor=value["best"]["state"], inference_spec=recipe.student), actor)
-            export_package(
-                load_actor_source(actor),
-                InferenceSpec.from_record(recipe.student),
-                folder / "package",
-                execution=job.as_run_record()["control"],
-                dependencies=dependencies,
-                index=index,
-            )
-        if index:
-            from native_stand.artifacts.dataset import expand_sources
-            from native_stand.artifacts.model_refs import ModelReference
-
-            refs = [state["dataset"]]
-            if state.get("aggregate"):
-                refs.append(state["aggregate"])
-                refs.extend(expand_sources(state["aggregate"], paths=paths))
-            if state.get("selected"):
-                refs.append(state["selected"])
-            for ref in refs:
-                index.register(
-                    ModelReference(
-                        ref["sha256"],
-                        ref["path"],
-                        ("distillation",),
-                        run=str(root),
-                        kind="supervision_artifact",
+                state["aggregate"] = dict(
+                    path=str((folder / "view.json").resolve()),
+                    sha256=file_sha256(folder / "view.json"),
+                    kind="episode_dataset_view_v1",
+                )
+                roles = np.array([view["episode_roles"][key] for key in episode_keys])
+                teacher_records = [
+                    dict(
+                        name=t.name,
+                        sha256=t.model.source.sha256,
+                        input_contract=t.model.spec.input_contract,
+                        output_contract=t.model.spec.output_contract,
+                        label_transform=recipe.teachers[i].labels,
+                    )
+                    for i, t in enumerate(teachers)
+                ]
+                provenance = dict(
+                    teachers=teacher_records,
+                    actual_owner_column="teacher_owner",
+                    label_space=recipe.student_labels,
+                    input_version=job.model.interface,
+                    action_version=job.action.version,
+                    action_units="policy_output",
+                    action_dim=job.action.dim,
+                    teacher_set=state["identity"],
+                )
+                output = folder / "labels.npz"
+                write_npz(
+                    output,
+                    dict(
+                        states=data["states"],
+                        episodes=np.array(data["episodes"]),
+                        teacher_actions=labels.numpy(),
+                        valid=valid.numpy(),
+                        teacher_owner=owner.numpy(),
+                        roles=roles,
+                        physical_episode_keys=np.array(episode_keys),
+                        sample_ids=np.array(
+                            [
+                                key
+                                for r, c in zip(sources, chunks, strict=True)
+                                for key in sample_keys(r, c)
+                            ]
+                        ),
+                        control_owner=np.concatenate(
+                            [
+                                c["control_owner"]
+                                if c.get("control_owner") is not None
+                                else np.full(len(c["states"]), 2)
+                                for c in chunks
+                            ]
+                        ),
+                        transition_valid=behavior_valid,
+                        label_quality=np.where(valid.numpy(), "UNKNOWN", "UNLABELLED"),
+                        **{"condition_" + k: v for k, v in conditions.items()},
+                        label_provenance=np.array(json.dumps(provenance)),
+                    ),
+                )
+                state["dataset"] = dict(path=str(output), sha256=file_sha256(output))
+            elif phase.operation == "fit":
+                ref = state["dataset"]
+                if file_sha256(ref["path"]) != ref["sha256"]:
+                    raise ValueError("Fit dataset SHA differs")
+                data = load_dataset(ref["path"])
+                with np.load(ref["path"], allow_pickle=False) as raw:
+                    valid, roles = raw["valid"], raw["roles"]
+                for key in ("states", "teacher_actions", "phases"):
+                    if data.get(key) is None:
+                        continue
+                    data[key] = data[key][valid]
+                data["episodes"] = np.asarray(data["episodes"])[valid].tolist()
+                roles = roles[valid]
+                split = EpisodeSplit(
+                    *(
+                        tuple(sorted(set(np.array(data["episodes"])[roles == r].tolist())))
+                        for r in ("train", "development", "holdout")
                     )
                 )
-        state["phase_cursor"] = cursor + 1
-        state["committed"].append(
-            dict(phase=cursor, operation=phase.operation, dataset=state["dataset"])
-        )
-        write_json(state_file, state)
-    return state, True
+                latest = folder / "distillation_latest.pt"
+                resume = (
+                    torch.load(latest, map_location="cpu", weights_only=False)
+                    if latest.exists()
+                    else None
+                )
+                base = state.setdefault("fit_base", state["rounds"])
+                write_json(state_file, state)
+                done = (resume["round"] - base) if resume else 0
+                initial = state.get("latest") or recipe.initial_student
+                initial_state = (
+                    load_actor_source(initial["path"]).payload["actor"] if initial else None
+                )
+                prepared = dict(
+                    data=data,
+                    split=split,
+                    student_spec=recipe.student,
+                    initial_student=initial_state,
+                    identity=state["identity"],
+                    logical_run_id=state["logical_run_id"],
+                )
+                # Across phase boundaries retain Adam/RNG while a new aggregate supplies new data/split.
+                if resume is None and state.get("latest"):
+                    resume = torch.load(
+                        state["latest"]["path"], map_location="cpu", weights_only=False
+                    )
+                    prepared["new_comparison_domain"] = (
+                        resume["dataset_sha256"] != ref["sha256"]
+                        or resume["split"] != split.as_record()
+                    )
+                    prepared["previous_domain"] = dict(
+                        dataset_sha256=resume["dataset_sha256"],
+                        split=resume["split"],
+                        best={k: resume["best"][k] for k in ("round", "validation_loss")},
+                        full_state=state["latest"],
+                        best_state_field="best.state",
+                    )
+                    resume = {**resume, "dataset_sha256": ref["sha256"], "split": split.as_record()}
+                if done < phase.rounds:
+                    run_distillation(
+                        job,
+                        dataset_path=ref["path"],
+                        teacher_checkpoint=recipe.teachers[0].path,
+                        output_dir=folder,
+                        rounds=phase.rounds - done,
+                        batch_size=recipe.batch_size,
+                        learning_rate=recipe.learning_rate,
+                        seed=job.runtime.seed,
+                        prepared=prepared,
+                        resume_state=resume,
+                        stop_requested=stop_requested,
+                        on_round_complete=on_round_complete,
+                        on_round_saved=on_round_saved,
+                    )
+                saved = torch.load(latest, map_location="cpu", weights_only=False)
+                selected = folder / "student_actor.pt"
+                if selected.is_file():
+                    state["selected"] = dict(path=str(selected), sha256=file_sha256(selected))
+                state["rounds"] = saved["round"]
+                state["latest"] = dict(path=str(latest), sha256=file_sha256(latest))
+                write_json(state_file, state)
+                if saved["round"] - base < phase.rounds:
+                    return state, False
+                state.pop("fit_base", None)
+            elif phase.operation == "compare":
+                if phase.steps:
+                    from native_stand.artifacts.dataset import expand_sources
+                    from native_stand.simulation.collection import collect, make_environment
+                    from native_stand.tasks.recovery.distillation_metrics import summarize
+
+                    if environment is None:
+                        environment = make_environment(job)
+                    reports = {}
+                    refs = {}
+                    for name, source, spec in [
+                        (
+                            "teacher",
+                            dict(path=recipe.teachers[0].path, sha256=recipe.teachers[0].sha256),
+                            recipe.teachers[0].inference,
+                        ),
+                        ("student", state["selected"], recipe.student),
+                    ]:
+                        environment.reset_collection(fresh=True)
+                        ref = collect(
+                            job,
+                            source,
+                            spec,
+                            phase.steps,
+                            folder / name,
+                            on_physical_steps,
+                            environment=environment,
+                            stop_requested=stop_requested,
+                        )
+                        refs[name] = ref
+                        parts = []
+                        for chunk in expand_sources(ref):
+                            with np.load(chunk["path"], allow_pickle=False) as raw:
+                                parts.append(dict(raw))
+                        arrays = {key: np.concatenate([p[key] for p in parts]) for key in parts[0]}
+                        reports[name] = summarize(arrays)
+                        if not ref["complete"]:
+                            write_json(
+                                folder / "closed_loop.json", dict(reports=reports, complete=False)
+                            )
+                            return state, False
+                    # Fidelity is measured on real student states, without advancing Teacher execution caches.
+                    model = load_model(
+                        state["selected"]["path"],
+                        InferenceSpec.from_record(recipe.student),
+                        sha256=state["selected"]["sha256"],
+                    )
+                    residuals = []
+                    teacher = teachers[0]
+                    for chunk in expand_sources(refs["student"]):
+                        with np.load(chunk["path"], allow_pickle=False) as raw:
+                            x = torch.from_numpy(raw["states"])
+                        target = teacher.model.mean(x.to(job.runtime.device)).cpu()
+                        residuals.append((model.mean(x) - target).numpy())
+                    error = np.concatenate(residuals)
+                    write_json(
+                        folder / "closed_loop.json",
+                        dict(
+                            reports=reports,
+                            collections=refs,
+                            complete=True,
+                            teacher_fidelity=dict(
+                                leg_MAE_rad=float(np.abs(error[:, [0, 1, 3, 4]]).mean()),
+                                wheel_MAE_rad_s=float(np.abs(error[:, [2, 5]]).mean()),
+                            ),
+                            hardware="OFF",
+                            independent_delay_sweep="NOT_RUN",
+                        ),
+                    )
+                    score = (
+                        reports["student"]["continuous_10s_rate"] or 0,
+                        reports["student"]["rise_success_rate"] or 0,
+                    )
+                    best = tuple(state.get("best_closed_loop", [-1, -1]))
+                    if score > best:
+                        state["best_closed_loop"] = list(score)
+                        state["closed_loop_candidate"] = state["selected"]
+                        state["no_improvement"] = 0
+                    else:
+                        state["no_improvement"] = state.get("no_improvement", 0) + 1
+                    if state["no_improvement"] >= 2:
+                        state["review_required"] = (
+                            "Two closed-loop checks without improvement; inspect phase coverage, Teacher suitability, physical errors and timing before more BC"
+                        )
+                        state["phase_cursor"] = cursor + 1
+                        write_json(state_file, state)
+                        return state, False
+                # Existing fit development evidence only; never extra simulation.
+                if not state.get("latest"):
+                    raise ValueError("Compare requires fitted development evidence")
+                value = torch.load(state["latest"]["path"], map_location="cpu", weights_only=False)
+                write_json(
+                    folder / "comparison.json",
+                    dict(
+                        validation_loss=value["validation_loss"],
+                        extra_simulation_steps=0,
+                        independent_certificate=False,
+                    ),
+                )
+            elif phase.operation == "export":
+                value = torch.load(state["latest"]["path"], map_location="cpu", weights_only=False)
+                actor = folder / "selected.pt"
+                if not actor.exists():
+                    torch.save(
+                        dict(actor=value["best"]["state"], inference_spec=recipe.student), actor
+                    )
+                from native_stand.artifacts.deployment import job_dependencies
+
+                golden = None
+                if recipe.objective:
+                    ref = state["dataset"]
+                    with np.load(ref["path"], allow_pickle=False) as raw:
+                        mask = raw["valid"] & (raw["roles"] == "holdout")
+                        indices = np.flatnonzero(mask)
+                        golden = dict(
+                            **ref, indices=indices[:: max(1, len(indices) // 128)][:128].tolist()
+                        )
+                    if not golden["indices"]:
+                        raise ValueError("Real holdout golden states required")
+                export_package(
+                    load_actor_source(actor),
+                    InferenceSpec.from_record(recipe.student),
+                    folder / "package",
+                    execution=dict(
+                        control=job.as_run_record()["control"],
+                        observation=job.as_run_record()["observation"],
+                        timing=__import__(
+                            "native_stand.simulation.recovery_isaac.execution",
+                            fromlist=["nominal_timing"],
+                        ).nominal_timing(),
+                        C_core="rl_policy_core_v1",
+                        hardware_output="OFF",
+                    )
+                    if recipe.objective
+                    else job.as_run_record()["control"],
+                    dependencies=job_dependencies(job) if recipe.objective else dependencies,
+                    golden=golden,
+                    onnx=bool(recipe.objective),
+                    index=index,
+                )
+            if index:
+                from native_stand.artifacts.dataset import expand_sources
+                from native_stand.artifacts.model_refs import ModelReference
+
+                refs = [state["dataset"]]
+                if state.get("aggregate"):
+                    refs.append(state["aggregate"])
+                    refs.extend(expand_sources(state["aggregate"], paths=paths))
+                if state.get("selected"):
+                    refs.append(state["selected"])
+                for ref in refs:
+                    index.register(
+                        ModelReference(
+                            ref["sha256"],
+                            ref["path"],
+                            ("distillation",),
+                            run=str(root),
+                            kind="supervision_artifact",
+                        )
+                    )
+            state["phase_cursor"] = cursor + 1
+            state["committed"].append(
+                dict(phase=cursor, operation=phase.operation, dataset=state["dataset"])
+            )
+            write_json(state_file, state)
+        return state, True
+    finally:
+        if environment is not None:
+            environment.close()

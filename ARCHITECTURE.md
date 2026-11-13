@@ -170,3 +170,5 @@ sim2sim不是训练课程或另一套worker：显式协议经CLI直接顺序拥�
 复用`learning/ppo/performance.py::Measurement`。driver在adapter.build前注入同一`context.measurement`和`adapter.measurement`，GenericPPO再传给ControlledPPO与环境的`set_measurement`。需覆盖构造/reset的后端可声明`Backend.make_measured_env(job, measurement)`，原单参数factory仍有效。计时不参与预算、模型状态、RNG或课程决策。
 
 `section(name, parent=None, synchronize=None)`记录inclusive墙钟；嵌套默认不CUDA同步，hotpath显式False。`count(name, amount=1, reason=None)`累计已知主机计数；`reset()`只在update边界清空窗口，启动摘要另存。域内记录reset行数/full/partial、材质与mass/COM/inertia调用、整池/使用行数、已知传输字节、重建原因、编译和缓存失效；不得为计数新增设备同步。环境重建保持先关闭旧环境，再构造/读回，不能以缓存请求值代替实际后端核验。
+
+Recovery监督扩展：`learning/distillation/objective.py`负责显式物理Huber和回合/阶段采样质量；`tasks/recovery/distillation_metrics.py`只计算真实首回合指标。`supervision_flow`复用collector、现有Recovery环境和owner预算，显式选择教师/学生行为策略、固定更新数fit与有界闭环compare；环境在worker内复用并在finally关闭。compare不向数据聚合回灌。部署模块接收带SHA和行号的真实golden来源，复用C核心核对三次decoder。未新增scripts工具或训练进程创建点。

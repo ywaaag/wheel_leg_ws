@@ -1,0 +1,7 @@
+{
+  "shared_GPU_allowed": true,
+  "Recovery_distillation_shared_allowed": true,
+  "authorization": "User: \u9884\u7b97\u65e0\u9650\uff0cCPU\uff0cGPU\u968f\u4fbf\u7528\uff0c\u5e0c\u671b\u901f\u5ea6\u5feb\u4e00\u4e9b",
+  "scope": "2100-only Recovery BC/collection/student closed-loop/validation/deployment export; no PPO/hardware/other-owner changes",
+  "total_budget": null
+}

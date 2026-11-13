@@ -39,6 +39,7 @@ def collect(
     stop_requested=lambda: False,
     chunk_steps=64,
     required_conditions=(),
+    environment=None,
 ):
     import numpy as np
     import torch
@@ -123,7 +124,7 @@ def collect(
         buffers.clear()
 
     try:
-        env = make_environment(job)
+        env = make_environment(job) if environment is None else environment
         obs = env.observations()["student_actor"]
         if obs.ndim != 2 or obs.shape[1] != spec["input_dim"] or len(obs) < 1:
             raise ValueError("Invalid collection observation layout")
@@ -208,6 +209,8 @@ def collect(
                 transition_valid=durations
                 == round(job.control.policy_dt_s / job.control.physics_dt_s),
             )
+            for key, value in extra.get("collection_trace", {}).items():
+                row["trace_" + key] = value.detach().clone()
             for key, value in conditions.items():
                 value = torch.as_tensor(value, device=obs.device)
                 if value.shape != (actual_envs,):
@@ -244,5 +247,5 @@ def collect(
         write_json(state_path, state)
         raise
     finally:
-        if env is not None:
+        if env is not None and environment is None:
             env.close()

@@ -76,7 +76,14 @@ def validate_job(job):
         job.model.actor_hidden_dims,
         job.model.critic_input,
         job.model.critic_hidden_dims,
-    ) != (31, (2048, 1024, 512), width, (512, 512, 256)):
+    ) != (
+        31,
+        tuple(job.model.actor_hidden_dims)
+        if job.algorithm == "distillation"
+        else (2048, 1024, 512),
+        width,
+        (512, 512, 256),
+    ):
         raise ValueError("Actual large Actor/versioned Recovery Critic required")
     if width is None or job.action.version != ACTION_VERSION:
         raise ValueError("Recovery Critic/physical Gaussian versions")
@@ -240,16 +247,19 @@ def preflight(job, *, for_learning=False, resources=False):
     )
     if resources:
         result["resources"] = require_idle_gpu(
-            job.assets["physical_gpu_uuid"], job.assets.get("gpu_resource_policy")
+            job.assets["physical_gpu_uuid"],
+            job.assets.get("gpu_resource_policy"),
+            distillation=job.algorithm == "distillation",
         )
     return result
 
 
-def require_idle_gpu(expected_uuid, policy=None):
+def require_idle_gpu(expected_uuid, policy=None, *, distillation=False):
     policy = policy or {"mode": "exclusive"}
     shared = policy.get("mode") == "shared_authorized"
     if policy.get("mode") not in ("exclusive", "shared_authorized"):
         raise ValueError("Explicit GPU resource mode")
+    concurrent_distillation = False
     if shared:
         authorization = policy["authorization"]
         if file_sha256(authorization["path"]) != authorization["sha256"]:
@@ -257,6 +267,9 @@ def require_idle_gpu(expected_uuid, policy=None):
         auth = read_json(authorization["path"])
         if auth.get("shared_GPU_allowed") is not True:
             raise ValueError("Shared GPU not authorized")
+        concurrent_distillation = (
+            distillation and auth.get("Recovery_distillation_shared_allowed") is True
+        )
         import shutil
 
         if shutil.disk_usage(policy["storage_path"]).free < policy["minimum_disk_free_bytes"]:
@@ -292,7 +305,7 @@ def require_idle_gpu(expected_uuid, policy=None):
                         )
                     except (ValueError, OSError):
                         pass
-            if not shared or recovery:
+            if not shared or (recovery and not concurrent_distillation):
                 raise RuntimeError("Existing conflicting training owner, PID=" + pid)
         if shared and "native_stand.experiments.recovery_isaac_probe" in command:
             raise RuntimeError("Duplicate Recovery probe owner, PID=" + pid)
@@ -344,7 +357,12 @@ class IsaacRecovery:
 
             with preserve_worker_signals():
                 self.app = AppLauncher(
-                    {"headless": True, "device": job.runtime.device, "multi_gpu": False}
+                    {
+                        "headless": True,
+                        "device": job.runtime.device,
+                        "multi_gpu": False,
+                        "fast_shutdown": False,
+                    }
                 ).app
         else:
             preflight(job, resources=False)
@@ -438,6 +456,8 @@ class IsaacRecovery:
         cfg.decimation = 10
         cfg.episode_length_s = 23.0
         cfg.is_finite_horizon = True
+        cfg.recovery_collection_cases = None
+        cfg.recovery_collection = job.algorithm == "distillation"
         cfg.recovery_measurement = self.measurement
         cfg.recovery_effort_caps = job.control.effort_limits_nm
         cfg.recovery_swing_priority = (
@@ -504,8 +524,54 @@ class IsaacRecovery:
 
     def step(self, raw):
         physical_before = self.env.actual_physics_steps
+        conditions = None
+        if self.job.algorithm == "distillation":
+            e = self.env
+            measured = e.measured()[3]
+            life = e.life
+            dual = (measured[:, 9:11] > 2.0).all(-1)
+            age = life.elapsed - life.entry
+            phase = torch.where(measured[:, 3] < 0.27, 1, 2)
+            phase = torch.where(life.elapsed <= 0.1, 0, phase)
+            phase = torch.where((life.entry >= 0) & ((age < 0.5) | ~dual), 3, phase)
+            phase = torch.where((life.entry >= 0) & (age >= 0.5) & dual, 4, phase)
+            disturbed = (
+                e.pulse_enabled
+                & (life.elapsed >= e.pulse_onset)
+                & (life.elapsed < e.pulse_onset + 1.0)
+            )
+            phase = torch.where(disturbed, 5, phase)
+            if e.height_conditioned:
+                phase = torch.where(e.height_dynamic & (life.elapsed >= 2.0), 6, phase)
+            conditions = dict(
+                recovery_phase=phase.clone(),
+                teacher_eligible=(
+                    (measured[:, 11] <= 0.005) & (measured[:, 12] >= 0.5) & (measured[:, 3] >= 0.10)
+                ).long(),
+                initial_Swing=(life.h0 < 0.27).long(),
+                Actor_age_ms=e.execution.packet_age.clone(),
+                target_delay_ms=e.execution.target_delay.clone(),
+                wheel_left_delay_ms=e.execution.wheel_delay[:, 0].clone(),
+                wheel_right_delay_ms=e.execution.wheel_delay[:, 1].clone(),
+                validation_cohort=torch.tensor(
+                    [c.get("cohort", 0) for c in e.cfg.recovery_collection_cases], device=e.device
+                )
+                if e.cfg.recovery_collection_cases is not None
+                else torch.zeros(e.num_envs, device=e.device),
+            )
         obs, reward, terminated, truncated, extras = self.env.step(raw)
         terminal = self.env.terminal_critic
+        if conditions is not None:
+            e = self.env
+            t = e.transition
+            s = t["physical_state"]
+            conditions.update(
+                task_success=t["task_success"].long(),
+                entered=t["collection_entered"],
+                continuous_hold_s=t["collection_hold"],
+                dual_contact=(s[:, 9:11] > 2.0).all(-1).long(),
+                HF_peak=t["collection_HF"],
+            )
         self._obs = self.convert(obs)
         return dict(
             observations=self._obs,
@@ -519,14 +585,20 @@ class IsaacRecovery:
                 ]
                 * self.num_envs,
                 control_owner=(~self.env.transition["student_mask"]).long(),
-                collection_conditions={
-                    "initial_Swing": self.env.transition["initial_Swing"].long()
-                },
+                collection_conditions=conditions
+                if conditions is not None
+                else {"initial_Swing": self.env.transition["initial_Swing"].long()},
                 terminal_critic=terminal,
                 time_outs=truncated,
                 # Environment publishes detached snapshots; the next step replaces
                 # the dictionary. This outcome owns it until the next step.
                 transition=self.env.transition,
+                collection_trace={
+                    key: self.env.transition[key]
+                    for key in ("policy_raw", "requested", "adopted", "motor")
+                }
+                if self.job.algorithm == "distillation"
+                else {},
             ),
         )
 
@@ -682,6 +754,28 @@ class IsaacRecovery:
             return self.initialize_from_training_state(state, same_run=True)
         return self.restore_execution(state["execution"])
 
+    def reset_collection(self, *, fresh=False):
+        self.env.cfg.recovery_collection_cases = (
+            self.job.assets.get("recovery_distillation_validation_cases") if fresh else None
+        )
+        if fresh:
+            import numpy as np
+
+            from native_stand.tasks.recovery.swing_priority_course import RecoveryCourse
+
+            e = self.env
+            e.courses = [RecoveryCourse(self.job.runtime.seed + i) for i in range(self.num_envs)]
+            e.DR_rng = [
+                np.random.default_rng(self.job.runtime.seed + 170000 + i)
+                for i in range(self.num_envs)
+            ]
+            e.episode_spec = [None] * self.num_envs
+            e.episode_steps.zero_()
+            e.completed.clear()
+        raw, _ = self.env.reset()
+        self._obs = self.convert(raw)
+        return self._obs
+
     def set_measurement(self, measurement):
         self.measurement = measurement
         if self.env is not None:
@@ -694,10 +788,12 @@ class IsaacRecovery:
         finally:
             self.env = None
             if self._owns_app and self.app is not None:
-                try:
-                    self.app.close()
-                finally:
-                    self.app = None
+                # Let the public worker settle state/budget before Kit exits.
+                import atexit
+
+                app, self.app = self.app, None
+                exit_code = 1 if sys.exc_info()[1] is not None else 0
+                atexit.register(lambda: app.close(exit_code=exit_code))
 
 
 def make_env(job, *, output=None, measurement=None):
@@ -713,4 +809,6 @@ def make_measured_env(job, measurement):
 def make_collection_env(job, *, resources):
     if resources != job.runtime:
         raise ValueError("Collection resources differ from runtime request")
-    return make_env(job)
+    import tempfile
+
+    return make_env(job, output=Path(tempfile.mkdtemp(prefix="recovery-collection-")))
