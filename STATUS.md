@@ -224,4 +224,6 @@ r10/r11的实际故障已定位为rough穿透检测位置错误：lower-leg的�
 
 电控/蒸馏会话在 `/home/kellen/wheel_leg_distill_ws`、`recovery/2100-distillation` 负责；基点main `299b8dc`。教师2100 SHA `5aec83df…d12a9` 已匹配，不混其他教师。用户明确总预算不限、CPU/GPU可用；原Recovery训练与MuJoCo GUI仍由原owner管理，不停止、不接管。
 
-首块准备：31D/256-128-64/Recovery物理三次输出，128环境，三批各1000次监督更新、两次学生真实状态补教、独立延迟比较，执行块7200s/8GiB，每round保存。实际run、物理/监督消耗与终态以新run产物为准，未启动前不能称已训练。来源/合同与正式入口见 `docs/RECOVERY2100_DISTILLATION.md`。公共main和活动训练冻结源码未更改。
+正式run为 `/home/kellen/wheel_leg_training_data/2026_11_13__recovery2100_small256_distillation_r3`，执行源码冻结于 `4332ef8`。首次真实教师采集588800帧/5888000物理子步；首个50更新窗口保存停止后，沿同run实际恢复到20round/1000次监督更新，PPO0。当前进入闭环比较；后续补教、最终检查与导出由同一owner继续，能力尚未accepted。首批离线腿/轮目标MAE为0.0074195rad/0.434851rad/s；这不是闭环结果。精确当前状态、账本与首批证据见run的 `state.json`、`budget.json`、`engineering_first_batch.json`。r1/r2在物理前失败，证据保留。
+
+31D/256-128-64/Recovery物理三次输出，128环境，三批各1000次监督更新、两次学生真实状态补教、开发与最终独立延迟比较，执行块7200s/8GiB，每round保存。最终CPU portable1944通过/31历史skip；相关41项通过，架构211/0、Ruff0.8.4 check/format通过。真实previous和C三次decoder核对见数据根 `recovery2100_distillation_engineering`；22项精确改动清单为该目录 `implementation_manifest.json`。来源/合同与正式入口见 `docs/RECOVERY2100_DISTILLATION.md`。公共main与其他活动任务冻结源码未更改。
