@@ -210,3 +210,6 @@ Jump本机v88启动准备：v84实际4096环境零PPO2000tick物理/C/随机Acto
 
 
 Jump保存频率调整：用户要求每100次保存。v9在u3正常边界保存STOPPED_BOUNDED/failure=null；前三次711.248/706.914/712.979秒。原run未用9558额度退役，完整u3 SHA6dc5b94f接续新run`2026_11_13__jump_4096_local_save100_remaining9558_v10`，累计442/10000、剩9558，墙钟null，4096×64；每100例行保存，首次/终态保存保留。统一CLI启动worker3511614，握手RUNNING、首更尚未确认。收据`artifacts/jump_diagnosis_20261113/local_save100_receipt_v89.json`；无源码热改，无预算刷新。
+
+
+Jump GPU采样提速：实现25e9968，Critic5080列V4/response历史留设备，5591列保持；逆模型仅消费阶段+单实例scratch，C/FSM和dense reward仍CPU。CPU46/portable1948、GPU两环境1800tick及4096×12步逐位/reset通过。同GPU短窗口平均10.5139→6.5048秒/策略步，非整轮PPO结果。旧v10正常u1退出，累计443/10000、剩9557，旧未用额度退役。正式新run`2026_11_13__jump_IsaacGPU_device4096_save100_v11`，唯一worker3525582，IsaacLab/PhysX GPU，4096×64、save100、墙钟null，启动握手RUNNING，首更尚未确认。原1mm物理门禁保留；之前罕见超限根因未确认。详细精确文件/收据见artifacts/jump_diagnosis_20261113/DELIVERY_GPU_ROLLOUT_v98.md。
