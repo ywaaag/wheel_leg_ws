@@ -168,7 +168,13 @@ def cmd_dashboard(args):
         return EXIT_OK
     from native_stand.integrations.dashboard import serve
 
-    serve(args.root, host=args.host, port=args.port, tensorboard_url=args.tensorboard_url)
+    serve(
+        args.root,
+        host=args.host,
+        port=args.port,
+        tensorboard_url=args.tensorboard_url,
+        public_host=args.public_host,
+    )
     return EXIT_OK
 
 
@@ -802,6 +808,9 @@ def build_parser() -> argparse.ArgumentParser:
     dashboard.add_argument("--port", type=int, default=8765)
     dashboard.add_argument("--dry-run", action="store_true")
     dashboard.add_argument("--tensorboard-url", help="可选本机已存在TensorBoard链接；不启动进程")
+    dashboard.add_argument(
+        "--public-host", help="显式允许反向代理的IPv4 Host；服务仍只绑定loopback"
+    )
     dashboard.set_defaults(func=cmd_dashboard)
 
     inspect = sub.add_parser("inspect", help="只读查看run", parents=[json_flag])

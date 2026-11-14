@@ -184,3 +184,21 @@ def test_comparison_http_consumer(tmp_path):
             thread.join()
     with pytest.raises(ValueError):
         server([tmp_path], tensorboard_url='http://password:secret@example.org')
+
+
+def test_explicit_proxy_host(tmp_path):
+    from urllib.request import Request
+
+    fixture(tmp_path)
+    with server([tmp_path], port=0, public_host='100.127.219.54') as http:
+        thread = threading.Thread(target=http.serve_forever, daemon=True)
+        thread.start()
+        base = f'http://127.0.0.1:{http.server_port}'
+        try:
+            assert urlopen(Request(base, headers={'Host': '100.127.219.54'})).status == 200
+            with pytest.raises(HTTPError) as denied:
+                urlopen(Request(base, headers={'Host': 'untrusted.example'}))
+            assert denied.value.code == 403
+        finally:
+            http.shutdown()
+            thread.join()

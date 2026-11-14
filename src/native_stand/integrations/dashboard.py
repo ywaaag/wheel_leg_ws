@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -11,7 +12,7 @@ from urllib.parse import parse_qs, urlsplit
 from native_stand.artifacts.dashboard import Catalog, compare, public
 
 
-def server(roots, *, host="127.0.0.1", port=8765, tensorboard_url=None):
+def server(roots, *, host="127.0.0.1", port=8765, tensorboard_url=None, public_host=None):
     if host != "127.0.0.1":
         raise ValueError("首版仅允许127.0.0.1；远端使用SSH端口转发")
     from native_stand.tasks.motion.dashboard import target_description, training_windows
@@ -32,13 +33,16 @@ def server(roots, *, host="127.0.0.1", port=8765, tensorboard_url=None):
         else {"rows": [], "scope": "目标文档不支持（安装中未包含）"}
     )
 
+    allowed_hosts = {"127.0.0.1", "localhost"}
+    if public_host:
+        allowed_hosts.add(str(ipaddress.IPv4Address(public_host)))
     catalog = Catalog(roots, adapters={"motion": training_windows})
     lock = Lock()
     current = {"runs": []}
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
-            if self.headers.get("Host", "").split(":")[0] not in ("127.0.0.1", "localhost"):
+            if self.headers.get("Host", "").split(":")[0] not in allowed_hosts:
                 self.send_error(403)
                 return
             route = urlsplit(self.path).path
@@ -107,7 +111,9 @@ def server(roots, *, host="127.0.0.1", port=8765, tensorboard_url=None):
     return ThreadingHTTPServer((host, port), Handler)
 
 
-def serve(roots, *, host="127.0.0.1", port=8765, tensorboard_url=None):
-    with server(roots, host=host, port=port, tensorboard_url=tensorboard_url) as http:
+def serve(roots, *, host="127.0.0.1", port=8765, tensorboard_url=None, public_host=None):
+    with server(
+        roots, host=host, port=port, tensorboard_url=tensorboard_url, public_host=public_host
+    ) as http:
         print(f"只读看板 http://{host}:{http.server_port}", flush=True)
         http.serve_forever()
