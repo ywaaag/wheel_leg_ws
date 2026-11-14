@@ -151,8 +151,12 @@ def build_task(job: JobConfig) -> MotionTask:
         )
     if job.model.action_version not in (None, job.action.version):
         raise ConfigError("model.action_version 与 action.version 不一致")
-    if job.action.version == WIDE_OUTPUT_VERSION and job.algorithm != "distillation":
-        raise ConfigError("050/80当前仅开放物理目标蒸馏及其播放/导出；PPO接续需独立来源保护适配")
+    if (
+        job.action.version == WIDE_OUTPUT_VERSION
+        and job.algorithm == "ppo"
+        and (job.backend != "isaac" or not job.assets.get("wide_actor_admission"))
+    ):
+        raise ConfigError("050/80 PPO requires explicit Isaac Actor admission")
     if job.action.dim != len(encoding.CHANNELS):
         raise ConfigError(f"action.dim 必须为 {len(encoding.CHANNELS)}")
     if tuple(job.action.order) != encoding.CHANNELS:

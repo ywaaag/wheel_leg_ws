@@ -181,8 +181,9 @@ def environment(spec, role, *, envs, job, source, prefix, corrections, measureme
             command_program_version=stage.get("command_program_version"),
         )
         env.planned_value_ready = job.model.critic_input in (877, 881)
-        env.extended_height_quality = (
-            job.action.version == "motion_multiheight020_support_center_015_80_v2"
+        env.extended_height_quality = job.action.version in (
+            "motion_multiheight020_support_center_015_80_v2",
+            "motion_multiheight020_support_center_050_80_v1",
         )
     env.curriculum_training = False
     env.motion_height_range_m = router.student_decoder.center.height_range_m

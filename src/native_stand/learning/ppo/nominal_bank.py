@@ -79,7 +79,7 @@ class NominalBankAnchor(SourceAnchor):
             difference = mean - target
             bank_losses.append(0.5 * (difference / self.std).square().mean())
             physical = difference.detach().abs() * mean.new_tensor(
-                [0.15, 0.15, 80.0, 0.15, 0.15, 80.0]
+                self.config.get("physical_output_scales", [0.15, 0.15, 80.0, 0.15, 0.15, 80.0])
             )
             errors.append(
                 torch.stack((physical[:, [0, 1, 3, 4]].mean(), physical[:, [2, 5]].mean()))

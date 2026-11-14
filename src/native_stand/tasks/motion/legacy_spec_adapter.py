@@ -54,7 +54,9 @@ def build_environment_spec(template, source, job, *, stage_builder):
     if source["critic_privileged_version"] != job.model.critic_privileged_version:
         raise ValueError("来源Critic语义与声明不同")
     config = validate_configuration(
-        job.reward.fields["scale_corrections"], wheel_scale_rad_s=job.action.wheel_scale_rad_s
+        job.reward.fields["scale_corrections"],
+        wheel_scale_rad_s=job.action.wheel_scale_rad_s,
+        leg_scale_rad=job.action.leg_scale_rad,
     )
     spec = {name: copy.deepcopy(template[name]) for name in ENVIRONMENT_FIELDS if name in template}
     control = template["control"]

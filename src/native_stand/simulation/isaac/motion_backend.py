@@ -139,7 +139,9 @@ def validate_job(job):
     from native_stand.tasks.motion.scale_corrections import validate_configuration
 
     validate_configuration(
-        job.reward.fields["scale_corrections"], wheel_scale_rad_s=job.action.wheel_scale_rad_s
+        job.reward.fields["scale_corrections"],
+        wheel_scale_rad_s=job.action.wheel_scale_rad_s,
+        leg_scale_rad=job.action.leg_scale_rad,
     )
     return True
 
@@ -1425,8 +1427,13 @@ def _validate_source_mode(job):
         raise ValueError("Isaac只支持明确来源的Motion full或actor_only初始化")
     if job.initialization.mode == "actor_only":
         c0 = job.action.version == "motion_multiheight_support_center_015_80_v1"
-        if not c0:
-            raise ValueError("actor_only新初始化必须绑定C0输出合同")
+        wide = job.action.version == "motion_multiheight020_support_center_050_80_v1"
+        if not c0 and not wide:
+            raise ValueError("actor_only初始化必须绑定显式C0或050输出合同")
+        if wide:
+            from native_stand.artifacts.motion_actor_admission import read_admission
+
+            read_admission(job)
 
 
 def _resolve_source(job, resume_from):
@@ -1453,7 +1460,7 @@ def _resolve_source(job, resume_from):
     source = loader(path)
     if job.initialization.sha256 and source.sha256 != job.initialization.sha256:
         raise ValueError("初始化来源SHA与声明不一致")
-    if job.assets.get("branch_initialization"):
+    if job.assets.get("branch_initialization") and not job.assets.get("wide_actor_admission"):
         from native_stand.artifacts.branch_initialization import validate_source
         from native_stand.tasks.motion.branch_state import prepare_branch_source
 

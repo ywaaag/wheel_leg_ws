@@ -12,20 +12,29 @@ ACTION = "motion_multiheight_support_center_015_80_v1"
 
 
 def validate_actor(payload, job, contract):
-    if payload.get("actor_only") is not True or any(
+    wide = job.action.version == "motion_multiheight020_support_center_050_80_v1"
+    if (not wide and payload.get("actor_only") is not True) or any(
         k in payload for k in ("critic", "optimizer", "training_rng")
     ):
         raise ValueError("actor_only初始化只接受监督Actor，不能拼接旧PPO状态")
     architecture = payload.get("network_architecture", {})
     if (
-        architecture.get("actor_input") != job.model.actor_input
-        or tuple(architecture.get("actor_hidden_dims", ())) != job.model.actor_hidden_dims
-    ):
+        architecture.get("actor_input")
+        if not wide
+        else payload.get("inference_spec", {}).get("input_dim")
+    ) != job.model.actor_input or tuple(
+        architecture.get("actor_hidden_dims", ())
+    ) != job.model.actor_hidden_dims:
         raise ValueError("大Actor真实架构与新作业不一致")
     if contract.get("actor_dimensions") != [31, *job.model.actor_hidden_dims, 6]:
         raise ValueError("大Actor合同必须声明实际大网络维数")
-    if contract.get("action_version") != ACTION or job.action.version != ACTION:
-        raise ValueError("新Actor必须使用明确C0动作版本")
+    action = "motion_multiheight020_support_center_050_80_v1" if wide else ACTION
+    if contract.get("action_version") != action or job.action.version != action:
+        raise ValueError("Actor action contract differs")
+    if wide:
+        from native_stand.artifacts.motion_actor_admission import validate_payload
+
+        validate_payload(payload, job, contract)
     original = payload.get("output_contract", {})
     if original.get("actor_dimensions") != contract["actor_dimensions"]:
         raise ValueError("大Actor内嵌合同必须声明实际大网络维数；小合同仅作来源记录")
@@ -35,7 +44,7 @@ def validate_actor(payload, job, contract):
         raise ValueError("监督Actor物理接口与C0大合同不一致")
     if (
         contract.get("input_version") != "multiskill_mcu_v2"
-        or contract.get("leg_halfwidth_rad") != 0.15
+        or contract.get("leg_halfwidth_rad") != (0.5 if wide else 0.15)
         or contract.get("wheel_halfwidth_rad_s") != 80.0
         or contract.get("input_leg_q_and_previous_scale_rad") != 1.5
         or contract.get("input_wheel_previous_scale_rad_s") != 100.0
@@ -86,7 +95,7 @@ def training_source(payload, job, contract, architecture):
 
     strategy = resolve(job.curriculum.version)
     state = strategy.initial_state(job.assets)
-    return dict(
+    value = dict(
         interface_version=job.model.interface,
         role="MotionZeroStudent",
         actor=actor.state_dict(),
@@ -94,7 +103,7 @@ def training_source(payload, job, contract, architecture):
         network_architecture=copy.deepcopy(architecture),
         critic_privileged_version=job.model.critic_privileged_version,
         output_contract=copy.deepcopy(contract),
-        action_version=ACTION,
+        action_version=job.action.version,
         motion_course_state=state,
         reward_refinement_state=[],
         symmetry_mix_state=[],
@@ -120,3 +129,22 @@ def training_source(payload, job, contract, architecture):
             ],
         ),
     )
+
+    if job.action.leg_scale_rad == 0.5:
+        from native_stand.artifacts.motion_actor_admission import read_admission
+
+        admission = read_admission(job)
+        value["initialization_record"].update(wide_actor_admission=admission)
+        value["source_anchor_actor"] = copy.deepcopy(actor.state_dict())
+        value["source_anchor_identity"] = dict(
+            path=str(job.initialization.checkpoint), sha256=job.initialization.sha256
+        )
+        value["source_policy_retention"] = copy.deepcopy(job.assets["source_policy_retention"])
+        value["branch_initialization_record"] = admission
+        value["model_online_updates"] = admission["source_model_progress_updates"]
+        value["source_course_history"] = dict(BC_source_sha256=job.initialization.sha256)
+        stage = strategy.stage_config(0, job.runtime.envs, state=state)
+        state["assessment_keys"] = stage["cohort_keys"]
+        value["reward_refinement_state"] = strategy.implementation.mixtures(stage)
+        value["symmetry_mix_state"] = strategy.implementation.mixtures(stage, symmetry=True)
+    return value

@@ -944,7 +944,13 @@ def _validate_cross_section(job: JobConfig) -> None:
         job.task == "motion"
         and job.backend == "isaac"
         and job.assets.get("runtime_template") is not None
-        and job.action.version == "motion_multiheight_support_center_015_80_v1"
+        and (
+            job.action.version == "motion_multiheight_support_center_015_80_v1"
+            or (
+                job.action.version == "motion_multiheight020_support_center_050_80_v1"
+                and job.assets.get("wide_actor_admission")
+            )
+        )
     )
     if job.initialization.mode == "actor_only" and not (
         recovery_cubic
@@ -953,7 +959,7 @@ def _validate_cross_section(job: JobConfig) -> None:
     ):
         raise ConfigError(
             "actor_only只接入：Recovery物理Gaussian（isaac_recovery/mujoco，含训练合同）"
-            "、显式C0协议的Isaac Motion 015/80，或ABI4 Jump MuJoCo作业"
+            "、显式准入的Isaac Motion 015/80或050/80，或ABI4 Jump MuJoCo作业"
         )
     if job.storage.save_traces and job.storage.trace_max_bytes == 0:
         raise ConfigError("storage.save_traces=true 需要正的trace_max_bytes")

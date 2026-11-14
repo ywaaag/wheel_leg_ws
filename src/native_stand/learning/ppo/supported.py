@@ -21,7 +21,7 @@ def physical_gain(actor, observations, *, delta=0.05, kp=40.0, leg_scale=0.15):
     return ((plus[:, :, LEGS] - minus[:, :, LEGS]) * (kp * leg_scale / (2 * delta))).transpose(1, 2)
 
 
-def auxiliary_loss(actor, observations, valid, cfg):
+def auxiliary_loss(actor, observations, valid, cfg, *, leg_scale=0.15):
     if cfg.dq_gain_coefficient == 0 and cfg.boundary_coefficient == 0:
         return observations.new_zeros(()), {"states": 0, "gain_skipped": True}
     ids = valid.nonzero(as_tuple=True)[0]
@@ -42,7 +42,7 @@ def auxiliary_loss(actor, observations, valid, cfg):
     sigma = None
     gain = mean.new_zeros(())
     if cfg.dq_gain_coefficient != 0:
-        matrices = physical_gain(actor, x)
+        matrices = physical_gain(actor, x, leg_scale=leg_scale)
         sigma = torch.linalg.matrix_norm(matrices, ord=2)
         gain = cfg.dq_gain_coefficient * huber(torch.relu(sigma / cfg.dq_gain_threshold - 1)).mean()
     return boundary + gain, {
@@ -63,6 +63,7 @@ def ppo_class():
         def __init__(self, *args, scale_config, **kwargs):
             super().__init__(*args, **kwargs)
             self.scale_config = scale_config
+            self.physical_leg_scale = 0.15
             actor, critic = list(self.actor.parameters()), list(self.critic.parameters())
             self.optimizer = torch.optim.Adam(
                 [
@@ -127,7 +128,11 @@ def ppo_class():
                     ).mean()
                     entropy = self.actor.output_entropy[mask].mean()
                     extra, detail = auxiliary_loss(
-                        self.actor, batch.observations["student_actor"], mask, self.scale_config
+                        self.actor,
+                        batch.observations["student_actor"],
+                        mask,
+                        self.scale_config,
+                        leg_scale=self.physical_leg_scale,
                     )
                     auxiliary.append(detail)
                     policy_loss = surrogate - self.entropy_coef * entropy + extra
@@ -293,6 +298,7 @@ def assemble_from_full(source, observation, job, *, fresh=False):
         use_clipped_value_loss=False,
         device=device,
     )
+    algorithm.physical_leg_scale = job.action.leg_scale_rad
     from .dual_adam import DualAdam
 
     if fresh:

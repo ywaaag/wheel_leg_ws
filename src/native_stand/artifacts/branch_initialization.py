@@ -111,6 +111,10 @@ def read_branch(assets):
     if file_sha256(path) != reference["sha256"]:
         raise ValueError("分支初始化契约SHA不同")
     record = read_json(path)
+    from .motion_actor_admission import VERSION as ACTOR_GRANT
+
+    if record.get("version") == ACTOR_GRANT:
+        return record
     if record.get("version") in COURSE_RECORDS:
         return _read_preparation(record, paths)
     if record.get("version") not in (VERSION, ALLOCATED, ALLOCATED_TRAINING) or record.get(
@@ -253,6 +257,11 @@ def require_allocated(job):
     record = read_branch(job.assets)
     if record is None:
         return None
+    from .motion_actor_admission import VERSION as ACTOR_GRANT
+    from .motion_actor_admission import require_allocation
+
+    if record["version"] == ACTOR_GRANT:
+        return require_allocation(job)
     if record["version"] == PREPARATION:
         raise ValueError("课程准备不是训练分配；必须先完成旧attempt结算和显式接续")
     training = (

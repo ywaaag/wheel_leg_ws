@@ -33,7 +33,7 @@ def configuration():
     }
 
 
-def validate_configuration(value, *, wheel_scale_rad_s=None):
+def validate_configuration(value, *, wheel_scale_rad_s=None, leg_scale_rad=None):
     expected = configuration()
     wheel = (
         value.get("output_scales", [None, None])[1]
@@ -42,7 +42,10 @@ def validate_configuration(value, *, wheel_scale_rad_s=None):
     )
     if wheel not in (40.0, 80.0):
         raise ValueError("输出轮尺度必须是显式40或80")
-    expected["output_scales"] = [0.15, wheel]
+    leg = value.get("output_scales", [None])[0] if leg_scale_rad is None else leg_scale_rad
+    if leg not in (0.15, 0.5):
+        raise ValueError("Leg output scale must be explicit .15 or .50")
+    expected["output_scales"] = [leg, wheel]
     if dict(value) != expected:
         raise ValueError("支撑中心物理尺度修正声明不一致")
     return value
