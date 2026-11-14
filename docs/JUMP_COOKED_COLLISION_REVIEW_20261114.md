@@ -70,3 +70,30 @@ tests/test_jump_cooked_collision.py
 contact分支`dfd0d7f`的v6热点缓存是authored30顶点的已校核代理，减去1e-7m后与Cylinder gap取min，0.1µm是保守收紧，不是给1mm门增加容差。用户复算65.8nm/70.4nm面约束残差受序列化精度影响，不能由这一证据承诺跨SDK的误差界。更换SDK、cooking参数、源几何或碰撞变换后，必须同启动重新校核。此实现与本审查分支直接缓存public representation API读回顶点的实现不同，集成时选择一种有完整身份的方案，不得混称actual hull。
 
 后续收据新增`physics_execution_readback`：actual_device取live physics manager，GPU dynamics/broadphase取实际physics scene，tensor backend单独记录；`backend_label`由该读回生成。构造收据和`artifacts/jump_collision_audit_20261114/next_receipt_template.py`均使用这一字段。原v155 trace/旧construction及已保存startup脚本/receipt保持字节原样。helper仅读取元数据，新增CPU回归故意让请求device=cuda而实际manager=cpu，确保标签不会跟随请求或目录名。buildGPUData和每碰撞体窄相设备仍为UNVERIFIED。本次不新增物理/GPU/PPO运行。
+
+## Motion Plane 的接触测量来源
+
+本节仅核对源码/config，不启动引擎、不查询或操作worker，不修改实现。`F`为冻结来源目录：
+
+```
+/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/isolated/2026_11_05__motion_supported2048_dqgain_ppo/runtime_view_r4
+```
+
+| 核对项 | 源码证据与准确口径 |
+|---|---|
+| 原生Plane与sensor | `F/src/native_stand/env.py:30`的ContactSensor无对端filter；117–129创建原生UsdGeom.Plane并绑定材质，138–139实例化sensor。没有filtered matrix失败后改用net的fallback |
+| 正式接触力消费者 | QualityMotionStudentEnv→MotionStudentEnv→TrainingStudentEnv→StudentEnv→RecoveryEnv；`F/src/native_stand/recovery/runtime.py:313–317`取`net_forces_w.torch`三维norm后按wheel_sensor_ids选两轮。`F/src/native_stand/command_v6/runtime/env.py:217–221`虽有同口径，不能替代最外Motion链的定位 |
+| 平面隔离 | 新仓`simulation/isaac/fullchain.py:153–159`调用slope_tiles.setup；`F/src/slope_tiles.py:16`禁用旧ground，42–63设置invertCollisionGroupFilter与env↔assigned Plane双向白名单，并保留各组自身关系。`filter_collisions=False`不等于没有隔离 |
+| rough替换 | 新仓`simulation/isaac/terrain_scene.py:72–105`删除rough环境与Plane的双向关系，再改用该环境road，避免两套地面同时参与 |
+| 自碰撞来源 | 数据映射中`wheeled-legged_RL/configs/rmuc_wheel_leg.yaml:135`显式false；`source/agent_world/agent_world/assets/rmuc_wheel_leg.py:96–100`启用contact reporter并消费该值。net readback本身不会排除自碰撞 |
+| SDK数据语义 | 本机对应SDK的`isaaclab_physx/sensors/contact_sensor/contact_sensor.py:380–385`始终读取net，只有非空filter才读取matrix；`contact_sensor_data.py:74–78`定义其为世界坐标法向接触合力。它不含另取的摩擦力，也不是重力、motor、NET和接触的全机受力总和；没有对端身份 |
+
+此处norm是法向接触向量相加后的长度，不能改称世界Z分量或逐接触力大小之和。源码/config证据不等于已重新读回引擎中的self-collision及collision group现场。
+
+### 既有Cylinder＋Plane对照的测量约束
+
+1. 保留Jump的既有力阈值、1ms采样、1mm几何门禁和控制/奖励定义。当前Jump的filtered matrix是显式测量来源，缺失会报错（`jump_isaac_scene.py:494–500`）；不增加“matrix失败自动转norm”的隐式路径。
+2. 若下一既有探针选择原生Plane与unfiltered net，先同启动读回wheel body/sensor顺序、实际selfCollision、invertCollisionGroupFilter、env/Plane成员与双向关系、旧ground禁用状态和其他可能对端。只有能确认该轮唯一可接触对象为所分配Plane时，才可将该net解释为轮地法向接触合力；开启自碰撞或存在未排除对端时拒绝这一解释，不零填冒充。
+3. 测量合同明确写`unfiltered normal-force net`。平地保留`clamp_min(net[...,2],0)`并另报`norm(net)`；有坡度时使用已知单位Plane normal的点积，单独声明合同版本。世界Z/平面法向投影都不是Motion的原三维norm口径。
+4. 接触读回仍仅供既有奖励/验证消费者，不将接触真值送入Actor支撑观测，不借对照改变C/FSM唯一控制归属。Motion的5mm门通过不能授予Jump的1mm门通过；Cylinder与凸包、Plane与薄盒的PASS也不能跨身份转授。
+5. 本轮不因这份审查扩展实验矩阵或新增探针；后续由当前唯一owner在已授权的既有有界检查中采用。未知对端或投影条件明确拒绝，保留旧结果和失败证据。
