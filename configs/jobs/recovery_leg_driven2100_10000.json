@@ -87,8 +87,8 @@
       "sha256": "45c68464fa31a5c1adc24c4fc8e85e5133abaca540893e283d518004b9a6cbee"
     },
     "training_authorization": {
-      "path": "/home/kellen/wheel_leg_training_data/recovery_leg_driven_20261114/preparation/authorization.json",
-      "sha256": "d7b01f98053a869622976de954f686170d6d13f2bb3e65a9fb0c1e00fdfa56ce"
+      "path": "/home/kellen/wheel_leg_training_data/recovery_leg_driven_20261114/preparation/shared_gpu_authorization.json",
+      "sha256": "b9db214a457da6723c89b9329b8d0de86bcba95bf4de094e7953f113315acdc1"
     },
     "recovery_leg_driven_geometry": {
       "path": "/home/kellen/wheel_leg_training_data/recovery_leg_driven_20261114/preparation/geometry.json",
@@ -104,8 +104,14 @@
     },
     "physical_gpu_uuid": "GPU-e704e7d4-2965-4712-9759-ba6b9910bd72",
     "gpu_resource_policy": {
-      "mode": "exclusive",
-      "minimum_free_MiB": 8192
+      "mode": "shared_authorized",
+      "authorization": {
+        "path": "/home/kellen/wheel_leg_training_data/recovery_leg_driven_20261114/preparation/shared_gpu_authorization.json",
+        "sha256": "b9db214a457da6723c89b9329b8d0de86bcba95bf4de094e7953f113315acdc1"
+      },
+      "minimum_free_MiB": 8192,
+      "minimum_disk_free_bytes": 8589934592,
+      "storage_path": "/home/kellen/wheel_leg_training_data"
     },
     "recovery": {
       "entry_family": "swing",
