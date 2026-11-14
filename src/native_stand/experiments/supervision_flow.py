@@ -165,7 +165,7 @@ def execute(
             seen = set()
             for ref, chunk in zip(sources, chunks, strict=True):
                 ids = sample_keys(ref, chunk)
-                mask = np.array([key not in seen and not seen.add(key) for key in ids])
+                mask = np.array([key not in seen and not seen.add(key) for key in ids], dtype=bool)
                 for key in (
                     "states",
                     "episodes",
