@@ -57,6 +57,11 @@ def validate_job(job):
     from native_stand.tasks.jump.spec import build_task
 
     build_task(job)
+    from native_stand.simulation.jump_isaac_scene import physical_contract
+
+    physical_contract(
+        job.runtime.envs, job.assets.get("jump_wheel_collision"), job.assets.get("jump_ground")
+    )
     if job.assets.get("jump_compute") not in (None, "cuda_firmware_warp_inverse_v1"):
         raise ValueError("Explicit supported Jump compute contract required")
     if job.reward.version != REWARD_VERSION:
@@ -111,7 +116,7 @@ class IsaacJump:
         from native_stand.simulation.jump_isaac_scene import physical_contract
 
         self.physical_contract = physical_contract(
-            self.num_envs, job.assets.get("jump_wheel_collision")
+            self.num_envs, job.assets.get("jump_wheel_collision"), job.assets.get("jump_ground")
         )
         self.training_semantics = dict(TRAINING_SEMANTICS)
         if self.job.assets.get("jump_compute") == "cuda_firmware_warp_inverse_v1":

@@ -129,3 +129,27 @@ def test_convex_guard_uses_full_frame_and_catches_outer_rim_penetration():
     shape["body_frame"] = frame
     transformed = wheel_convex_body_points(shape)
     assert np.allclose(transformed, vertices @ frame[:3, :3].T + frame[:3, 3])
+
+
+def test_native_plane_contract_retains_cylinder_and_strict_gates():
+    from native_stand.simulation.jump_isaac_scene import physical_contract
+
+    contract = physical_contract(4096, ground="native_plane_v1")
+    assert contract["ground_collision"] == "native_static_plane"
+    assert contract["maximum_wheel_penetration_m"] == 0.001
+    assert contract["maximum_closure_residual_m"] == 0.002
+    assert "wheel_collision" not in contract
+    with pytest.raises(ValueError, match="original Cylinder"):
+        physical_contract(4096, "wheel_convex30_v1", "native_plane_v1")
+
+
+def test_plane_uses_net_without_unsupported_filter_and_legacy_uses_filtered():
+    from native_stand.simulation.jump_isaac_scene import ground_contact_forces
+
+    net = torch.tensor([[[1.0, 2.0, 3.0]]])
+    data = SimpleNamespace(net_forces_w=SimpleNamespace(torch=net), force_matrix_w=None)
+    assert torch.equal(ground_contact_forces(data, True), net)
+    with pytest.raises(RuntimeError, match="filtered ground"):
+        ground_contact_forces(data, False)
+    data.force_matrix_w = SimpleNamespace(torch=net.unsqueeze(-2))
+    assert torch.equal(ground_contact_forces(data, False), net)

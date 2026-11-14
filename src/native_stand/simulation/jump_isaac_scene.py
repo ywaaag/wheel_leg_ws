@@ -21,7 +21,7 @@ PHYSICAL_CONTRACT = {
 }
 
 
-def physical_contract(envs, wheel_collision=None):
+def physical_contract(envs, wheel_collision=None, ground=None):
     """Keep every clone on tiled ground, including the outer rows of 4096."""
     result = dict(PHYSICAL_CONTRACT)
     grid_span = (ceil(sqrt(envs)) - 1) * result["env_spacing_m"]
@@ -38,6 +38,15 @@ def physical_contract(envs, wheel_collision=None):
             clearance_reference="minimum_original_cylinder_and_convex30",
             wheel_collision="circumscribed_convex30",
             wheel_radial_envelope_error_bound_m=0.000331,
+        )
+    if ground is not None:
+        if ground != "native_plane_v1" or wheel_collision is not None:
+            raise ValueError("Native Plane requires original Cylinder wheel collision")
+        result.update(
+            version="jump_PhysX_native_plane_cylinder_v7",
+            ground_collision="native_static_plane",
+            ground_size_m=[500.0, 500.0, 0.0],
+            ground_contact_readback="net_forces_no_self_or_cross_environment_collision",
         )
     return result
 
@@ -114,6 +123,34 @@ def author_wheel_convex_collision(stage, root):
         mesh.CreateSubdivisionSchemeAttr("none")
         UsdPhysics.MeshCollisionAPI.Apply(mesh.GetPrim()).CreateApproximationAttr("convexHull")
     return len(paths)
+
+
+def spawn_native_plane(prim_path, cfg, translation=None, orientation=None, **kwargs):
+    """Static native Plane as used by Motion; no asset download or thin box."""
+    import isaaclab.sim as sim_utils
+    from pxr import UsdGeom, UsdPhysics
+
+    stage = sim_utils.get_current_stage()
+    plane = UsdGeom.Plane.Define(stage, prim_path)
+    plane.CreateAxisAttr("Z")
+    plane.CreateWidthAttr(cfg.size[0])
+    plane.CreateLengthAttr(cfg.size[1])
+    if translation is not None:
+        plane.AddTranslateOp().Set(translation)
+    UsdPhysics.CollisionAPI.Apply(plane.GetPrim())
+    material_path = prim_path + "/material"
+    cfg.physics_material.func(material_path, cfg.physics_material)
+    sim_utils.bind_physics_material(prim_path, material_path, stage=stage)
+    return plane.GetPrim()
+
+
+def ground_contact_forces(data, native_plane):
+    """Net equals ground-only with self/cross-env collisions disabled and no props."""
+    if native_plane:
+        return tensor(data.net_forces_w)
+    if data.force_matrix_w is None:
+        raise RuntimeError("Actual filtered ground force matrix required")
+    return tensor(data.force_matrix_w).sum(-2)
 
 
 def spawn_tiled_ground(prim_path, cfg, translation=None, orientation=None, **kwargs):
@@ -196,11 +233,32 @@ class IsaacScene:
         self.apply, self.inverse = quat_apply, quat_apply_inverse
         self.device, self.num_envs = job.runtime.device, job.runtime.envs
         self.physical_contract = physical_contract(
-            self.num_envs, job.assets.get("jump_wheel_collision")
+            self.num_envs, job.assets.get("jump_wheel_collision"), job.assets.get("jump_ground")
         )
         self.dt = job.control.physics_dt_s
         self.sim = SimulationContext(
             SimulationCfg(dt=self.dt, device=self.device, render_interval=10)
+        )
+
+        native_plane = self.physical_contract.get("ground_collision") == "native_static_plane"
+        material = sim_utils.RigidBodyMaterialCfg(
+            static_friction=0.5, dynamic_friction=0.5, restitution=0.0
+        )
+        ground_spawn = (
+            sim_utils.GroundPlaneCfg(
+                func=spawn_native_plane, size=(500.0, 500.0), physics_material=material
+            )
+            if native_plane
+            else sim_utils.CuboidCfg(
+                func=spawn_tiled_ground,
+                size=tuple(self.physical_contract["ground_size_m"]),
+                rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                    kinematic_enabled=True, disable_gravity=True
+                ),
+                collision_props=sim_utils.CollisionPropertiesCfg(),
+                mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
+                physics_material=material,
+            )
         )
 
         @configclass
@@ -208,19 +266,10 @@ class IsaacScene:
             ground = AssetBaseCfg(
                 prim_path="/World/ground",
                 collision_group=-1,
-                spawn=sim_utils.CuboidCfg(
-                    func=spawn_tiled_ground,
-                    size=tuple(self.physical_contract["ground_size_m"]),
-                    rigid_props=sim_utils.RigidBodyPropertiesCfg(
-                        kinematic_enabled=True, disable_gravity=True
-                    ),
-                    collision_props=sim_utils.CollisionPropertiesCfg(),
-                    mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
-                    physics_material=sim_utils.RigidBodyMaterialCfg(
-                        static_friction=0.5, dynamic_friction=0.5, restitution=0.0
-                    ),
+                spawn=ground_spawn,
+                init_state=AssetBaseCfg.InitialStateCfg(
+                    pos=(0.0, 0.0, 0.0 if native_plane else -0.05)
                 ),
-                init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 0.0, -0.05)),
             )
             robot = ArticulationCfg(
                 prim_path="{ENV_REGEX_NS}/Robot",
@@ -280,13 +329,14 @@ class IsaacScene:
                 prim_path="{ENV_REGEX_NS}/Robot/.*",
                 history_length=0,
                 update_period=0.001,
-                filter_prim_paths_expr=["/World/ground"],
+                filter_prim_paths_expr=[] if native_plane else ["/World/ground"],
             )
 
         scene_cfg = SceneCfg(
             num_envs=self.num_envs,
             env_spacing=self.physical_contract["env_spacing_m"],
             replicate_physics=True,
+            filter_collisions=True,
         )
         self.scene = InteractiveScene(scene_cfg)
         self.minimum_floor_margin_m = float(
@@ -503,10 +553,10 @@ class IsaacScene:
             ],
             -1,
         )
-        matrix = self.sensor.data.force_matrix_w
-        if matrix is None:
-            raise RuntimeError("Actual filtered ground force matrix required")
-        ground = tensor(matrix).sum(-2)
+        ground = ground_contact_forces(
+            self.sensor.data,
+            self.physical_contract.get("ground_collision") == "native_static_plane",
+        )
         normal = ground[:, self.wheel_sensor_ids, 2].clamp_min(0)
         contact = normal > 1.0
         restricted = ground[:, self.restricted_ids].norm(dim=-1).amax(-1) > 1.0

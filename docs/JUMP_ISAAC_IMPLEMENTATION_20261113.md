@@ -1,5 +1,13 @@
 # Jump Isaac GPU 执行链
 
+当前正式配方按用户要求使用原USD Cylinder轮＋500m静态原生Plane，`assets.jump_ground="native_plane_v1"`，物理合同`jump_PhysX_native_plane_cylinder_v7`。Plane使用Motion相同的UsdGeom.Plane/CollisionAPI；无地面薄盒，无轮凸包重写。仅关闭不支持Plane的对端contact filter，改读net_forces_w。其地面力语义成立于当前场景只有Plane与机器人、self collision=False、InteractiveScene filter_collisions=True，环境间隔离；将来加入障碍或自碰撞必须新合同和明确接触分类。保留原1mm穿入/2mm闭链门、32/8 solver、40/4.8Nm与1/5/10ms，先隔离地面差异，不盲改Motion全部参数。
+
+CPU/GPU各400tick：轮穿入最大0.000365/0.002790mm，闭链最大0.197/0.151mm，partial reset未重置行全部测量变化0，冲量竖向余额最大0.000145Ns。原Cylinder＋Plane两次独立4096x6400tick自然PASS，Critic54次逐位、inverse48次容差对照和fresh reset通过。
+
+另修复RowCritic.pack长期保留execution_row视图导致整批CPU历史snapshot滞留：编码成功或异常均finally释放base.plant，schema/layout仍保留。真实CPU数值对照与底层tensor weakref释放检查通过。修复前同Plane探针6010tick RSS约43.2GB；修复后6400tick约10.55GB、峰值10.67GB。正式performance_counters增加每update的jump_host_peak_rss_bytes，以验证正常PPO长窗口。不是通过gc或减少环境掩盖缺陷。
+
+以下凸包/薄盒为历史冻结路径，保留旧run身份和对照，不用于当前正式配方。
+
 当前新增显式 `assets.jump_wheel_collision="wheel_convex30_v1"`，由正式 Jump factory 传入 Scene 与 execution identity。运行时仅将两轮 Cylinder 碰撞改为30侧外切凸包；原USD、轮心/轴/宽、质量/COM/惯量与sensor路径保留。60mm半径增加0～0.331mm，不能宣称几何完全不变。本机CPU/GPU cooked读回均60顶点/32面，20000方向support差7.6nm～330.501um。旧配置未声明时保留原Cylinder，供冻结来源与对照使用；两种物理合同不能无声明full互换，需显式transition与新cohort。
 
 最终候选零PPO4096环境6400tick通过，6634个正常结束行，Critic54次逐位对照、inverse48次容差对照、fresh reset通过。CPU/GPU各两环境400tick，partial reset未reset行全部测量差0；最大闭链分别0.185/0.141mm，GPU最小解析净空-1.628um，冲量竖向余额最大0.0268Ns。仍逐1ms执行1mm穿入/2mm闭链门禁，不改变奖励/控制/限矩。证据`artifacts/jump_diagnosis_20261113/convex30_acceptance_v150.json`。这是物理接线验收，未认证站稳/跳跃；当前正在完成正常PPO与完整恢复验收。以下旧版本结论按各自冻结身份读取。

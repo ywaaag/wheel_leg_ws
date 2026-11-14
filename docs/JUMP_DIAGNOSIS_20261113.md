@@ -164,3 +164,10 @@ Motion/Recovery负责人回传：两者此前训练没有同Jump的1ms、任一�
 可复用经验是实际形状与参数读回、完整执行历史/延迟队列reset、保留连续轨迹对照；不复制没有相同检测的“无报错”，也不将更低solver迭代或Plane直接当修复。只读来源：旧仓artifacts/2026_11_11__motion200_physics_calibration/actual_PhysX_runtime_latest_summary.json；旧仓isolated/2026_11_05__motion_supported2048_dqgain_ppo/slope_tiles.py；recovery worktree simulation/recovery_isaac/environment.py。
 
 严格凸包门将原Cylinder与凸包顶点支撑净空取min并减0.1um数值余量，同1mm阈值；缓存是本SDK已cooking校核的生成顶点代理，跨SDK必须重新核实。v155 GPU探针脚本正文沿用CPU PhysX标签，实际命令device=cuda:0；旧trace保留，后续综合收据显式记录实际device。本次单面数据读回证明60顶点/32面/单面最多30顶点，计数不单独证明GPU contact generation、也不宣称无CPU fallback。
+
+
+## 原Cylinder＋原生Plane与OOM修复（2026-11-14当前）
+
+用户倾向原Cylinder＋原生Plane，按Motion实际实现对照。原来GPU contact filter不支持仅是过滤查询限制，不能推导Plane碰撞不可用。新增明确native_plane_v1合同：500m静态Plane，无轮几何改写；只在无自碰撞、clone隔离且无其他物体的场景读取net_forces_w作为地面力。CPU/GPU400tick与两次4096x6400tick通过，仍逐1ms检查原1mm穿入/2mm闭链。原Cylinder动态异常目前支持与薄盒组合有关，内部PhysX机制仍未确认；不能宣称所有Cylinder失效。
+
+旧v15在75已耗更新后被kernel OOM kill，state陈旧RUNNING已由公共owner.reconcile补写FAILED，原始日志和预算保留。最后有效u3，未保存72次不退款；任务累计543/余9457。kernel_oom_v171.txt保留约116GB匿名RSS记录。根因代码为RowCritic.pack将execution_row视图保存在持久base.plant，视图保活每份约81.66MiB整批CPU snapshot；4096异步terminal可保留大量不同快照。修复用try/finally释放临时plant，数值与schema不变，CPU成功/异常释放及GPU同窗口RSS对照通过。后续新run必须正常PPO多更新、保存恢复和主机内存验收后续长训。

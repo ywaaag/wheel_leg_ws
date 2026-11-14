@@ -2338,7 +2338,7 @@
       },
       "execution_root": "/root/gpufree-data/wheel_leg_jump/execution"
     },
-    "jump_wheel_collision": "wheel_convex30_v1"
+    "jump_ground": "native_plane_v1"
   },
   "diagnostics": {
     "minimum_unique_actor_samples": 128,
