@@ -119,7 +119,7 @@ def decoder_configuration(contract):
         return c
     decoder = ActionDecoder.from_contract(contract)
     center = decoder.center
-    c.center_kind = 2 if center.support_height_nodes_m else 1
+    c.center_kind = (5 if decoder.leg_scale == 0.5 else 2) if center.support_height_nodes_m else 1
     c.leg_scale = decoder.leg_scale
     c.wheel_scale = decoder.wheel_scale
     c.geometry[:] = [

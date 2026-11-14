@@ -24,7 +24,8 @@ int RLPolicyEncode(const float *gyro,const float *gravity,const float *q,const f
 }
 int RLPolicyDecode(const RLPolicyDecodeConfig *c,const float *raw,float h,float *target) {
     if (!c || !target || c->abi!=RL_POLICY_CORE_ABI || !finite_values(raw,6) || !isfinite(h) ||
-        h<c->height_min-1e-7 || h>c->height_max+1e-7 || c->leg_scale!=.15f ||
+        h<c->height_min-1e-7 || h>c->height_max+1e-7 || (c->center_kind==RL_POLICY_CENTER_TABLE_WIDE ?
+            (c->leg_scale!=.5f || c->wheel_scale!=80.f) : c->leg_scale!=.15f) ||
         (c->wheel_scale!=40.f && c->wheel_scale!=80.f && !(c->center_kind==RL_POLICY_RECOVERY_CUBIC && c->wheel_scale==100.f))) return -1;
     if (c->center_kind==RL_POLICY_RECOVERY_CUBIC) {
         const unsigned indices[4]={0,1,3,4};
@@ -55,7 +56,7 @@ int RLPolicyDecode(const RLPolicyDecodeConfig *c,const float *raw,float h,float 
         legs[2]=-legs[0]; legs[3]=legs[1];
         if (c->center_kind==RL_POLICY_CENTER_CONSTANT) {
             for (unsigned i=0;i<4;++i) { if (!isfinite(c->offset[i])) return -1; legs[i]+=c->offset[i]; }
-        } else if (c->center_kind==RL_POLICY_CENTER_TABLE) {
+        } else if ((c->center_kind==RL_POLICY_CENTER_TABLE || c->center_kind==RL_POLICY_CENTER_TABLE_WIDE)) {
             unsigned n=c->node_count;
             if (n<2 || n>RL_POLICY_MAX_NODES) return -1;
             for (unsigned i=0;i<n;++i) {

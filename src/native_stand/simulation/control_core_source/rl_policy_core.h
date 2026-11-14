@@ -6,6 +6,7 @@
 #define RL_POLICY_CENTER_TABLE 2u
 #define RL_POLICY_CENTER_POLY5 3u
 #define RL_POLICY_RECOVERY_CUBIC 4u
+#define RL_POLICY_CENTER_TABLE_WIDE 5u
 #define RL_POLICY_MAX_NODES 16u
 /* Explicit center identity; table interpolation and firmware poly5 never alias. */
 typedef struct {

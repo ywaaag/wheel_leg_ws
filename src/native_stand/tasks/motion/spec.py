@@ -15,7 +15,10 @@ from native_stand.experiments.config import ConfigError, JobConfig
 from . import encoding
 
 SUPPORTED_OUTPUT_VERSION = "motion31_kinematic_support_centered_015_40_v1"
+WIDE_OUTPUT_VERSION = "motion_multiheight020_support_center_050_80_v1"
+SUPPORTED_LEG_SCALES = {WIDE_OUTPUT_VERSION: 0.5}
 SUPPORTED_OUTPUT_VERSIONS = {
+    WIDE_OUTPUT_VERSION: 80.0,
     SUPPORTED_OUTPUT_VERSION: 40.0,
     "motion31_kinematic_support_centered_015_80_v1": 80.0,
     "motion_multiheight_support_center_015_80_v1": 80.0,
@@ -148,6 +151,8 @@ def build_task(job: JobConfig) -> MotionTask:
         )
     if job.model.action_version not in (None, job.action.version):
         raise ConfigError("model.action_version 与 action.version 不一致")
+    if job.action.version == WIDE_OUTPUT_VERSION and job.algorithm != "distillation":
+        raise ConfigError("050/80当前仅开放物理目标蒸馏及其播放/导出；PPO接续需独立来源保护适配")
     if job.action.dim != len(encoding.CHANNELS):
         raise ConfigError(f"action.dim 必须为 {len(encoding.CHANNELS)}")
     if tuple(job.action.order) != encoding.CHANNELS:
@@ -158,8 +163,8 @@ def build_task(job: JobConfig) -> MotionTask:
         raise ConfigError("输入腿归一化必须保持1.5rad")
     if job.observation.wheel_input_scale_rad_s != encoding.INPUT_WHEEL_SCALE_RAD_S:
         raise ConfigError("输入轮归一化必须保持100rad/s")
-    if job.action.leg_scale_rad != encoding.OUTPUT_LEG_HALFWIDTH_RAD:
-        raise ConfigError("输出腿半宽必须为0.15rad")
+    if job.action.leg_scale_rad != SUPPORTED_LEG_SCALES.get(job.action.version, 0.15):
+        raise ConfigError("输出腿半宽与显式动作版本不一致")
     if job.action.wheel_scale_rad_s != SUPPORTED_OUTPUT_VERSIONS[job.action.version]:
         raise ConfigError("输出轮半宽与显式动作版本不一致")
 
@@ -174,6 +179,7 @@ def build_task(job: JobConfig) -> MotionTask:
         in (
             "motion_multiheight_support_center_015_80_v1",
             "motion_multiheight020_support_center_015_80_v2",
+            WIDE_OUTPUT_VERSION,
         )
     ):
         raise ConfigError("分段支撑中心必须绑定明确的multiheight动作版本")

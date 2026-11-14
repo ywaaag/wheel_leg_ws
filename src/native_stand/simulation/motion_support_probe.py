@@ -18,8 +18,8 @@ LEGS = [0, 1, 3, 4]
 def validate(config):
     if config.get("version") != VERSION:
         raise ValueError("未知承重诊断版本")
-    if not 1 <= len(config["cases"]) <= 16:
-        raise ValueError("诊断必须有1～16个有限case")
+    if not 1 <= len(config["cases"]) <= 64:
+        raise ValueError("诊断必须有1～64个有限case")
     if not 1 <= config["wall_s"] <= 1800 or not 1 <= config["max_output_bytes"] <= 512 * 2**20:
         raise ValueError("诊断必须有明确墙钟和输出空间边界")
     names = set()
@@ -53,7 +53,25 @@ def validate(config):
             raise ValueError("中心偏移必须是四腿有限显式候选")
         if case["name"] in names or Path(case["name"]).name != case["name"]:
             raise ValueError("case名称冲突或非法")
+        start_height = case.get("center_delta_start_height_m")
+        if start_height is not None and (
+            isinstance(start_height, bool)
+            or not isinstance(start_height, int | float)
+            or not math.isfinite(start_height)
+            or not case["height_m"] < start_height <= 0.4
+        ):
+            raise ValueError("低高度中心干预起点必须高于case目标且不超过0.40m")
         names.add(case["name"])
+        if case.get("spawn", "flat") not in (
+            "flat",
+            "steep_waves_H1",
+            "cobblestones_H1",
+            "broken_rubble_H1",
+            "pitted_road_H1",
+        ):
+            raise ValueError("未知诊断地形")
+        if case.get("spawn", "flat") != "flat" and not config.get("terrain_map", False):
+            raise ValueError("崎岖地形需要显式启用SHA绑定地图")
     # Reserve trace rows, NPZ headers, the small C library and JSON reports before
     # opening an engine. Do not start a case that cannot fit its declared budget.
     reserve = sum(math.ceil(c["duration_s"] * 100) * 2048 + 262144 for c in config["cases"])
@@ -62,14 +80,18 @@ def validate(config):
     return config
 
 
-def transform_for(case):
+def transform_for(case, source_scale=0.15):
     """Explicit intervention after original C decoding; original Actor remains unchanged."""
     scale = case["leg_scale_rad"]
     offsets = np.array(case.get("center_delta_rad", [0.0] * 4), dtype=np.float32)
 
     def transform(raw, height, source_target):
         target = source_target.copy()
-        target[LEGS] += (scale - 0.15) * np.clip(raw[LEGS], -1.0, 1.0) + offsets
+        start = case.get("center_delta_start_height_m")
+        fraction = (
+            1.0 if start is None else np.clip((start - height) / (start - case["height_m"]), 0, 1)
+        )
+        target[LEGS] += (scale - source_scale) * np.clip(raw[LEGS], -1.0, 1.0) + fraction * offsets
         return target
 
     return transform
@@ -172,14 +194,19 @@ def from_file(path, *, dry_run=False):
         path_mapping=cfg["path_mapping"],
         checkpoint_sha256=cfg["checkpoint_sha256"],
         solver_profile=cfg["solver_profile"],
+        terrain_map=cfg.get("terrain_map", False),
     )
-    if prepared.job.task != "motion" or prepared.job.action.leg_scale_rad != 0.15:
-        raise ValueError("诊断必须使用明确原.15rad Motion模型")
+    if prepared.job.task != "motion" or prepared.job.action.leg_scale_rad not in (0.15, 0.5):
+        raise ValueError("诊断必须使用明确版本的Motion模型")
     result = dict(
         version=VERSION,
         plan=prepared.record(),
         cases=copy.deepcopy(cfg["cases"]),
-        old_actor_under_intervention=True,
+        old_actor_under_intervention=any(
+            c["leg_scale_rad"] != prepared.job.action.leg_scale_rad
+            or any(c.get("center_delta_rad", ()))
+            for c in cfg["cases"]
+        ),
         physics_equivalence_claimed=False,
         capability_accepted=False,
         updates_charged=0,
@@ -212,9 +239,14 @@ def run(cfg, prepared, result):
         directory.mkdir()
         try:
             _, plant, _, _ = create_player(
-                prepared, directory=directory, diagnostic_target_transform=transform_for(case)
+                prepared,
+                directory=directory,
+                diagnostic_target_transform=transform_for(case, prepared.job.action.leg_scale_rad),
             )
             plant.recording = False
+            if case.get("spawn", "flat") != "flat":
+                plant.spawn = case["spawn"]
+                plant.reset()
             dt = plant.physics_dt
             for _step in range(round(case["duration_s"] / dt)):
                 if time.monotonic() - started > cfg["wall_s"]:
@@ -255,6 +287,7 @@ def run(cfg, prepared, result):
                         "dual_support": state["contact_geometric_left"]
                         and state["contact_geometric_right"],
                         "raw": rec["raw"].copy(),
+                        "observation": rec["observation"].copy(),
                         "source_requested": rec["source_requested"].copy(),
                     }
                 )

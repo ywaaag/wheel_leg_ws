@@ -173,6 +173,12 @@ Motion目标与能力证据的共同入口为[Motion能力矩阵](docs/MOTION_CA
 
 `wheel-leg diagnose --config`识别显式`motion_support_probe_v1`协议，调用`simulation/motion_support_probe.py`，复用`playback.plan/create_player`和MotionPlayer的共享C/V4执行。逐case只注入实例级物理目标变换，保留原Actor、原始解码目标和实际采用目标，不改冻结合同。支持15～40秒case、总墙钟及输出边界；中心候选仅来自完整、稳态、双支撑的静止片段并校验平地对称目标。±0.30/±0.50仅表示旧raw的显式诊断干预，不代表正式新动作合同、蒸馏完成或能力认证；不接owner/PPO、不消费在线更新。
 
+Motion新增显式`motion_multiheight020_support_center_050_80_v1`，腿±0.50rad、轮±80rad/s，沿用0.20～0.40m分段中心与1.5rad/100rad/s输入尺度。与旧015合同各自校验；共享C结构ABI不变，新增center_kind=5只接受0.50/80表中心，旧kind拒绝0.50。源码manifest另记扩展摘要，不修改冻结副本。`ActionLabels.motion_contract`经Teacher物理目标反解Student标签，越包络拒绝；BC候选及完整BC状态保存Student输出与时序，统一推理/播放器/部署直接消费。当前开放监督蒸馏和其播放/导出，PPO在task入口拒绝，须先单独完成新包络来源保护接续，不能拿BC状态冒充原PPO完整恢复。
+
+有界诊断扩展至最多64case，可显式`terrain_map=true`并为case声明`spawn`，复用既有平地＋四H1地图及合法reset。轨迹保留实际前动作31D observation供离线监督，原始与采用目标分开；未知或未启用地图的地形拒绝。完整episode划分、Teacher标签与BC训练仍交给公共supervision/dataset/owner，诊断本身不训练。
+
+低高度探查可通过case的`center_delta_start_height_m`声明按命令高度渐进施加的中心偏移；原始C目标和干预后采用目标分别记录，初始高站姿无偏移。它只扩展诊断实例参数，不进入训练/部署或覆盖正式中心。研究可在产物中另行声明受载筛选门槛，不能覆盖原严格中心候选标记，未达目标高度的数据不能标定为目标高度平衡。
+
 driver只对优化、计费、任务后处理全部完成的边界补存。优化完成收据只证明应计费，不证明当前课程/执行现场可恢复；半完成rollout不得用旧update号发布新物理现场。保存失败保留上一有效引用，cleanup错误附注在primary异常上供worker结算。普通resume不放宽计数一致校验。
 
 sim2sim不是训练课程或另一套worker：显式协议经CLI直接顺序拥有两个后端会话，不创建子进程。collection adapter复用make_environment和公共推理factory；MuJoCo adapter复用playback.create_player、同一控制循环与模型合同。实际条件/积分接触定义、原始信号及真实子步形成统一trace后调用已有diagnose。故障保留partial数据与原因；不更改评分口径，不做隐式独立能力评估。

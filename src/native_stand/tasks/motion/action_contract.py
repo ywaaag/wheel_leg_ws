@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 from .encoding import decode_targets
-from .spec import SUPPORTED_OUTPUT_VERSIONS, CenterSpec
+from .spec import SUPPORTED_LEG_SCALES, SUPPORTED_OUTPUT_VERSIONS, WIDE_OUTPUT_VERSION, CenterSpec
 
 
 @dataclass(frozen=True)
@@ -19,7 +19,8 @@ class ActionDecoder:
         if version not in SUPPORTED_OUTPUT_VERSIONS:
             raise ValueError(f"未知Motion输出合同: {version}")
         wheel = SUPPORTED_OUTPUT_VERSIONS[version]
-        if contract["leg_halfwidth_rad"] != 0.15 or contract["wheel_halfwidth_rad_s"] != wheel:
+        leg = SUPPORTED_LEG_SCALES.get(version, 0.15)
+        if contract["leg_halfwidth_rad"] != leg or contract["wheel_halfwidth_rad_s"] != wheel:
             raise ValueError("动作版本与物理包络不一致")
         formula = contract["center_formula"]
         if formula["version"] != "flat_two_link_geometry_v1":
@@ -48,10 +49,11 @@ class ActionDecoder:
             in (
                 "motion_multiheight_support_center_015_80_v1",
                 "motion_multiheight020_support_center_015_80_v2",
+                WIDE_OUTPUT_VERSION,
             )
         ):
             raise ValueError("输出版本与分段中心身份不一致")
-        return cls(version, center, 0.15, wheel)
+        return cls(version, center, leg, wheel)
 
     def decode(self, raw, height, *, checks=None):
         return decode_targets(

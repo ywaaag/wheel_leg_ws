@@ -4,8 +4,8 @@
   "authority_worktree": "/home/kellen/combat-dm-balance-control-integration",
   "base_commit": "4ba73bc2a194ad8c1ff9ef3d12cde732f03121ef",
   "files": {
-    "rl_policy_core.c": "7e460257114bf8b006dd613faa9ff8f8632f52ace0b41e157ee050736c266d71",
-    "rl_policy_core.h": "719b3a83ccf9476cf0b8be369c0c14874b514f837a800880ca7aefefde54c71a",
+    "rl_policy_core.c": "7bf74020d4c8aa77e79d5af224ce1f3fc208e5d9e6511d2b9d4f5a1982865931",
+    "rl_policy_core.h": "05406a18a4ec3631cbafecdef1f07b9782d9ecaff278ef36d346daa467c95450",
     "rl_motion31.c": "d0c423426a4620ceddef2bb22ae84fe877eb94dcb6a72d68feaa4e280f4e5a02",
     "rl_motion31.h": "a3929ec395e17bdff9d6af261a51268f174fe319a75dd0dd9b3082352d5ae5af",
     "rl_control.c": "2602de49d75c3b92a23ad43c8b826c840bee05b22335f7cc4268fb183b2e0185",
@@ -28,5 +28,8 @@
   "physical_NET_in_core": false,
   "Jump_ABI": 2,
   "Jump_source_worktree": "/home/kellen/combat-dm-balance-jump-simple-v1",
-  "Jump_trajectory_id": 2830348563
+  "Jump_trajectory_id": 2830348563,
+  "extensions": [
+    "motion_table_wide_050_80_v1"
+  ]
 }

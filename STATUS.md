@@ -1,5 +1,15 @@
 # 当前任务
 
+## Motion物理目标蒸馏与受载中心（2026-11-14）
+
+用户授权停训、蒸馏并保全模型。以已回传完整u2200为冻结Teacher，本机CPU经公共distill/owner/worker/supervision实际完成8+24=32轮BC、2600次监督Adam step，PPO新增0；原阶段2781/10000、剩7219保持。首个缺wheel身份的初始化attempt消耗0，原失败与结算保留。Actor结构不缩小，050/80显式合同与Teacher015各自解码物理标签；输入、PD、限矩、V4、真实dq和延迟不变。原完整模型、BC恢复状态、候选和ONNX均保留在数据根`motion_distill_wide_20261114/`及原729文件保全包。
+
+93个Teacher回合＋31个Student训练条件回合聚合48205条真实前动作输入，开发/留出不补教。第二块第23轮按开发损失选为候选，SHA `c35ad9897917cecd8b2d16eeefd1dfdd55cb7d5e47df20c7a85c74b46ce6457b`；完整BC最新24轮。开发闭环31/31完成、相对保真筛选30/31；冻结后留出31/31完成、筛选28/31。留出正自转姿态/速度及两转弯双支撑仍有退化，不授予全矩阵、完整DR、PhysX或实机通过。
+
+训练站立片段形成0.34/0.36/0.40m镜像PD中心，重标物理标签后蒸馏；留出0.345/0.364/0.396m站立四腿raw均值最大绝对值约0.03。原0.20m误差未被该候选解决。另用显式低高度渐进PD偏移研究，0.18rad组在0.20m命令下实际0.200265m、双支撑100%、vx约-0.06198m/s；镜像PD目标候选见`height020_loaded_center_proposal.json`。满足用户0.15漂移死区研究门槛，未满足原0.05严格标记；尚未纳入冻结Student，不能直接换表或当作已学会。
+
+正式配方`configs/jobs/motion_u2200_wide050_recenter_bc24.json`复用preset与公共监督；当前050只支持BC/播放/导出，PPO入口显式拒绝，须另做来源保护及Actor初始化接续。完整证据、失败/owner字段纠正、源码602模块快照、支持边界和命令见数据根REPORT/delivery/PLAY。最终portable2002 passed/31既有skip/10warning（130.78秒），架构213/0、Ruff0.8.4通过；Actor/完整BC状态/episode划分/导出包和SHA核验见`final_artifact_verification.json`。没有自动重启远端或操作其他任务。
+
 ## Motion受载中心与输出包络诊断（2026-11-14）
 
 独立`motion/loaded-center-scale-study`复用统一diagnose与MotionPlayer/C/V4，加入固定Actor、有界case、显式物理目标干预及原目标/实际目标记录，不改冻结训练合同。u2000本机平地MuJoCo对照：原0.20m命令稳态高度约0.22418m；旧raw直接按0.30/0.50rad重解码分别7.35/0.84秒触及姿态/高度边界，尚未到低高度评分，不能当新Student性能。没有合格受载中心候选，未改中心或正式scale。原始结果及蒸馏准备见数据根`motion_loaded_center_scale_20261114/`。

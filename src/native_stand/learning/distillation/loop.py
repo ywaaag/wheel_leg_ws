@@ -316,6 +316,19 @@ def run_distillation(
         raise DistillationError("留出集为空，无法给出留出结论")
 
     comparison_history = list((resume_state or {}).get("comparison_history", []))
+    # Persist the Student's own execution semantics, never the Teacher decoder.
+    # These fields let the normal player consume BC output without a repacked model.
+    execution_metadata = {}
+    if prepared is not None and job.task == "motion":
+        execution_metadata = dict(
+            interface_version=job.model.interface,
+            action_version=job.action.version,
+            output_contract=prepared["student_spec"]["output_contract"],
+            execution_timing=job.assets.get("delayed_execution"),
+            network_architecture=dict(
+                actor_hidden_dims=list(prepared["student_spec"]["hidden_dims"])
+            ),
+        )
     if prepared is not None and prepared.get("new_comparison_domain"):
         with torch.no_grad():
             incumbent_loss = float(
@@ -345,6 +358,7 @@ def run_distillation(
         """完整可恢复快照：Student/Adam/RNG/shuffle/固定split/累计round/best/history。"""
         weights = {key: value.detach().clone() for key, value in student.state_dict().items()}
         return {
+            **execution_metadata,
             "student": weights,
             "actor": weights,
             "inference_spec": prepared["student_spec"] if prepared is not None else None,
@@ -446,6 +460,7 @@ def run_distillation(
     candidate = directory / "student_actor.pt"
     torch.save(
         {
+            **execution_metadata,
             "actor": best["state"],
             "inference_spec": prepared["student_spec"] if prepared is not None else None,
             "round": best["round"],

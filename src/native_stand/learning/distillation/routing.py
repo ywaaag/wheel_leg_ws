@@ -47,7 +47,7 @@ class ActionLabels:
 
             decoder = ActionDecoder.from_contract(self.contract)
             center = self.physical(torch.zeros_like(physical), observation)
-            return (physical - center) / physical.new_tensor(
+            converted = (physical - center) / physical.new_tensor(
                 [
                     decoder.leg_scale,
                     decoder.leg_scale,
@@ -57,6 +57,9 @@ class ActionLabels:
                     decoder.wheel_scale,
                 ]
             )
+            if bool((converted.abs() > 1 + 1e-6).any()):
+                raise ValueError("Teacher physical target outside Student Motion contract")
+            return converted
         if self.kind == "physical":
             return physical
         if self.kind == "affine":

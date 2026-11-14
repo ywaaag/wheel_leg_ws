@@ -125,3 +125,20 @@ def test_cli_dry_run_reuses_plan_never_constructs_engine(tmp_path, monkeypatch, 
     assert main(["diagnose", "--config", str(path), "--dry-run", "--json"]) == 0
     result = json.loads(capsys.readouterr().out)
     assert not result["starts_engine"] and not result["writes"] and result["updates_charged"] == 0
+
+
+def test_low_center_probe_does_not_bias_initial_high_stance():
+    c = case()
+    c.update(center_delta_rad=[0.06, 0.06, -0.06, 0.06], center_delta_start_height_m=0.24)
+    transform = probe.transform_for(c)
+    raw = np.zeros(6)
+    target = np.zeros(6)
+    np.testing.assert_array_equal(transform(raw, 0.34, target), target)
+    np.testing.assert_allclose(transform(raw, 0.22, target)[probe.LEGS], [0.03, 0.03, -0.03, 0.03])
+    np.testing.assert_allclose(transform(raw, 0.20, target)[probe.LEGS], [0.06, 0.06, -0.06, 0.06])
+    cfg = config()
+    cfg["cases"] = [c]
+    assert probe.validate(cfg)
+    c["center_delta_start_height_m"] = 0.19
+    with pytest.raises(ValueError):
+        probe.validate(cfg)
