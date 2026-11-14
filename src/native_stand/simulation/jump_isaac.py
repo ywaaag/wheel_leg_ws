@@ -614,11 +614,14 @@ class IsaacJump:
         ids = list(range(self.num_envs)) if ids is None else [int(i) for i in ids]
         with self.measurement.section("jump_reset", synchronize=False):
             for i in ids:
-                if self.requests[i] is not None:
-                    self.courses[i].pending.pop(self.requests[i]["request_id"], None)
-                self.requests[i] = self.courses[i].next_episode()
                 if self.teaching_commands is not None:
-                    self.requests[i].update(kind="landing_only", drop_m=0.0, seconds=20.0)
+                    from native_stand.simulation.jump_teaching import teaching_request
+
+                    self.requests[i] = teaching_request(self.requests[i])
+                else:
+                    if self.requests[i] is not None:
+                        self.courses[i].pending.pop(self.requests[i]["request_id"], None)
+                    self.requests[i] = self.courses[i].next_episode()
             self.scene.reset(ids, [self.requests[i] for i in ids], self.inverse.initial)
             indices = torch.tensor(ids, device=self.device)
             q = self.scene.robot.data.joint_pos.torch[:, self.scene.ids][indices]
@@ -777,9 +780,10 @@ class IsaacJump:
                 if r["kind"] == "ground_active_jump"
                 else result["landing_only_success"]
             )
-            self.courses[i].record(
-                r, jump_control_s=rew.jump_control_s, success=success, fault=rew.failure_paid
-            )
+            if self.teaching_commands is None:
+                self.courses[i].record(
+                    r, jump_control_s=rew.jump_control_s, success=success, fault=rew.failure_paid
+                )
             self.serial += 1
             self.completed.append(
                 dict(

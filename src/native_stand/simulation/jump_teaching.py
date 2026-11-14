@@ -56,7 +56,12 @@ class BalanceCollection:
         compensation = torch.stack(
             (spring[:, 1], spring[:, 1], -spring[:, 0], spring[:, 0]), -1
         ).clone()
-        result = self.env.step(action)
+        before = self.env.scene.actual_ticks
+        try:
+            result = self.env.step(action)
+        except BaseException as failure:
+            failure.actual_physics_steps = [self.env.scene.actual_ticks - before] * self.num_envs
+            raise
         result["extras"]["collection_conditions"] = {"teacher_safe": safe}
         for i in range(4):
             result["extras"]["collection_conditions"]["jump_spring_model_nm_" + str(i)] = (
@@ -66,3 +71,19 @@ class BalanceCollection:
 
     def close(self):
         self.env.close()
+
+
+def teaching_request(previous=None):
+    """Supervision episode identity, never a PPO curriculum reservation."""
+    return dict(
+        request_id=1 if previous is None else previous["request_id"] + 1,
+        kind="landing_only",
+        drop_m=0.0,
+        seconds=20.0,
+        target_rise_m=0.05,
+        target_clearance_m=0.02,
+        air_leg_m=0.18,
+        entry_height_m=0.34,
+        leg_length_m=0.28,
+        provenance="supervision_only_no_curriculum_evidence",
+    )

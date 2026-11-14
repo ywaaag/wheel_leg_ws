@@ -101,3 +101,16 @@ def test_declared_executor_transform_matches_torque_including_saturation():
             torch.ones(100, dtype=torch.bool),
             "motion_no_C_spring_to_jump_C_spring_v1",
         )
+
+
+def test_supervision_request_does_not_reserve_or_settle_ppo_course():
+    from native_stand.simulation.jump_teaching import teaching_request
+    from native_stand.tasks.jump.adaptive_course import AdaptiveCourse
+
+    course = AdaptiveCourse(seed=8, plant_id="test", DR_id="nominal")
+    before = course.state_dict()
+    request = teaching_request()
+    next_request = teaching_request(request)
+    assert request["kind"] == "landing_only" and request["drop_m"] == 0
+    assert next_request["request_id"] == 2
+    assert course.state_dict() == before
