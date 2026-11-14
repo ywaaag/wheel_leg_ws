@@ -320,17 +320,23 @@ def cmd_export(args) -> int:
     from native_stand.artifacts.deployment import export_package, job_dependencies
     from native_stand.artifacts.model_refs import ModelIndex
     from native_stand.experiments.config import job_from_record
-    from native_stand.learning.inference import spec_for_job
+    from native_stand.learning.inference import InferenceSpec, spec_for_job
 
     job = job_from_record(record["config"])
     source = load_actor_source(checkpoint)
-    contract = source.payload.get("output_contract", source.payload.get("contract"))
-    if contract is None:
-        raise CommandError("部署来源缺少明确输出合同", EXIT_INVALID)
+    if job.supervision is not None:
+        # BC saves its explicit inference contract, including the input column
+        # semantics. Reconstructing it from the PPO job would change identity.
+        spec = InferenceSpec.from_record(job.supervision.student)
+    else:
+        contract = source.payload.get("output_contract", source.payload.get("contract"))
+        if contract is None:
+            raise CommandError("部署来源缺少明确输出合同", EXIT_INVALID)
+        spec = spec_for_job(job, contract)
     index = ModelIndex(record.get("model_index", run_dir.parent / "models.json"))
     result = export_package(
         source,
-        spec_for_job(job, contract),
+        spec,
         output,
         execution={
             "control": job.as_run_record()["control"],

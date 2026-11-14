@@ -1,6 +1,6 @@
 # 当前任务
 
-Jump闭环补教进行中：PPO u1034正常保存退出，总1577已耗/8423剩余。复用公共监督链，学生当前PhysX状态采样→Motion标签→GPU BC。实证旧Motion目标直接搬运缺少C弹簧补偿执行对齐：teacher12s零命令root.295/good.03s，显式标签转换后good11.97s；基础反向/部分yaw仍待改善。监督流程已启动2026_11_15__jump_closed_loop_teaching_v1，64env、3x1200policy、3x20监督epochs，0新PPO，不操作Recovery owner。当前补教源码独立jump/closed-loop-teaching，运行冻结module摘要优先；尚未闭环认证学生。CPU57/portable1960通过/31skip，架构219/0与Ruff通过。
+Jump闭环补教已完成：统一owner的v4正常COMPLETED/failure=null，60BC轮/3060优化步，复用首轮768000物理步并新增1536000。BC60学生64env独立12s无回合结束/非轮接触，root约.354m、tilt最大.024rad、原1mm/2mm门通过；前向+.2m/s跟踪连续11.61s，零命令漂移/反向和正yaw跟踪仍不足，不宣称基础运动或跳跃accepted。用户明确漂移不作为开训门槛，要求优先Jump长训；从BC60 Actor-only新建PPO，保留已耗1577/剩8423，不混用BC与PPO Adam。CLI export已复用监督InferenceSpec修复，真实包及PPO factory CPU装配逐位一致、全新双Adam；portable1964/31历史skip、架构219/0、CI Ruff通过。精确运行状态以run原始state/预算为准。
 
 当前覆盖（原Cylinder＋原生Plane，2026-11-14）：用户明确倾向学习Motion静态Plane。独立jump/native-plane开发，无热改。CPU/GPU400tick冲量/reset、两次4096x6400tick原1mm/2mm门通过。新增终态Critic CPU snapshot引用释放，真实CPU数值/weakref与同窗口RSS从43GB增长改为约10.6GB。旧v15遭系统OOM，公共owner已结算FAILED75，最后有效u3；累计543/余9457，未保存72次不退款。正式配方切native_plane_v1，不再使用凸包/薄盒；正在完成最终回归与正常PPO保存恢复，尚未重新长训。以下旧状态均按原冻结run读取。
 

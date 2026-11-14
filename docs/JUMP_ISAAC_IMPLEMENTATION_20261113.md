@@ -120,3 +120,8 @@ PPO在u1034正常STOPPED_BOUNDED，累计1577/10000、余8423；BC仅记监督�
 发现旧蒸馏执行合同缺口：Motion fullchain声明no_old_C_spring，而Jump真实C始终执行RLControlCompensateSpring。原physical target直接搬到Jump，在64env12s对照零命令root平均.295m/good最长.03s。显式标签变换tJump=tMotion-comp_model/40，补偿值由采样前C输入腿长/夹角按同源公式得到；保留C、限矩、力路由与实际previous，不是部署新增控制器。在同窗口zero good11.97s、forward+.2m/s good11.74s，reverse/部分yaw仍未合格，不能宣称全基础运动通过。转换在TeacherConfig中显式声明，记录每行补偿条件及来源，标签超保护范围拒绝而不裁。
 
 三轮有界补教每轮64env1200policy、20监督epochs；GPU fit显式assets.distillation_device=cuda:0，CPU历史消费者默认不变。需在当前Plane闭环验证补教后Actor，不以离线loss替代站立/跟踪验收。顺序collect共享唯一Kit App，各scene fresh-reset，公共worker终态后才退出App。
+
+
+闭环补教收尾（2026-11-15）：v4正常完成60轮BC、3060次优化；学生独立64env12s无done/restricted，所有组root均值约.354m，最大tilt .024rad，原1ms物理门保持。+0.2m/s严格跟踪（vx/yaw各误差<.1）各行至少11.61s；zero vxRMSE .136、reverse .183、正yaw RMSE .296，不能宣称全基础运动通过。教师轮armature/0drag对照未解决主要偏差，诊断参数不进入正式训练。用户明确仿真漂移不作为长训前置门槛，要求立即恢复跳跃学习；保留这些限制作为训练基线。
+
+BC学生经统一CLI export按监督配方的InferenceSpec导出，不从PPO job重建输入语义；来源与目标合同冲突仍拒绝。导出Actor-only经正式Jump PPO factory CPU装配，全部Actor张量/输出逐位一致，双Adam为空，不继承BC Adam/RNG/Critic。后续新PPO从BC60 Actor-only初始化，Critic重建并按既有5次预热，总任务已耗1577、仅余8423，不刷新。真实补教/独立检查/导出与初始化收据位于artifacts/jump_diagnosis_20261113/closed_loop_teaching_v180。
