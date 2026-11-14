@@ -202,3 +202,45 @@ def test_explicit_proxy_host(tmp_path):
         finally:
             http.shutdown()
             thread.join()
+
+
+def test_large_state_header_and_shared_index_do_not_starve_runs(tmp_path):
+    first = fixture(tmp_path)
+    large_index = tmp_path / 'models.json'
+    large_index.write_text('{"large":"' + 'x' * (5 * 1024 * 1024) + '"}')
+    for i in range(5):
+        run = tmp_path / f'run_{i}'
+        run.mkdir()
+        (run / 'run.json').write_text(json.dumps({'task': 'jump', 'model_index': str(large_index)}))
+        (run / 'state.json').write_text('{"status":"RUNNING","updates_used":501,"latest_model":{"update":500},"runtime":"' + 'x' * (5 * 1024 * 1024) + '"}')
+        (run / 'budget.json').write_text('{"used":{"formal":501},"limits":{"formal":1000}}')
+        (run / 'metrics.jsonl').write_text('{"update":501,"reward_mean":2.5}\n')
+    snapshot = Catalog([tmp_path]).snapshot()
+    rows = [row for row in snapshot['runs'] if row['task'] == 'jump']
+    assert len(rows) == 5
+    assert all(row['status'] == 'RUNNING' and row['updates_used'] == 501 for row in rows)
+    assert all(row['metrics'][0]['reward_mean'] == 2.5 for row in rows)
+    assert all('256KiB' in row['state_read_scope'] for row in rows)
+    assert all(row['remaining']['formal'] == 499 for row in rows)
+    assert first.exists()
+
+
+def test_page_uses_packaged_chart_script(tmp_path):
+    fixture(tmp_path)
+    with server([tmp_path], port=0) as http:
+        thread = threading.Thread(target=http.serve_forever, daemon=True)
+        thread.start()
+        base = f'http://127.0.0.1:{http.server_port}'
+        try:
+            page = urlopen(base).read().decode()
+            response = urlopen(base+'/dashboard.js')
+            script = response.read().decode()
+            assert int(response.headers['Content-Length']) == len(script.encode())
+            assert '<script src="/dashboard.js" defer>' in page
+            assert "svgNode('path'" in script
+            assert '默认手动刷新' in script
+            assert 'innerHTML' not in script
+            assert "script-src 'self';" in urlopen(base).headers['Content-Security-Policy']
+        finally:
+            http.shutdown()
+            thread.join()

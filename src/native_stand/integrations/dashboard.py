@@ -51,6 +51,9 @@ def server(roots, *, host="127.0.0.1", port=8765, tensorboard_url=None, public_h
                     if route == "/":
                         body = Path(__file__).with_name("dashboard.html").read_bytes()
                         mime = "text/html; charset=utf-8"
+                    elif route == "/dashboard.js":
+                        body = Path(__file__).with_name("dashboard.js").read_bytes()
+                        mime = "text/javascript; charset=utf-8"
                     elif route == "/api/snapshot":
                         snapshot = catalog.snapshot()
                         current.update(snapshot)
@@ -94,11 +97,12 @@ def server(roots, *, host="127.0.0.1", port=8765, tensorboard_url=None, public_h
                         return
                 self.send_response(200)
                 self.send_header("Content-Type", mime)
+                self.send_header("Content-Length", str(len(body)))
                 self.send_header("Cache-Control", "no-store")
                 self.send_header("X-Content-Type-Options", "nosniff")
                 self.send_header(
                     "Content-Security-Policy",
-                    "default-src 'self'; img-src 'self' data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'",
+                    "default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'",
                 )
                 self.end_headers()
                 self.wfile.write(body)

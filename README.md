@@ -197,8 +197,10 @@ PYTHONPATH=src python -m native_stand dashboard --root /path/to/runs --port 8765
 
 打开 `http://127.0.0.1:8765`。`--root` 可重复，指定单个 run 或直接包含 run 的目录；不是任意文件浏览器。远端可在远端运行同一命令，再自行 SSH 端口转发；本命令不连接远端。默认手动刷新，可显式开启页面内30秒刷新。没有训练控制、评估或删除接口，也不启动 TensorBoard。
 
-状态和消耗读取 run/state/budget；曲线直接读取 JSONL，不要求 events。RUNNING 不代表进程已核验。训练窗口、固定模型评估、实机证据分别显示；缺失值为 UNKNOWN，不生成能力排名。Motion展示已有 maneuver 训练窗口；Jump/Recovery通用状态和曲线可读，领域能力适配暂不支持。固定模型展示已有评估索引并核对SHA；实机适配尚未支持。读取限制为最近2000条指标、100份诊断，单文件最多4MiB，每root最多50个run，单次刷新读取上限16MiB；截断边界和读取错误不代表任务失败。不同评分域不直接比较，训练窗口不是保存点的固定成绩。
+状态和消耗读取 run/state/budget；曲线直接读取 JSONL，不要求 events。RUNNING 不代表进程已核验。训练窗口、固定模型评估、实机证据分别显示；缺失值为 UNKNOWN，不生成能力排名。Motion展示已有 maneuver 训练窗口；Jump/Recovery通用状态和曲线可读，领域能力适配暂不支持。固定模型展示已有评估索引并核对SHA；实机适配尚未支持。读取限制为最近2000条指标、100份诊断，每root最多50个run，普通文件读取上限4MiB；大state仅解析前256KiB的完整顶层摘要字段，不宣称整体校验通过；共享索引超限单独报错，不阻塞其他任务；截断边界和读取错误不代表任务失败。不同评分域不直接比较，训练窗口不是保存点的固定成绩。
 
 若已有 TensorBoard 服务，可显式传 `--tensorboard-url http://127.0.0.1:6006` 提供跳转；只检测已有事件目录，不转换、不写入原run。TensorBoard自身使用方式参见[官方文档](https://www.tensorflow.org/tensorboard/get_started)。目标矩阵从现有Motion文档读取；不包含该文档的安装显示不支持。旧诊断缺少明确窗口计数身份时，样本计数显示UNKNOWN，原始值保留在证据中。评分阈值或条件未产出时不猜测，比较显示证据不足。
 
 Tailscale IP入口可用TCP转发：看板增加 `--public-host <本机Tailscale IPv4>`，仍只监听127.0.0.1；管理员显式执行 `sudo tailscale serve --bg --tcp=80 tcp://127.0.0.1:18765` 后，通过该Tailscale IP访问。HTTP Serve按域名路由，不能替代此IP入口。只对tailnet提供服务，不使用Funnel、不开放公网；其他Host仍拒绝。
+
+看板首页优先选择有指标的最近任务，提供中文摘要卡片和奖励、loss、KL、耗时、梯度、优化步数、LR、Torch显存八组SVG曲线；曲线可悬停看原值，缺指标明确留空。完整身份和原始JSON置于折叠证据区，不默认堆放。领域/任务可筛选；训练矩阵默认展示最近窗口。网页改版后刷新整个页面（Ctrl+F5），页面内“刷新数据”只更新产物。

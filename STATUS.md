@@ -1,5 +1,5 @@
 <!-- dashboard-current -->
-公共只读看板：独立分支 `feature/read-only-dashboard` 接通统一CLI、标准产物读取、HTTP和网页。Motion训练窗口已接入；Jump/Recovery提供通用状态与曲线，能力适配未支持；实机适配未支持。仅CPU/脚本fixture验收，不改变活动训练；针对性23通过，portable 1999通过/31既有skip，架构215/0、Ruff 0.8.4通过；浏览器验证曲线、筛选、比较和证据入口。未将训练窗口当作固定模型证书。
+公共只读看板：独立分支 `feature/read-only-dashboard` 接通统一CLI、标准产物读取、HTTP和网页。Motion训练窗口已接入；Jump/Recovery提供通用状态与曲线，能力适配未支持；实机适配未支持。仅CPU/脚本fixture验收，不改变活动训练；初版针对性23通过，portable 1999通过/31既有skip，架构215/0、Ruff 0.8.4通过；浏览器验证曲线、筛选、比较和证据入口。未将训练窗口当作固定模型证书。看板后续修复：中文结构化卡片/表格与八组SVG曲线，默认选有指标的最近任务；移除跨run读取限额导致的后续任务饥饿，大state只读256KiB完整顶层摘要，共享大索引单独报错。原始JSON仅折叠展示。本次增量针对性26通过、portable 2002通过/31既有skip/10warning；真实IP浏览器验证Motion 7图、Recovery 5图、Jump 6图，缺指标留空，默认展开JSON为0。
 
 # 当前任务
 

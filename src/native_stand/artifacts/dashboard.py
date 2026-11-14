@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import codecs
 import hashlib
 import json
 import math
@@ -11,10 +12,56 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 MAX_BYTES = 4 * 1024 * 1024
+STATE_PREFIX_BYTES = 256 * 1024
 
 
 def reject_constant(value):
     raise ValueError("非有限JSON值")
+
+
+def state_prefix(raw):
+    """Decode complete top-level fields only; never pretend the whole large state was validated."""
+    text = codecs.getincrementaldecoder("utf-8")().decode(raw, final=False)
+    decoder = json.JSONDecoder(parse_constant=reject_constant)
+    position = 0
+    result = {}
+    if not text.lstrip().startswith("{"):
+        raise ValueError("state必须是JSON对象")
+    position = text.index("{") + 1
+    wanted = {
+        "schema_version",
+        "run_id",
+        "status",
+        "stage",
+        "updates_used",
+        "samples_used",
+        "latest_model",
+        "selected_model",
+        "failure",
+        "rounds_used",
+        "updated_unix_s",
+    }
+    while position < len(text):
+        while position < len(text) and text[position] in " \n\r\t,":
+            position += 1
+        if position >= len(text) or text[position] == "}":
+            break
+        try:
+            key, position = decoder.raw_decode(text, position)
+            while position < len(text) and text[position].isspace():
+                position += 1
+            if position >= len(text) or text[position] != ":":
+                break
+            position += 1
+            while position < len(text) and text[position].isspace():
+                position += 1
+            value, position = decoder.raw_decode(text, position)
+        except json.JSONDecodeError:
+            break
+        if key in wanted:
+            result[key] = value
+    result["_dashboard_summary"] = "仅前256KiB完整顶层字段；大state整体未校验，其余字段UNKNOWN"
+    return result
 
 
 def public(value):
@@ -78,17 +125,12 @@ class Catalog:
         self.cache = OrderedDict()
         self.evidence = {}
         self.adapters = adapters or {}
-        self.remaining_read_bytes = None
 
     def read(self, path, *, lines=False):
         path = Path(path).resolve(strict=True)
         if not any(path.is_relative_to(root) for root in self.roots):
             raise ValueError("产物不在允许目录")
         stat = path.stat()
-        if self.remaining_read_bytes is not None:
-            self.remaining_read_bytes -= min(stat.st_size, MAX_BYTES)
-            if self.remaining_read_bytes < 0:
-                raise ValueError("本次刷新读取上限16MiB；请缩小root")
         key = (str(path), stat.st_ino, stat.st_size, stat.st_mtime_ns, lines)
         if key in self.cache:
             return self.cache[key]
@@ -96,9 +138,13 @@ class Catalog:
             if lines and stat.st_size > MAX_BYTES:
                 stream.seek(stat.st_size - MAX_BYTES)
                 stream.readline()
-            elif stat.st_size > MAX_BYTES:
-                raise ValueError("JSON超过只读大小限制")
-            raw = stream.read(MAX_BYTES)
+            elif stat.st_size > MAX_BYTES and path.name != "state.json":
+                raise ValueError("JSON超过只读大小限制（4MiB）")
+            raw = stream.read(
+                STATE_PREFIX_BYTES
+                if path.name == "state.json" and stat.st_size > MAX_BYTES
+                else MAX_BYTES
+            )
         if lines:
             result = []
             for line in raw.splitlines(keepends=True):
@@ -117,6 +163,8 @@ class Catalog:
                 )
                 unique[identity] = row
             value = list(unique.values())[-2000:]
+        elif path.name == "state.json" and stat.st_size > MAX_BYTES:
+            value = state_prefix(raw)
         else:
             value = json.loads(raw, parse_constant=reject_constant)
             if not isinstance(value, dict):
@@ -130,7 +178,13 @@ class Catalog:
         try:
             return self.read(path, lines=lines)
         except (OSError, ValueError) as exc:
-            errors.append({"file": str(Path(path).name), "error": type(exc).__name__})
+            errors.append(
+                {
+                    "file": str(Path(path).name),
+                    "error": type(exc).__name__,
+                    "message": str(exc)[:140],
+                }
+            )
             return [] if lines else {}
 
     def verified(self, path, expected):
@@ -164,7 +218,6 @@ class Catalog:
         return value
 
     def snapshot(self):
-        self.remaining_read_bytes = 16 * 1024 * 1024
         self.evidence = {}
         runs = []
         for root in self.roots:
@@ -264,6 +317,12 @@ class Catalog:
                         if isinstance(config.get("curriculum"), dict)
                         else None,
                         "status": state.get("status", "UNKNOWN"),
+                        "state_read_scope": state.get("_dashboard_summary", "完整小型JSON"),
+                        "metrics_file_updated_at": datetime.fromtimestamp(
+                            (directory / "metrics.jsonl").stat().st_mtime, ZoneInfo("Asia/Shanghai")
+                        ).isoformat()
+                        if (directory / "metrics.jsonl").is_file()
+                        else None,
                         "run_metadata_updated_at": datetime.fromtimestamp(
                             path.stat().st_mtime, ZoneInfo("Asia/Shanghai")
                         ).isoformat(),
@@ -305,13 +364,12 @@ class Catalog:
                         "errors": errors,
                     }
                 )
-        self.remaining_read_bytes = None
         return public(
             {
                 "timezone": "Asia/Shanghai",
                 "read_at": datetime.now(ZoneInfo("Asia/Shanghai")).isoformat(),
                 "source_kind": "服务端本地文件（远端请SSH转发）",
                 "runs": runs,
-                "limits": "每root最多50run/每run最近2000指标/100诊断，刷新读取上限16MiB；训练窗口跨策略，不是固定模型成绩；不计算统计显著性",
+                "limits": "每root最多50run/每run最近2000指标/100诊断，单文件4MiB/大state仅前256KiB；训练窗口跨策略，不是固定模型成绩；不计算统计显著性",
             }
         )
