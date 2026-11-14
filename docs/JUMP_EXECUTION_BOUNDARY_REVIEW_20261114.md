@@ -77,6 +77,8 @@ target'    = target - compensation_model/40
 
 另一 Jump owner 已实现版本化 `motion_no_C_spring_to_jump_C_spring_v1` 标签转换；本轮不复制其运行实现，也不热改补偿。该转换可作为显式监督初始化设计，但瞬时匹配不证明经过 target FIFO、5ms PD 和变化几何后的整条执行等价。轮 cap、armature、两套 previous 历史及状态分布也未由这条代数关系消除。
 
+更精确地说，在 PD 反馈相同、参考目标相同且采用时未被保护改写的前提下，用标签时刻的 `comp(tLabel)` 修正目标后，限矩前仍可能剩下 `comp(tPD)-comp(tLabel)`。该请求再经过限矩与左右不对称 V4 响应；不能把它直接写成实际 motor 的等式。需要真实 label/adopted sequence 对齐，不能用相邻10ms样本插值冒充5ms PD读回。
+
 CPU 复现命令（输出目录必须不存在）：
 
 ```bash
@@ -107,6 +109,28 @@ v181 平均高度约0.354m，768个保存样本均在高度门内，保存 phase
 
 probe 收据没有同一 PD tick 的 held q/dq、P/D、补偿、adopted 序列、实际 V4 motor/NET，也没有 good 的逐条件失败计数和完整 quaternion/gyro/gravity。不能从现有稀疏样本补造这些字段。后续已有授权块如继续执行，应在同一次运行补齐这些读回，不为本审查再开一组探针矩阵。旧 construction 的 CPU C 字符串与实际 device 请求也不一致；旧文件保留，新收据应从实际执行消费者读取身份。
 
+### 消费现有采集与原始诊断
+
+已逐SHA读取 `2026_11_15__jump_closed_loop_teaching_v2/supervision/phase_000_collect/collection_00001200.json` 绑定的19个NPZ，共76800条、64环境×1200 policy步。manifest 的768000物理步是原有消耗，本轮新增物理步为0。样本ID及 env/episode/policy_index 组合均唯一；记录的全部 transition 为10个子步，101条带结束标志。这是采集内容核验，不是成功率或新训练统计。
+
+可用字段为37D pre-action观测、env/episode/policy_index/sample_id、owner、transition/end标志、Teacher-safe及四个标签时刻补偿条件。缺少网络输出、请求/保护/采用目标序列、PD tick、held q/dq、P/D、PD时刻补偿、实际motor/NET/passive、同期root姿态与接触。因此只能按样本身份对齐，无法从该collection闭合标签→采用→出力链；不能零填、借其他run拼接或凭previous数值推造采用序列。
+
+观测有效性有一项需单列：51条37D观测全零，但 `teacher_safe=true`、owner=2，不能作为有效Teacher状态。其根因待确认，采集未保存同期C encode返回码/Actor-valid掩码。现有 teaching分支的 `motion_teacher_eligible` 已在本次CPU调用中拒绝这51条全零输入（实际资格数0），故不重复开发过滤器，也不修改旧数据；该调用不证明过去的label阶段使用了同一源码。`transition_valid` 不能代替 Actor/Teacher资格。
+
+另外逐行消费了 v181 的 step100..1100稀疏保存样本，沿用原有门槛，没有重算完整good或授成功：
+
+| 命令 | 保存样本数 | 实际范围 | 已能解释的现象 |
+|---|---:|---|---|
+| vx=-.2 | 143 | vx=-.02236～-.00699m/s | 143/143不满足原vx误差<.15门 |
+| yaw=+.3 | 143 | yaw=+.00164～+.01196rad/s | 同向但响应很弱；仍全部通过原yaw误差<.30门，不能称跟踪成功 |
+| yaw=-.3 | 132 | yaw=-.32898～-.30279rad/s；vx=+.12857～+.17680m/s | 无错向；120/132不满足原零vx误差<.15门，漂移与转向响应要分开 |
+
+这三组保存样本的高度门均通过。缺少tilt/restricted/逐轮接触，不能凭这张表补齐其余质量门或唯一归因于轮机械差异。
+
+4300原 `diagnostics/update_04300.json`（update=4300）直接报告轮延迟 ch2=6–8ms、ch5=10–12ms，tau最大均0；`old_wheel20ms_tau2_added=false`、`separate_V4_motor_NET=true`，motor统计排除NET。该JSON没有 spring/compensation数值字段；Cspring为0由SHA绑定的 `robot_adapter.compensation.zero_()` 证实，不能写成该JSON独立记录了逐tick零补偿。旧20ms/tau2占位不应叠加到这条正式链。
+
+本次消费收据为 `saved_alignment_evidence_v2.json`、`current_teacher_guard_v1.json`、`v181_response_from_saved_samples_v1.json`，均在现有审查artifact目录。未查询worker、未新建标签、未推理Teacher、未优化或采样。
+
 ## 小 Actor 只读来源准备
 
 `configs/contracts/jump_motion1600_C0_reference_v1.json` 固定5ec49436…小 Actor、原输出合同、support center与历史子域；它不是正式训练配方，不使 Teacher 自动 qualified。
@@ -116,6 +140,16 @@ probe 收据没有同一 PD tick 的 held q/dq、P/D、补偿、adopted 序列�
 本工作区早期未提交的参考查询函数与另一 owner 的版本化 observation adapter 重叠，已连同原diff保存在 `artifacts/jump_motion_reference_20261114/`，不再向正式 runtime 引入第二套 API。`check_source_v3.py` 通过离线 snapshot 复核；此前 v2 收据和一次误读 legacy trace.mean 的早期收据全部保留。该 trace.mean 是旧执行桥输出，不能当网络 raw mean 判定 Actor 不一致。
 
 小 Actor 的历史62/62存活、50/62任务，和未通过的yaw±1、未独立测量的低速子域均原样保留；`full_task_accepted=false`、当前 PhysX Plant 资格 UNKNOWN。其历史 V4 同样不额外加本次 C 补偿，因此替换 Teacher 不能绕过执行差异。
+
+### 参考来源的可用范围
+
+| 来源 | 本次可用性核验 | 可引用的历史范围 | 不可继承的结论 |
+|---|---|---|---|
+| 1600+C0小Actor，SHA5ec49436… | student.pt、原output_contract及support_center三项SHA再次匹配 | 原V4站立/扰动恢复；有±1/2/3直线证据 | ±.2直线、±.3yaw未验证；yaw±1承重84–88%失败，后漂-.203m/s；不授Jump Plant或完整双向基础能力 |
+| 大source855 | 原 `runs/2026_11_2-09_40__motion852_groundheight691_new10000/formal/model_update_855.pt` 不存在，默认数据映射也不存在；所查根映射未定位可加载替代 | 用户提供的历史证据：±.25/±.5直线MAE .055–.068，四项质量通过；±.5yaw因支撑<95%失败 | 历史表不能变成不存在的可用Teacher路径 |
+| 小855 ONNX，SHA9d417567… | 已定位 `deployment_protocol/2026_11_3-16_30__motion855_small31_antiosc_onnx/actor.onnx` 并验SHA；manifest与reference_adapter已读 | manifest记录PT28/33、holdout28/33保真，full_fidelity_passed=false | 解码为reference+1.5×mean腿、100×mean轮，无C0中心；不能套当前C0转换，不能继承大855低速通过表 |
+
+因此目前没有现成单Teacher证据保证当前Jump Plant的全部低速。小855文件可读不等于其闭环能力已认证；本轮未运行ONNX、重建缺失大模型或以旧final/holdout拟合新标签。
 
 ## 验证和剩余门槛
 
