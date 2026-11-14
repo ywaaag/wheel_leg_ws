@@ -524,7 +524,6 @@ class MotionProductionAdapter:
                 CONTINUED_COURSE,
                 COURSE_RECORDS,
             )
-
             from native_stand.artifacts.motion_actor_admission import VERSION as ACTOR_GRANT
 
             if branch["version"] == ACTOR_GRANT:

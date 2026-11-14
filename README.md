@@ -116,6 +116,14 @@ PPO更新、监督round、实际监督优化步和物理子步分别记账。com
 
 在已确认持久盘解包后，按manifest逐条生成`runtime_path_mapping_v1.files`，将每个原path映射到解包根/archive_path；候选源码旧根可用prefixes映射。派生配置只加入assets.path_mapping(path/SHA)、实际source_root和执行资源，不改原始文件。GPU UUID、CUDA映射、输出runs-root与缓存必须按新机器实际填写，不照抄本机授权。保留指定IsaacSim6.2/IsaacLab3镜像、PhysX、uv及LD_LIBRARY_PATH。顺序为环境身份→持久盘/依赖SHA→dry-run→单链有界工程运行→保存恢复→分段计时；本侧不连接、上传或启动。
 
+## Motion原Student050 PPO接续
+
+新作业复用`wheel-leg train`→owner/worker→生产Motion adapter→受控PPO。原Student SHA `258aae9d904fc3718ddc7938a556c523ff75228a0a7f2707f72b2162d9930d98`是唯一Actor来源；其原支撑中心原样绑定，不采用短补教实验Student或新0.24m中心。正式配方`configs/jobs/motion_original_student050_ppo10000.json`使用preset加显式覆盖。
+
+`wide_actor_admission`与`branch_initialization`引用同一内容绑定记录，明确Actor/输出合同、课程、新授权、旧结算和唯一run分配；不复制生命周期。Actor-only不导入旧Critic、BC Adam、旧RNG或旧课程确认；新建881D Critic、双Adam和课程，先50次Critic-only warmup并计入在线额度。输入不变，探索腿.02rad/轮2rad/s对应raw std .04/.025。来源KL使用同合同冻结Actor和train-only bank，bank不进入PPO rollout/GAE；rough、新DR、事件和新转弯不套旧名义标签。完整PPO保存含双Adam、RNG、warmup、冻结Teacher、bank游标和课程；同run恢复不再执行Actor初始化或重复warmup。
+
+新授权10000次在线更新、训练墙钟不限，旧累计9519次与BC104轮保留、旧7219余额退役。smoke和formal共用该授权分配；真实消耗以run预算为准。GPU由用户开启并通知后核对实际UUID/显存/共享资源，再使用数据根`motion_wide050_ppo_ready_20261115/START.txt`中的唯一正式命令。先`wheel-leg train --config CONFIG --dry-run --json`审阅；必须显式`--run-id`匹配分配，不能因看板未显示重新train。已有run改用公共inspect/resume；不新增watcher或自动GPU探测。
+
 ## Motion MuJoCo网页交互播放
 
 固定Actor承重与腿包络对照使用`wheel-leg diagnose --config PROTOCOL.json --dry-run --json`检查，再去掉`--dry-run`执行有界headless诊断。协议版本为`motion_support_probe_v1`，必须显式声明`run`、`checkpoint`、`checkpoint_sha256`、`path_mapping`、`solver_profile`、新建`output`、`wall_s`（最多1800秒）、`max_output_bytes`（最多512MiB）及`cases`。每个case给出唯一`name`、`height_m`（0.20～0.40）、`vx_mps`、`yaw_rad_s`、`leg_scale_rad`（0.15/0.30/0.50）、`duration_s`（15～40）及`mapping=rescale_source_raw`；可选`center_delta_rad`是四腿偏移。复用原播放器物理循环及高度优先命令，输出原始目标、实际目标和承重统计。放大旧Actor raw是诊断干预，不可当作兼容迁移或已通过的新模型；MuJoCo结果不等同PhysX能力。
@@ -124,7 +132,7 @@ PPO更新、监督round、实际监督优化步和物理子步分别记账。com
 
 低高度中心研究可显式给`center_delta_start_height_m`（高于该case目标且不超过0.40m）：四腿`center_delta_rad`从该命令高度开始线性增至目标高度处的完整偏移，初始高站姿不施加偏移。这是声明的开环诊断干预，不是自动补偿或已训练能力；省略该字段仍是全程固定偏移。
 
-Motion的`motion_multiheight020_support_center_050_80_v1`是独立±0.50rad/±80rad/s输出合同，输入归一化和原分段支撑中心保持。经`wheel-leg distill --config CONFIG --dry-run`审阅、去掉`--dry-run`提交公共监督配方；配方的Teacher/Student分别声明自身`motion_contract`标签变换，先还原物理目标再反解Student标签。越包络拒绝，不能直接放大旧raw。BC候选可通过同一`wheel-leg play`及部署导出消费；完整BC恢复使用原run的`resume`。当前050合同不开放PPO接续，不能将Actor候选或BC状态当成完整PPO恢复点。模仿误差与闭环能力必须分别验证。
+Motion的`motion_multiheight020_support_center_050_80_v1`是独立±0.50rad/±80rad/s输出合同，输入归一化和原分段支撑中心保持。经`wheel-leg distill --config CONFIG --dry-run`审阅、去掉`--dry-run`提交公共监督配方；配方的Teacher/Student分别声明自身`motion_contract`标签变换，先还原物理目标再反解Student标签。越包络拒绝，不能直接放大旧raw。BC候选可通过同一`wheel-leg play`及部署导出消费；完整BC恢复使用原run的`resume`。050合同的Isaac PPO仅接受显式`wide_actor_admission`绑定的BC Actor初始化，或同run完整PPO恢复；不能将Actor候选或BC状态当成完整PPO恢复点。模仿误差与闭环能力必须分别验证。
 
 低高度受载补教可显式声明Teacher标签`kind=motion_support_teacher`、原`contract`和`support_shift`。后者字段为`version=motion_height_support_teacher_v1`、递增`height_m`（覆盖0.20～0.40m）、每节点四腿`offset_rad`（镜像、绝对值≤0.35rad）和`evidence_sha256`。Teacher先按原合同解码，再加偏移；Student仍使用`motion_contract`反解。采集Teacher时，在有界诊断协议声明同一`teacher_support_shift`，轮目标不变；Student播放/采集必须省略此字段，避免重复施加。受载示范与真实模型能力分别记录，不把工程偏移当作Student已学会。
 

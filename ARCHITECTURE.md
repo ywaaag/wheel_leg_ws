@@ -54,7 +54,7 @@ wheel-leg / python -m native_stand          cli.py：参数、展示、退出码
 
 ## 关键不变量
 
-- `action` 与 `observation` 的尺度分别校验：输入 1.5 rad / 100 rad/s；输出按显式动作版本为0.15 rad / 40或80 rad/s，当前Motion／Spin配方为80，不能随输出改输入。
+- `action` 与 `observation` 的尺度分别校验：输入 1.5 rad / 100 rad/s；输出按显式动作版本为腿0.15或0.50 rad / 轮40或80 rad/s，当前Motion／Spin配方为80，不能随输出改输入。
 - `previous` 只由实际采用目标换算（`tasks/motion/encoding.py::previous_from_adopted`）。
 - 完整恢复状态必须包含 Actor、Critic、optimizer、std、RNG、计数与课程状态；Actor-only 导出不能替代。
 - Critic-only warmup 次数来自配置；完整恢复的 formal 不重复 warmup。
@@ -177,7 +177,7 @@ Motion目标与能力证据的共同入口为[Motion能力矩阵](docs/MOTION_CA
 
 `wheel-leg diagnose --config`识别显式`motion_support_probe_v1`协议，调用`simulation/motion_support_probe.py`，复用`playback.plan/create_player`和MotionPlayer的共享C/V4执行。逐case只注入实例级物理目标变换，保留原Actor、原始解码目标和实际采用目标，不改冻结合同。支持15～40秒case、总墙钟及输出边界；中心候选仅来自完整、稳态、双支撑的静止片段并校验平地对称目标。±0.30/±0.50仅表示旧raw的显式诊断干预，不代表正式新动作合同、蒸馏完成或能力认证；不接owner/PPO、不消费在线更新。
 
-Motion新增显式`motion_multiheight020_support_center_050_80_v1`，腿±0.50rad、轮±80rad/s，沿用0.20～0.40m分段中心与1.5rad/100rad/s输入尺度。与旧015合同各自校验；共享C结构ABI不变，新增center_kind=5只接受0.50/80表中心，旧kind拒绝0.50。源码manifest另记扩展摘要，不修改冻结副本。`ActionLabels.motion_contract`经Teacher物理目标反解Student标签，越包络拒绝；BC候选及完整BC状态保存Student输出与时序，统一推理/播放器/部署直接消费。当前开放监督蒸馏和其播放/导出，PPO在task入口拒绝，须先单独完成新包络来源保护接续，不能拿BC状态冒充原PPO完整恢复。
+Motion新增显式`motion_multiheight020_support_center_050_80_v1`，腿±0.50rad、轮±80rad/s，沿用0.20～0.40m分段中心与1.5rad/100rad/s输入尺度。与旧015合同各自校验；共享C结构ABI不变，新增center_kind=5只接受0.50/80表中心，旧kind拒绝0.50。源码manifest另记扩展摘要，不修改冻结副本。`ActionLabels.motion_contract`经Teacher物理目标反解Student标签，越包络拒绝；BC候选及完整BC状态保存Student输出与时序，统一推理/播放器/部署直接消费。监督蒸馏、播放/导出沿既有入口。Isaac PPO通过`artifacts/motion_actor_admission.py`在来源边界核验新授权、旧结算、唯一分配、BC Actor/合同和课程；`actor_initialization`新建Critic/双Adam/RNG/课程，生产adapter登记依赖、使用真实050解码与扩展高度质量。来源bank绑定同一050合同，物理误差诊断按声明尺度换算；不改变固定来源KL归约或PPO采样分布。同run完整恢复保留原Actor准入身份、warmup与bank游标，不重复初始化；不得拿BC状态冒充完整PPO恢复。
 
 有界诊断扩展至最多64case，可显式`terrain_map=true`并为case声明`spawn`，复用既有平地＋四H1地图及合法reset。轨迹保留实际前动作31D observation供离线监督，原始与采用目标分开；未知或未启用地图的地形拒绝。完整episode划分、Teacher标签与BC训练仍交给公共supervision/dataset/owner，诊断本身不训练。
 

@@ -35,6 +35,9 @@ def wide(tmp_path):
         model=model,
         initialization=InitializationConfig("actor_only", tmp_path / "actor.pt", "a" * 64),
     )
+    reward = copy.deepcopy(job.reward.fields)
+    reward["scale_corrections"]["output_scales"] = [0.5, 80.0]
+    job = replace(job, reward=replace(job.reward, fields=reward))
     actor = build_actor(job)
     payload = dict(
         actor=actor.state_dict(),
@@ -220,3 +223,53 @@ def test_wide_production_dependency_preparation_uses_actor_admission(tmp_path):
     adapter._prepare_training()
     assert adapter.spec["action_output"] == contract
     assert adapter.state["assessment_keys"]
+
+
+def test_wide_complete_resume_keeps_original_actor_admission(tmp_path):
+    from native_stand.experiments.config import with_initialization
+
+    job, payload, contract = wide(tmp_path)
+    checkpoint = tmp_path / "complete.pt"
+    torch.save(dict(actor={}, critic={}, optimizer={}), checkpoint)
+    resumed = with_initialization(job, checkpoint)
+    assert resumed.initialization.mode == "full"
+    assert read_admission(resumed)["source"]["sha256"] == job.initialization.sha256
+    assert require_allocation(resumed)
+
+
+def test_formal_grant_includes_settled_smoke_without_refund(tmp_path):
+    from native_stand.artifacts.io import read_json
+
+    job, _, _ = wide(tmp_path)
+    state = tmp_path / "smoke_state.json"
+    budget = tmp_path / "smoke_budget.json"
+    write_json(state, dict(status="COMPLETED", updates_used=52))
+    write_json(
+        budget, dict(used=dict(smoke=52, formal=0), attempts=dict(a=dict(status="COMPLETED")))
+    )
+    path = tmp_path / "admission.json"
+    record = read_json(path)
+    record.update(
+        prior_smoke_updates=52,
+        prior_smoke={
+            "state": dict(path=str(state), sha256=file_sha256(state)),
+            "budget": dict(path=str(budget), sha256=file_sha256(budget)),
+        },
+    )
+    write_json(path, record)
+    admission = dict(path=str(path), sha256=file_sha256(path))
+    formal = replace(
+        job,
+        assets={
+            **job.assets,
+            "historical_online_updates": 152,
+            "wide_actor_admission": admission,
+            "branch_initialization": admission,
+        },
+    )
+    assert read_admission(formal)["prior_smoke_updates"] == 52
+    with pytest.raises(ValueError):
+        read_admission(replace(formal, assets={**formal.assets, "historical_online_updates": 100}))
+    write_json(state, dict(status="RUNNING", updates_used=52))
+    with pytest.raises(ValueError):
+        read_admission(formal)
