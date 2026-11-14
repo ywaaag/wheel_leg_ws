@@ -16,6 +16,10 @@ LEGS = [0, 1, 3, 4]
 
 
 def validate(config):
+    if config.get("teacher_support_shift") is not None:
+        from native_stand.tasks.motion.support_teacher import validate as validate_shift
+
+        validate_shift(config["teacher_support_shift"])
     if config.get("version") != VERSION:
         raise ValueError("未知承重诊断版本")
     if not 1 <= len(config["cases"]) <= 64:
@@ -80,7 +84,7 @@ def validate(config):
     return config
 
 
-def transform_for(case, source_scale=0.15):
+def transform_for(case, source_scale=0.15, support_shift=None):
     """Explicit intervention after original C decoding; original Actor remains unchanged."""
     scale = case["leg_scale_rad"]
     offsets = np.array(case.get("center_delta_rad", [0.0] * 4), dtype=np.float32)
@@ -92,6 +96,10 @@ def transform_for(case, source_scale=0.15):
             1.0 if start is None else np.clip((start - height) / (start - case["height_m"]), 0, 1)
         )
         target[LEGS] += (scale - source_scale) * np.clip(raw[LEGS], -1.0, 1.0) + fraction * offsets
+        if support_shift is not None:
+            from native_stand.tasks.motion.support_teacher import numpy_shift
+
+            target[LEGS] += numpy_shift(height, support_shift)
         return target
 
     return transform
@@ -206,7 +214,9 @@ def from_file(path, *, dry_run=False):
             c["leg_scale_rad"] != prepared.job.action.leg_scale_rad
             or any(c.get("center_delta_rad", ()))
             for c in cfg["cases"]
-        ),
+        )
+        or cfg.get("teacher_support_shift") is not None,
+        teacher_support_shift=cfg.get("teacher_support_shift"),
         physics_equivalence_claimed=False,
         capability_accepted=False,
         updates_charged=0,
@@ -241,7 +251,9 @@ def run(cfg, prepared, result):
             _, plant, _, _ = create_player(
                 prepared,
                 directory=directory,
-                diagnostic_target_transform=transform_for(case, prepared.job.action.leg_scale_rad),
+                diagnostic_target_transform=transform_for(
+                    case, prepared.job.action.leg_scale_rad, cfg.get("teacher_support_shift")
+                ),
             )
             plant.recording = False
             if case.get("spawn", "flat") != "flat":

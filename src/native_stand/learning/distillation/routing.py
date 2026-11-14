@@ -17,16 +17,34 @@ class ActionLabels:
     lower: tuple = ()
     upper: tuple = ()
     contract: dict | None = None
+    support_shift: dict | None = None
+
+    def __post_init__(self):
+        if self.kind == "motion_support_teacher":
+            from native_stand.tasks.motion.action_contract import ActionDecoder
+            from native_stand.tasks.motion.support_teacher import validate
+
+            validate(self.support_shift)
+            ActionDecoder.from_contract(self.contract)
+        elif self.support_shift is not None:
+            raise ValueError("Support shift only belongs to explicit Motion Teacher labels")
 
     def physical(self, raw, observation=None):
-        if self.kind == "motion_contract":
+        if self.kind in ("motion_contract", "motion_support_teacher"):
             from native_stand.tasks.motion.action_contract import ActionDecoder
 
             if observation is None:
                 raise ValueError("Motion labels require actual height command")
-            return ActionDecoder.from_contract(self.contract).decode(raw, observation[:, 24] * 0.5)[
-                "requested_target"
-            ]
+            result = ActionDecoder.from_contract(self.contract).decode(
+                raw, observation[:, 24] * 0.5
+            )["requested_target"]
+            if self.kind == "motion_support_teacher":
+                from native_stand.tasks.motion.support_teacher import tensor_shift
+
+                result[:, [0, 1, 3, 4]] += tensor_shift(
+                    observation[:, 24] * 0.5, self.support_shift
+                )
+            return result
         if self.kind == "physical":
             return raw
         if self.kind == "affine":

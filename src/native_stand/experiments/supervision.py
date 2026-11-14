@@ -120,6 +120,7 @@ def preflight(job):
     from native_stand.artifacts.dataset import expand_sources, rehearsal_sources
     from native_stand.artifacts.io import file_sha256, read_json
     from native_stand.artifacts.runtime_paths import RuntimePaths, execution_job
+    from native_stand.learning.distillation.routing import ActionLabels
     from native_stand.learning.inference import InferenceSpec
 
     paths = RuntimePaths.from_assets(job.assets)
@@ -142,6 +143,8 @@ def preflight(job):
         rehearsal_sources(ref)
     for teacher in recipe.teachers:
         InferenceSpec.from_record(teacher.inference)
+        ActionLabels(**teacher.labels)
+    ActionLabels(**recipe.student_labels)
     InferenceSpec.from_record(recipe.student)
     return dict(status="CPU_SUPERVISION_PREFLIGHT", physical_preflight=False)
 

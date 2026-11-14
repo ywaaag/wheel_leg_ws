@@ -171,6 +171,10 @@ Motion目标与能力证据的共同入口为[Motion能力矩阵](docs/MOTION_CA
 
 ## 故障保存边界与诊断编排
 
+低高度补教复用`ActionLabels(kind="motion_support_teacher")`：原Teacher仍以自身推理/输出合同加载，`tasks/motion/support_teacher.py`只对其解码后的四腿物理目标施加显式、镜像、按命令高度分段线性的示范偏移。`support_shift`包含版本、0.20～0.40m节点、四腿rad偏移及研究证据SHA；不改变轮目标、输入或执行缓存，不能作为Student逆解合同。监督preflight在提交前构造标签codec并校验声明；Teacher SHA与偏移共同进入既有supervision语义身份，恢复时拒绝变化。
+
+诊断协议的`teacher_support_shift`使用同一纯计算模块的NumPy版本，供明确干预的Teacher采集；Torch监督与NumPy采集有数值对照。Student训练/播放不带该示范偏移，使用自身Motion动作合同直接输出。新数据通过原dataset/supervision累计，保留真实physical_episode_keys与角色，Student补教只增加训练回合，不将开发/留出变为训练。BC轮数、完整状态、停止恢复仍由公共owner/worker管理。
+
 `wheel-leg diagnose --config`识别显式`motion_support_probe_v1`协议，调用`simulation/motion_support_probe.py`，复用`playback.plan/create_player`和MotionPlayer的共享C/V4执行。逐case只注入实例级物理目标变换，保留原Actor、原始解码目标和实际采用目标，不改冻结合同。支持15～40秒case、总墙钟及输出边界；中心候选仅来自完整、稳态、双支撑的静止片段并校验平地对称目标。±0.30/±0.50仅表示旧raw的显式诊断干预，不代表正式新动作合同、蒸馏完成或能力认证；不接owner/PPO、不消费在线更新。
 
 Motion新增显式`motion_multiheight020_support_center_050_80_v1`，腿±0.50rad、轮±80rad/s，沿用0.20～0.40m分段中心与1.5rad/100rad/s输入尺度。与旧015合同各自校验；共享C结构ABI不变，新增center_kind=5只接受0.50/80表中心，旧kind拒绝0.50。源码manifest另记扩展摘要，不修改冻结副本。`ActionLabels.motion_contract`经Teacher物理目标反解Student标签，越包络拒绝；BC候选及完整BC状态保存Student输出与时序，统一推理/播放器/部署直接消费。当前开放监督蒸馏和其播放/导出，PPO在task入口拒绝，须先单独完成新包络来源保护接续，不能拿BC状态冒充原PPO完整恢复。
