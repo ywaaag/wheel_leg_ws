@@ -15,6 +15,8 @@
 | 腿限矩 | 40Nm，motor 与 NET 分路 | 40Nm，补偿后限矩，motor 与 NET 分路 | 不能把 NET、软件补偿与实体弹簧当成可自由叠加的驱动力 |
 | 轮 driver 限矩 | 2.44694786377709Nm | 4.8Nm | 已有明确变化；未因本审查改变 |
 | 两轮附加 armature，模型 ch2/ch5 | 0.00353641 / 0.00353991 kg·m² | mechanics 指定 0.003228287699 / 0.002952963759 kg·m² | 已确认来源/setter 差异；本次未启动引擎重新读回 |
+| 轮粘性阻尼 B，模型 ch2/ch5 | nominal为0；随 DR 幅度生成 | 0.00066957 / 0.0025485 Nm·s/rad | 不同的名义阻力 |
+| 轮 Coulomb 项 Tc，模型 ch2/ch5 | nominal为0；随 DR 幅度生成 | 0.052843 / 0.054699 Nm | 不同的名义阻力 |
 | 时间分层 | 1/5/10ms；Actor 物理包龄20ms、target5ms；轮7/11ms FIFO、tau0 | 同名义分层；腿 C 的 final 请求进入 V4 响应 | 不追加另一份20ms运输，不把包龄当固件反馈延迟 |
 | 观测 | Motion/NONE flags，实际采用目标为 previous | Jump37 前25复用同一编码；Teacher 查询须替换 flags | Teacher 预测不能写入 Student previous |
 
@@ -27,6 +29,20 @@
 - 本次 C 构建的9份 C/H 与读取时 teaching worktree 的9份 C/H 逐 SHA 相同。其他 owner 的当前源码快照不自动等同于活动 worker 的内存源码身份。
 
 详细绝对路径、SHA、V4 observer 参数及读回缺口均在 `artifacts/jump_execution_audit_20261114/read_only_evidence_v1.json`。旧 `mcu_execution.profile` 的弹簧占位描述不能覆盖真实正式消费者。
+
+### 轮惯量与被动阻力补核
+
+本项固定审查 `c5b3ad8` 的默认 PhysX 链，不查询或修改 worker。其绑定的 mechanics 文件 SHA 为 `e4c209d6eb57fc6f80d1bdae5bb4b05eb54019ea9d6cf1441c331471d6664f64`。上表两轮数值按模型 ch2/ch5 排列。
+
+实际表现：Jump 的轮端名义阻力非零，并且左右系数不同。根因在 `recovery_isaac/physics.py:36`、`:41` 从 mechanics 读取固定 damping/Coulomb；`:66` 将主动关节的引擎内置 damping 置零、`:71` 将内置 friction 置零；`jump_isaac_scene.py:492` 计算 `-B*omega-Tc*sign(omega)`，`:504` 与 NET 一起写入对向 body wrench。这里的 Coulomb 是显式速度符号近似，不能据此宣称静摩擦或 stiction 已认证。
+
+Motion4300 的绑定来源 `runtime_support.py:63` 构造 DR 幅度，`:98–99` 将 wheel_B/wheel_Tc 乘以相应幅度，因此 nominal幅度0时均为0。`robot_adapter.py:84` 使用 `-B*omega-Tc*tanh(omega/.1)`，`:88` 加到 actuator effort target。DR 的 Tc 参考上限写的是 `[.0528843,.054699]`，与 Jump 首轮 `.052843` 也不是完全相同的数字。不能把 Motion 的非零 DR 样本统一描述成 nominal零阻力。
+
+纯代数示例：若两轮速度均为 `+1rad/s`，Jump 上述被动项为 `[-.05351257,-.0572475]Nm`，Motion4300 nominal为 `[0,0]`。这不是仿真结果，也不能据其量级直接断言低速失败由该项引起。
+
+两边完整 V4 都缩放具名 wheel body 的质量/惯量。合同中 sideL 的 `right_wheel` 缩放系数为1.8792026833539217，sideR 的 `left_wheel` 为1.4615451529198569。比较应绑定源 USD、具名 body 缩放、added armature 及实际读回；两份 profile 都写 `totalJ=.004204/.0042075` 不能证明完整惯量相同。
+
+处理建议：保持现有参数与原证据，分别记录轮 cap、added armature、V4 wheel body 缩放、B/Tc、函数形式与施加路径。`motion_no_C_spring_to_jump_C_spring_v1` 只处理瞬时腿部前馈边界，不能标为整条同Plant转换。当前追踪差异的唯一根因仍待确认。完整 SHA 与只读代数收据为 `artifacts/jump_execution_audit_20261114/wheel_load_evidence_v1.json`；本补核新增物理/GPU/PPO/BC均0。
 
 ## 真实 C 的同输入结果
 
