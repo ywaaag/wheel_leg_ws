@@ -1,8 +1,11 @@
 """Actual C/V4 histories packed in batch, without physics or CUDA."""
 
+import gc
+import weakref
 from types import SimpleNamespace
 
 import numpy as np
+import pytest
 import torch
 from test_jump_batch_bridge_cpu import advance, bridge  # noqa: F401, F811
 from test_jump_cpu_reuse import no_physics_or_cuda  # noqa: F401
@@ -89,6 +92,20 @@ def test_batch_device_fields_match_scalar_full_contract_at_ring_wrap_and_reset(b
         actual = packer.pack(env, actor)
         np.testing.assert_array_equal(actual.numpy(), expected)
         assert actual.shape == (3, 5591)
+        # Every row view must die with the temporary terminal snapshot.
+        # Otherwise asynchronous terminal rows pin full-batch CPU allocations.
+        storage = next(v for v in vars(snapshot.v4).values() if torch.is_tensor(v))
+        reference = weakref.ref(storage._base)
+        assert all(not hasattr(critic.base, "plant") for critic in env.critics)
+        del storage, snapshot
+        gc.collect()
+        assert reference() is None
+        if tick == 0:
+            env.critics[0].base._pack_signature = ("invalid",)
+            with pytest.raises(ValueError, match="Critic packing contract changed"):
+                env.row_observation(0, h, actor[0], execution=env.critic_snapshot())
+            assert not hasattr(env.critics[0].base, "plant")
+            del env.critics[0].base._pack_signature
 
 
 def test_device_controller_encoding_preserves_uint32_wrap_and_all_fields(bridge):  # noqa: F811

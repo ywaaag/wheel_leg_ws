@@ -81,20 +81,24 @@ def test_performance_receipt_reuses_existing_mask_and_allocator_metadata(monkeyp
         peak_memory_allocated_bytes=1234,
         peak_memory_reserved_bytes=1234,
     )
+    host_peak = adapter.measurement.counters.pop("jump_host_peak_rss_bytes")
+    assert host_peak > 0
     assert adapter.measurement.counters == dict(
         jump_valid_actor_samples=17, jump_invalid_actor_samples=3
     )
-    from native_stand.artifacts.metrics import MetricsWriter
-
     # Production writer filters scalars; use its existing public field names.
     import tempfile
 
+    from native_stand.artifacts.metrics import MetricsWriter
+
     target = Path(tempfile.mkdtemp()) / "metrics.jsonl"
     result["update"] = 1
+    adapter.measurement.counters["jump_host_peak_rss_bytes"] = host_peak
     result["performance_counters"] = adapter.measurement.counters
     writer = MetricsWriter(target, every_updates=1, tensorboard=False)
     assert writer.write(result)
     saved = json.loads(target.read_text())
     assert saved["peak_memory_allocated_bytes"] == 1234
     assert saved["peak_memory_reserved_bytes"] == 1234
+    assert saved["performance_counters"]["jump_host_peak_rss_bytes"] == host_peak
     assert saved["performance_counters"]["jump_valid_actor_samples"] == 17

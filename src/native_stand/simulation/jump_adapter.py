@@ -2,6 +2,7 @@
 
 import copy
 import os
+import resource
 from dataclasses import asdict
 from functools import partial
 from inspect import signature
@@ -101,6 +102,12 @@ class JumpAdapter(GenericPPOAdapter):
 
     def after_update(self, context, index, metrics):
         if self.measurement.enabled:
+            # Linux runtime: ru_maxrss is KiB. Report once per update, never
+            # read process files or synchronize the physical hot path.
+            self.measurement.count(
+                "jump_host_peak_rss_bytes",
+                resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024,
+            )
             for name in ("valid_actor_samples", "invalid_actor_samples"):
                 self.measurement.count("jump_" + name, self.ppo.mask_summary.get(name, 0))
             if self.job.runtime.device.startswith("cuda"):

@@ -47,15 +47,21 @@ class RowCritic:
                 raise ValueError("Actual Isaac shape " + name)
             values[name] = (value, scale, unit)
         self.base.plant = SimpleNamespace(execution=execution_row(execution, index))
-        self.base.memory = TaskMemory(request["kind"], request["seconds"])
-        head, self.base.schema = jump_direct_critic.pack(
-            self.base,
-            actor,
-            wheel_cap=4.8,
-            phase_count=10,
-            schema_class=BaseCritic,
-            engine_fields=values,
-        )
+        try:
+            self.base.memory = TaskMemory(request["kind"], request["seconds"])
+            head, self.base.schema = jump_direct_critic.pack(
+                self.base,
+                actor,
+                wheel_cap=4.8,
+                phase_count=10,
+                schema_class=BaseCritic,
+                engine_fields=values,
+            )
+        finally:
+            # A terminal row is a view into a full-batch CPU snapshot.
+            # Keeping it on one of thousands of row packers pins that entire
+            # allocation until this particular environment next terminates.
+            del self.base.plant
         tail, fields = extend_fields({}, [], reward.critic_fields())
         if self.tail_schema is None:
             # Versioned source defines units/scales, not changing physical
