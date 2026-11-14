@@ -201,4 +201,4 @@ PYTHONPATH=src python -m native_stand dashboard --root /path/to/runs --port 8765
 
 若已有 TensorBoard 服务，可显式传 `--tensorboard-url http://127.0.0.1:6006` 提供跳转；只检测已有事件目录，不转换、不写入原run。TensorBoard自身使用方式参见[官方文档](https://www.tensorflow.org/tensorboard/get_started)。目标矩阵从现有Motion文档读取；不包含该文档的安装显示不支持。旧诊断缺少明确窗口计数身份时，样本计数显示UNKNOWN，原始值保留在证据中。评分阈值或条件未产出时不猜测，比较显示证据不足。
 
-Tailscale HTTP入口可用已有反向代理：看板增加 `--public-host <本机Tailscale IPv4>`，仍只监听127.0.0.1；管理员显式执行 `sudo tailscale serve --bg --http=80 http://127.0.0.1:18765` 后，通过该Tailscale地址访问。只对tailnet提供服务，不使用Funnel、不开放公网；其他Host仍拒绝。
+Tailscale IP入口可用TCP转发：看板增加 `--public-host <本机Tailscale IPv4>`，仍只监听127.0.0.1；管理员显式执行 `sudo tailscale serve --bg --tcp=80 tcp://127.0.0.1:18765` 后，通过该Tailscale IP访问。HTTP Serve按域名路由，不能替代此IP入口。只对tailnet提供服务，不使用Funnel、不开放公网；其他Host仍拒绝。
