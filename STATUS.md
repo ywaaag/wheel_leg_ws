@@ -15,7 +15,7 @@
 
 仅train条件反馈补教，开发/留出整回合隔离。第三块第9轮Actor按预声明开发闭环规则选定，SHA `258aae9d904fc3718ddc7938a556c523ff75228a0a7f2707f72b2162d9930d98`；开发22/22完整且相对筛选22/22，完整BC恢复点第16轮另存。精确训练条件复放0.20m实际0.199962m、双支撑100%、腿raw均值最大绝对值0.01429；0.22m实际0.223691m。约0.24m仍近1cm高度偏差；自转双支撑、欠转及地形欠速均不能因模仿保真判定能力通过。
 
-正式配方`configs/jobs/motion_low_support_reteach_bc16.json`复用preset；公共看板的原startup_handshake交接见数据根`motion_low_support_reteach_20261114/dashboard_handoff.json`，不另建登记表。冻结后独立留出结果、完整模型/BC/导出SHA、源码快照和继续起点见同目录REPORT、delivery及PLAY。固定模型MuJoCo标称证据与训练窗口分开；完整DR/扰动、PhysX、实机不授予通过。集成CPU portable2037 passed/31既有skip/10warning（137.83秒），架构219/0，Ruff0.8.4 check/218文件format通过。旧冻结源码、预算、原模型和其他任务保持。
+正式配方`configs/jobs/motion_low_support_reteach_bc16.json`复用preset；公共看板的原startup_handshake交接见数据根`motion_low_support_reteach_20261114/dashboard_handoff.json`，不另建登记表。冻结后43个留出回合全部完成，相对筛选40/43；三个转弯双支撑相对下降5.8/8.8/10.8个百分点，继续列为缺口。两个低站立留出高度MAE为0.485/4.479mm，均满足本轮门槛。完整模型/BC/导出SHA、源码快照和继续起点见同目录REPORT、delivery及PLAY。固定模型MuJoCo标称证据与训练窗口分开；完整DR/扰动、PhysX、实机不授予通过。集成CPU portable2037 passed/31既有skip/10warning（137.83秒），架构219/0，Ruff0.8.4 check/218文件format通过。旧冻结源码、预算、原模型和其他任务保持。
 
 ## Motion物理目标蒸馏与受载中心（2026-11-14）
 
