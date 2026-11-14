@@ -1,3 +1,6 @@
+<!-- dashboard-current -->
+公共只读看板：独立分支 `feature/read-only-dashboard` 接通统一CLI、标准产物读取、HTTP和网页。Motion训练窗口已接入；Jump/Recovery提供通用状态与曲线，能力适配未支持；实机适配未支持。仅CPU/脚本fixture验收，不改变活动训练；针对性23通过，portable 1999通过/31既有skip，架构215/0、Ruff 0.8.4通过；浏览器验证曲线、筛选、比较和证据入口。未将训练窗口当作固定模型证书。
+
 # 当前任务
 
 ## Motion少量变高度接续（2026-11-13）

@@ -150,6 +150,28 @@ def cmd_train(args) -> int:
     return EXIT_OK
 
 
+def cmd_dashboard(args):
+    """Only serving explicitly allowed artifacts; dry-run does not open files or sockets."""
+    if args.dry_run:
+        print(
+            json.dumps(
+                {
+                    "operation": "dashboard",
+                    "roots": args.root,
+                    "host": args.host,
+                    "port": args.port,
+                    "read_only": True,
+                },
+                ensure_ascii=False,
+            )
+        )
+        return EXIT_OK
+    from native_stand.integrations.dashboard import serve
+
+    serve(args.root, host=args.host, port=args.port, tensorboard_url=args.tensorboard_url)
+    return EXIT_OK
+
+
 def cmd_inspect(args) -> int:
     payload = inspect_run(_run_dir(args.run))
     state = payload["state"]
@@ -766,6 +788,21 @@ def build_parser() -> argparse.ArgumentParser:
     export.add_argument("--dry-run", action="store_true")
     export.add_argument("--onnx", action="store_true", help="同时导出ONNX；不授予ORT或ARM验证")
     export.set_defaults(func=cmd_export)
+
+    dashboard = sub.add_parser(
+        "dashboard", help="只读训练与能力看板（不启动引擎）", parents=[json_flag]
+    )
+    dashboard.add_argument(
+        "--root",
+        action="append",
+        required=True,
+        help="允许读取的run目录或直接包含run的目录；可重复",
+    )
+    dashboard.add_argument("--host", default="127.0.0.1", choices=["127.0.0.1"])
+    dashboard.add_argument("--port", type=int, default=8765)
+    dashboard.add_argument("--dry-run", action="store_true")
+    dashboard.add_argument("--tensorboard-url", help="可选本机已存在TensorBoard链接；不启动进程")
+    dashboard.set_defaults(func=cmd_dashboard)
 
     inspect = sub.add_parser("inspect", help="只读查看run", parents=[json_flag])
     inspect.add_argument("--run", required=True)

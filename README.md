@@ -187,3 +187,16 @@ Space停止，Esc停止并暂停，R归零并重置；键盘不自动解除暂�
 
 
 少量高度训练准备配置：`configs/jobs/motion_height_small_dose_prepared.json`。使用原v3课程将10%总样本分给0.20～0.40m六个离散高度的站立与±0.25m/s平地运动，先变高再运动，55%基础复习保留。准备配置零额度，实际切换需最终完整停止点及剩余额度SHA分配；详情见Motion能力矩阵“少量变高度并行训练”。不新增授权，不把准备配置或高度输出范围称为已掌握能力。
+
+### 只读训练与能力看板
+
+```bash
+PYTHONPATH=src python -m native_stand dashboard --root /path/to/runs --dry-run
+PYTHONPATH=src python -m native_stand dashboard --root /path/to/runs --port 8765
+```
+
+打开 `http://127.0.0.1:8765`。`--root` 可重复，指定单个 run 或直接包含 run 的目录；不是任意文件浏览器。远端可在远端运行同一命令，再自行 SSH 端口转发；本命令不连接远端。默认手动刷新，可显式开启页面内30秒刷新。没有训练控制、评估或删除接口，也不启动 TensorBoard。
+
+状态和消耗读取 run/state/budget；曲线直接读取 JSONL，不要求 events。RUNNING 不代表进程已核验。训练窗口、固定模型评估、实机证据分别显示；缺失值为 UNKNOWN，不生成能力排名。Motion展示已有 maneuver 训练窗口；Jump/Recovery通用状态和曲线可读，领域能力适配暂不支持。固定模型展示已有评估索引并核对SHA；实机适配尚未支持。读取限制为最近2000条指标、100份诊断，单文件最多4MiB，每root最多50个run，单次刷新读取上限16MiB；截断边界和读取错误不代表任务失败。不同评分域不直接比较，训练窗口不是保存点的固定成绩。
+
+若已有 TensorBoard 服务，可显式传 `--tensorboard-url http://127.0.0.1:6006` 提供跳转；只检测已有事件目录，不转换、不写入原run。TensorBoard自身使用方式参见[官方文档](https://www.tensorflow.org/tensorboard/get_started)。目标矩阵从现有Motion文档读取；不包含该文档的安装显示不支持。旧诊断缺少明确窗口计数身份时，样本计数显示UNKNOWN，原始值保留在证据中。评分阈值或条件未产出时不猜测，比较显示证据不足。

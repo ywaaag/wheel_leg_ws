@@ -201,3 +201,7 @@ JS作为package data打包。借鉴历史Motion面板的焦点保护、物理按
 
 
 Motion少量高度配方`configs/jobs/motion_height_small_dose_prepared.json`复用SplitCourse v3的targets/focus_weights与既有height-first时序，不新增课程版本、执行器或训练入口。10%高度、28%转弯、7%rough、55%基础；职责和语义见能力矩阵末节。`artifacts.branch_initialization.CONTINUED_COURSE`在现有完整来源/分配校验中支持真实终态后的剩余额度接续，复用生产adapter依赖登记和公共预算；不更改同run恢复合同，不热改活动冻结源码。
+
+### 只读看板扩展
+
+`cli.dashboard → integrations.dashboard → artifacts.dashboard.Catalog`。HTTP服务仅绑定loopback，固定路由和opaque证据ID，不暴露文件目录、命令执行或训练控制。标准库读取不导入训练或物理依赖。领域通过纯计算展示适配器消费既有诊断，不重新评分；首个适配为 `tasks.motion.dashboard.training_windows`。新增领域提供目标说明、条件身份和已有判定；未提供的列保持UNKNOWN。不得从key猜测DR/地形或由部分指标推导已掌握。训练、固定模型和实机证据不得混排；后台采集/独立评估不属于看板。
