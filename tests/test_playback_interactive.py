@@ -147,3 +147,12 @@ def test_served_page_includes_packaged_keyboard_and_memory_charts():
         assert "localStorage" not in html and "sessionStorage" not in html
     finally:
         stop(server)
+
+
+def test_keyboard_focus_guard_excludes_editors_but_not_action_buttons():
+    script = (
+        Path(__file__).resolve().parents[1] / "src/native_stand/simulation/playback_panel.js"
+    ).read_text()
+    guard = script.split("function editable(element) {", 1)[1].split("function positive", 1)[0]
+    assert "'INPUT','SELECT','TEXTAREA'" in guard
+    assert "BUTTON" not in guard
