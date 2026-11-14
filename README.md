@@ -130,6 +130,8 @@ Motion的`motion_multiheight020_support_center_050_80_v1`是独立±0.50rad/±80
 
 可复用配方为`configs/jobs/motion_low_support_reteach_bc16.json`（preset加显式覆盖）：绑定本机数据根中的Teacher、完整episode划分数据、上一块Actor及输出合同SHA，每块16轮BC、新Adam；先`wheel-leg distill --config configs/jobs/motion_low_support_reteach_bc16.json --dry-run --json`审阅。它是已完成第3块的复现实验配方，不是继续执行指令，也不刷新PPO额度。后续补教须使用新的训练数据/版本；开发及留出不能回流本候选训练。
 
+转弯支撑与0.24m短补教配方为`configs/jobs/motion_turn_height_short_bc12.json`，复用同一监督入口及已有conditions路由。各冻结Teacher按自身输出合同生成物理标签；Teacher选择依据仅来自训练条件，路由不进入Student执行。该配方绑定既有数据与Actor SHA，是单块12轮BC复现配置，不自动开启PPO或刷新额度；新数据补教需新run，既有开发/留出保持独立。
+
 正式链为 `wheel-leg play` → `simulation.playback.plan/create_player/run_loop` →
 `MotionPlayer` → 公共推理factory、共享C编码/解码/PD及`PlaybackExecution`完整V4。
 网页仅复用已有`students.motion_panel.Plan`锁与HTTP命令/遥测服务，不创建第二个物理循环。
