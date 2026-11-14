@@ -221,3 +221,5 @@ Motion少量高度配方`configs/jobs/motion_height_small_dose_prepared.json`复
 看板远端源由 `integrations.remote_dashboard.RemoteSource` 管理一次显式OpenSSH读取，固定 `remote_probe.collect` 只读探针由远端系统Python执行，不是训练入口或远端agent。传输校验后在私有临时目录形成派生视图，继续经 `artifacts.dashboard.Catalog` 和领域适配解析；原远端文件不改。连接身份由运行参数提供，密码仅后端内存，known_hosts加显式指纹双校验。HTTP只允许显式刷新与连接元数据修改，不提供shell/任意文件接口；无watcher、自动重连或训练控制。
 
 训练发现复用既有run与startup_handshake作为唯一登记事实，不新增registry：CLI提交结果附带看板产物根和身份记录提示。远端probe仅发现授权runs根的直接子目录（或单个run），汇总后仍交给同一Catalog/领域适配；资源单次读取、总传输有界。显示或采集失败不重提训练、不改预算。
+
+腿主导Recovery增量：`tasks/recovery/leg_driven.py`提供几何顺序、实际1ms轮速/姿态成本、942D因果Critic后缀及训练窗口课程；复用现有Recovery backend/adapter、PhysicalActor和公共owner/worker/driver，不新增执行入口。新任务接稳0.5秒与旧own-hold10语义分开；详见`docs/RECOVERY_LEG_DRIVEN.md`。

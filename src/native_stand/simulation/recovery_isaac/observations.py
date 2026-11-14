@@ -196,6 +196,7 @@ def observe(self):
         reward_context.VERSION,
         "recovery_handover_causal908_v4",
         "recovery_standalone_height_causal909_v5",
+        "recovery_leg_driven_causal942_v1",
     ):
         critic = reward_context.append(
             critic,
@@ -219,6 +220,8 @@ def observe(self):
         critic = height_append(
             critic, self.height_initial, self.commanded_height(), self.height_dynamic
         )
+    if getattr(self.cfg, "recovery_leg_driven", None):
+        critic = self.life.critic(critic)
     valid = (
         self.recovery_control_owner()
         & (state[:, 11] <= 0.005)
