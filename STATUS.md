@@ -1,5 +1,11 @@
 # 当前任务
 
+## Motion受载中心与输出包络诊断（2026-11-14）
+
+独立`motion/loaded-center-scale-study`复用统一diagnose与MotionPlayer/C/V4，加入固定Actor、有界case、显式物理目标干预及原目标/实际目标记录，不改冻结训练合同。u2000本机平地MuJoCo对照：原0.20m命令稳态高度约0.22418m；旧raw直接按0.30/0.50rad重解码分别7.35/0.84秒触及姿态/高度边界，尚未到低高度评分，不能当新Student性能。没有合格受载中心候选，未改中心或正式scale。原始结果及蒸馏准备见数据根`motion_loaded_center_scale_20261114/`。
+
+用户授权停止Motion、蒸馏并回传模型。重连30548成功后核实原worker1485不存在、state陈旧RUNNING/2281；公共stop request-only记录，保留原状态后owner.reconcile结算FAILED（worker exited without terminal state）。本阶段已用500+2281=2781、剩7219，保存u2200与账本相差81次不退款；没有正常退出最终保存，不重启。保全回传与SHA核验以数据根`motion_preservation/20261114_height_stop/verification.json`为准。当前尚未启动BC或产生新Student。
+
 ## Motion少量变高度接续（2026-11-13）
 
 用户要求当前加入0.20～0.40m站立与平地运动。独立`motion/height-small-dose`分支准备10%变高度、28%转弯、7%地形和55%基础复习；六目标高度0.20/0.24/0.28/0.32/0.36/0.40m，各自站立/±0.25m/s，复用原rate-limited高度优先时序及SplitCourse。不改PPO/奖励/KL/执行合同。新增完整课程接续记录只结转原10000授权的实际剩余，累计上限16738不变，真实停止点与云端结果以数据根`motion_height_small_dose_20261113/`收据为准；旧远端Motion已通过公共stop request-only正常STOPPED_BOUNDED于500，failure=null，完整u500 SHA `1ad4a858baebffa1a0cad2e989c57e054934940372a593be9842f4a7e6801e89`；保存点差额0。本授权剩余9500，历史累计7238、模型进度7097，累计上限16738保持。远端新冻结`candidate_revisions/motion_height_small_dose_v2/src`599模块摘要`c408dc029ae2036dd9233f5d98e3f8d54b88e67a6a6710b6ac21d3521460c81e`，配置`height_small_dose_v2_20261113/cloud_config.json`；78cohort/407高度槽位，最小11槽。完整PPO双Adam CPU装配与dry-run通过；首版预检曾拒绝重复877→881路径，修正并保留拒绝现场，新run `motion_height_small_dose_remaining9500`唯一提交成功，worker1485身份OK，启动快照RUNNING/0更新/failure=null，首个PPO更新尚未确认，未新增watcher。最终相关54 passed（6.62s），portable1988 passed/31既有skip/10warning（131.70s），架构212/0、Ruff0.8.4 CI范围check/format通过。

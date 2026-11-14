@@ -499,6 +499,7 @@ def test_actual_recovery_player_forward_is_not_cubic_decoded_twice(tmp_path):
     )
     execution.reset(np.zeros(6), np.zeros(6))
     plant = MotionPlayer.__new__(MotionPlayer)
+    plant.diagnostic_target_transform = None
     plant.terrain = None
     plant.recording = True
     plant.plan = NS(job=NS(task="recovery", control=control))

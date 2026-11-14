@@ -118,6 +118,8 @@ PPO更新、监督round、实际监督优化步和物理子步分别记账。com
 
 ## Motion MuJoCo网页交互播放
 
+固定Actor承重与腿包络对照使用`wheel-leg diagnose --config PROTOCOL.json --dry-run --json`检查，再去掉`--dry-run`执行有界headless诊断。协议版本为`motion_support_probe_v1`，必须显式声明`run`、`checkpoint`、`checkpoint_sha256`、`path_mapping`、`solver_profile`、新建`output`、`wall_s`（最多1800秒）、`max_output_bytes`（最多512MiB）及`cases`。每个case给出唯一`name`、`height_m`（0.20～0.40）、`vx_mps`、`yaw_rad_s`、`leg_scale_rad`（0.15/0.30/0.50）、`duration_s`（15～40）及`mapping=rescale_source_raw`；可选`center_delta_rad`是四腿偏移。复用原播放器物理循环及高度优先命令，输出原始目标、实际目标和承重统计。放大旧Actor raw是诊断干预，不可当作兼容迁移或已通过的新模型；MuJoCo结果不等同PhysX能力。
+
 正式链为 `wheel-leg play` → `simulation.playback.plan/create_player/run_loop` →
 `MotionPlayer` → 公共推理factory、共享C编码/解码/PD及`PlaybackExecution`完整V4。
 网页仅复用已有`students.motion_panel.Plan`锁与HTTP命令/遥测服务，不创建第二个物理循环。

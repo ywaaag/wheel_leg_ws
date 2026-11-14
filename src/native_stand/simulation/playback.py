@@ -252,7 +252,7 @@ def run_loop(plant, controls, *, steps, viewer=None):
     )
 
 
-def create_player(prepared, *, directory=None):
+def create_player(prepared, *, directory=None, diagnostic_target_transform=None):
     import tempfile
 
     from native_stand.artifacts.checkpoint import load_actor_source
@@ -306,7 +306,13 @@ def create_player(prepared, *, directory=None):
     from native_stand.learning.inference import from_source, spec_for_job
 
     inference = from_source(source, spec_for_job(prepared.job, prepared.output_contract))
-    plant = MotionPlayer(prepared, source.payload, core, actor=inference.actor)
+    plant = MotionPlayer(
+        prepared,
+        source.payload,
+        core,
+        actor=inference.actor,
+        diagnostic_target_transform=diagnostic_target_transform,
+    )
     return source, plant, binding, folder
 
 

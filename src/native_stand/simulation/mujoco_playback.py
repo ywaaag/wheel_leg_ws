@@ -17,11 +17,12 @@ from .playback_execution import WHEELS, PlaybackExecution
 
 
 class MotionPlayer:
-    def __init__(self, plan, payload, core, *, actor=None):
+    def __init__(self, plan, payload, core, *, actor=None, diagnostic_target_transform=None):
         import mujoco
 
         self.mj = mujoco
         self.plan = plan
+        self.diagnostic_target_transform = diagnostic_target_transform
         self.physics_dt = plan.job.control.physics_dt_s
         refs = plan.assets["bindings"]
         from native_stand.simulation.scenes import initial_catalog, scene_for
@@ -168,12 +169,18 @@ class MotionPlayer:
                 if not controls.teacher and self.actor_spec.kind == "recovery_physical"
                 else decoder.decode(raw, float(command[2]))
             )
+            source_requested = requested.copy()
+            if self.diagnostic_target_transform is not None and not controls.teacher:
+                requested = self.diagnostic_target_transform(raw, float(command[2]), requested)
+                if requested.shape != (6,) or not np.isfinite(requested).all():
+                    raise ValueError("诊断目标变换必须返回有限六通道物理目标")
             e.submit(requested)
             self.policy_ticks += 1
             self.last_record = dict(
                 command=command.copy(),
                 raw=raw.copy(),
                 requested=requested.copy(),
+                source_requested=source_requested,
                 previous=e.core.adopted.copy(),
                 observation=observation.copy(),
                 owner="Teacher" if controls.teacher else "Student",

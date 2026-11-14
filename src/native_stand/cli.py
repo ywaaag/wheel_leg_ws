@@ -527,6 +527,12 @@ def cmd_diagnose(args) -> int:
             text=f"诊断: 状态 {state.get('status')} 失败 {state.get('failure')}",
         )
         return EXIT_OK
+    if args.config and read_json(args.config).get("version") == "motion_support_probe_v1":
+        from native_stand.simulation.motion_support_probe import from_file
+
+        result = from_file(args.config, dry_run=args.dry_run)
+        _emit(args, result, text="Motion承重/包络诊断；不是能力认证或训练")
+        return EXIT_OK
     job = _config(args)
     payload = {
         "action": "diagnose-plan",
@@ -743,7 +749,12 @@ def build_parser() -> argparse.ArgumentParser:
     distill.set_defaults(func=cmd_distill)
 
     diagnose = sub.add_parser("diagnose", help="有界诊断", parents=[json_flag])
-    diagnose.add_argument("--config", type=Path, default=None)
+    diagnose.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="Job配置；或motion_support_probe_v1固定Actor有界MuJoCo承重/包络诊断协议",
+    )
     diagnose.add_argument("--run", default=None)
     diagnose.add_argument("--dry-run", action="store_true")
     diagnose.set_defaults(func=cmd_diagnose)
