@@ -1,5 +1,7 @@
 # 当前任务
 
+Jump闭环补教进行中：PPO u1034正常保存退出，总1577已耗/8423剩余。复用公共监督链，学生当前PhysX状态采样→Motion标签→GPU BC。实证旧Motion目标直接搬运缺少C弹簧补偿执行对齐：teacher12s零命令root.295/good.03s，显式标签转换后good11.97s；基础反向/部分yaw仍待改善。监督流程已启动2026_11_15__jump_closed_loop_teaching_v1，64env、3x1200policy、3x20监督epochs，0新PPO，不操作Recovery owner。当前补教源码独立jump/closed-loop-teaching，运行冻结module摘要优先；尚未闭环认证学生。CPU57/portable1960通过/31skip，架构219/0与Ruff通过。
+
 当前覆盖（原Cylinder＋原生Plane，2026-11-14）：用户明确倾向学习Motion静态Plane。独立jump/native-plane开发，无热改。CPU/GPU400tick冲量/reset、两次4096x6400tick原1mm/2mm门通过。新增终态Critic CPU snapshot引用释放，真实CPU数值/weakref与同窗口RSS从43GB增长改为约10.6GB。旧v15遭系统OOM，公共owner已结算FAILED75，最后有效u3；累计543/余9457，未保存72次不退款。正式配方切native_plane_v1，不再使用凸包/薄盒；正在完成最终回归与正常PPO保存恢复，尚未重新长训。以下旧状态均按原冻结run读取。
 
 严格凸包门v6后续覆盖：独立worktree开发，未热改v14。min(圆柱,凸包)净空、同1mm门，CPU43/portable1954通过、Ruff/架构通过；GPU4096x6400tick自然PASS、Critic54/inverse48及fresh reset通过。v14有界16次STOPPED_BOUNDED/failure=null，u16完整学习状态/双Adam/RNG/预测精确复验通过；累计468、剩9532。下一版本从u16接续，旧run余款退役，不叠加额度。Motion/Recovery没有相同1ms/1mm门，未停训不等于从未发生。

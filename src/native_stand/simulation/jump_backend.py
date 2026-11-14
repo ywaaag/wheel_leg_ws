@@ -148,4 +148,9 @@ def available(job):
 def make_collection_env(job, *, resources):
     if resources != job.runtime:
         raise ValueError("Collection resources differ from runtime request")
-    return make_env(job)
+    env = make_env(job)
+    if job.assets.get("jump_balance_collection") is not None:
+        from .jump_teaching import BalanceCollection
+
+        return BalanceCollection(env)
+    return env

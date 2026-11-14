@@ -109,3 +109,14 @@ InverseFeedback仅调用位置/速度相关MuJoCo forward阶段，用实际PhysX
 - 同步：Warp运行使用当前Torch CUDA stream，初始化一次同步，避免qpos/质量/Jacobian跨stream竞态。
 
 checkpoint完整学习状态保持，物理仍fresh_reset，不伪造hidden solver恢复。CUDA版需nvcc、MuJoCo Warp和Torch compile；当前本机IsaacSim6.0.1/sm89通过不代表远端6.2通过。具体运行性能与预算在run/artifacts记录。
+
+
+## 闭环补教站立与基础运动
+
+PPO在u1034正常STOPPED_BOUNDED，累计1577/10000、余8423；BC仅记监督轮次与真实采样物理步，不扣/刷新PPO。统一distill CLI复用owner/worker、公共collect→label→fit→compare与数据split。学生实际状态采样、Teacher只做影子标签，历史previous是实际采用目标。
+
+监督专用assets.jump_balance_collection只允许algorithm=distillation、有supervision、CUDA C执行；显式低速vx/yaw/height=.34命令，关闭主动跳请求，保留真实C/FSM/PD/V4/40与4.8Nm/1-5-10ms，零drop20s新回合。Teacher input适配器保留首25物理列，将任务flags恢复Motion/NONE，去掉Jump阶段列。safe域为双轮接触、无非轮接触、倾角<.35rad、root>.25m；未覆盖行记录但不标注。
+
+发现旧蒸馏执行合同缺口：Motion fullchain声明no_old_C_spring，而Jump真实C始终执行RLControlCompensateSpring。原physical target直接搬到Jump，在64env12s对照零命令root平均.295m/good最长.03s。显式标签变换tJump=tMotion-comp_model/40，补偿值由采样前C输入腿长/夹角按同源公式得到；保留C、限矩、力路由与实际previous，不是部署新增控制器。在同窗口zero good11.97s、forward+.2m/s good11.74s，reverse/部分yaw仍未合格，不能宣称全基础运动通过。转换在TeacherConfig中显式声明，记录每行补偿条件及来源，标签超保护范围拒绝而不裁。
+
+三轮有界补教每轮64env1200policy、20监督epochs；GPU fit显式assets.distillation_device=cuda:0，CPU历史消费者默认不变。需在当前Plane闭环验证补教后Actor，不以离线loss替代站立/跟踪验收。顺序collect共享唯一Kit App，各scene fresh-reset，公共worker终态后才退出App。

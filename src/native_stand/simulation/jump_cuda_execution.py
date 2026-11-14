@@ -21,7 +21,7 @@ class CudaExecution(UnifiedV4Execution):
     def finalize_reset(self, ids):
         self.gpu.reset_host_rows(ids)
 
-    def prepare_device(self, feedback, request, *, reset_ids=None):
+    def prepare_device(self, feedback, request, *, reset_ids=None, command=None):
         g = self.gpu
         t = self.tick
         for name, value in feedback.items():
@@ -46,7 +46,11 @@ class CudaExecution(UnifiedV4Execution):
             adopted_sequence=g.field("adopted_sequence"),
             upstream_target=g.field("adopted"),
             feedback_tick=torch.full((self.c.n, 6), t, device=self.v4.device),
-            command=self.v4.last_q.new_tensor([0, 0, 0.34]).expand(self.c.n, -1),
+            command=(
+                self.v4.last_q.new_tensor([0, 0, 0.34]).expand(self.c.n, -1)
+                if command is None
+                else command
+            ),
         )
         for name, value in fields.items():
             g.set_input(name, value, source=True)

@@ -140,7 +140,8 @@ def collect(
             # Clone pre-step input; engines may reuse their observation storage.
             current = obs.detach().clone()
             try:
-                result = env.step(model.mean(obs))
+                with torch.no_grad():
+                    result = env.step(model.mean(obs))
             except BaseException as failure:
                 # A backend can fail after real substeps without returning a
                 # transition. Keep its measured consumption, never fabricate a

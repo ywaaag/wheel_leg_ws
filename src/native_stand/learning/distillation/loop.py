@@ -286,6 +286,9 @@ def run_distillation(
     train_index = rows(split.train)
     validation_index = rows(split.validation)
 
+    device = torch.device(job.assets.get("distillation_device", "cpu"))
+    student.to(device)
+    states, labels = states.to(device), labels.to(device)
     student.train()
     optimizer = torch.optim.Adam(
         [p for p in student.parameters() if p.requires_grad], lr=learning_rate

@@ -51,7 +51,10 @@ def spec_for_job(job, output_contract):
     """Version, never width or filename, determines mean semantics."""
     if job.action.version == "recovery_cubic_physical_Gaussian_v2":
         kind = "recovery_physical"
-    elif job.action.version == "jump_unified_raw37_wheel48_v1":
+    elif job.action.version in (
+        "jump_unified_raw37_wheel48_v1",
+        "jump_isaac_ABI4_raw37_wheel48_v1",
+    ):
         kind = "direct"
     else:
         from native_stand.tasks.motion.spec import SUPPORTED_OUTPUT_VERSIONS

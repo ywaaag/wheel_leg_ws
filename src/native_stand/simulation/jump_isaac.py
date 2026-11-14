@@ -33,6 +33,8 @@ from native_stand.tasks.jump.unified import BALANCE
 from native_stand.tasks.jump.unified_reward import VERSION as REWARD_VERSION
 from native_stand.tasks.jump.unified_reward import UnifiedPacket, UnifiedReward
 
+_PROCESS_APP = None
+
 TRAINING_SEMANTICS = dict(
     reward=REWARD_VERSION,
     request="single_request_first_BALANCE_at_or_after_1500ms",
@@ -62,6 +64,10 @@ def validate_job(job):
     physical_contract(
         job.runtime.envs, job.assets.get("jump_wheel_collision"), job.assets.get("jump_ground")
     )
+    if job.assets.get("jump_balance_collection") is not None:
+        from native_stand.simulation.jump_teaching import collection_commands
+
+        collection_commands(job)
     if job.assets.get("jump_compute") not in (None, "cuda_firmware_warp_inverse_v1"):
         raise ValueError("Explicit supported Jump compute contract required")
     if job.reward.version != REWARD_VERSION:
@@ -118,6 +124,11 @@ class IsaacJump:
         self.physical_contract = physical_contract(
             self.num_envs, job.assets.get("jump_wheel_collision"), job.assets.get("jump_ground")
         )
+        self.teaching_commands = None
+        if job.assets.get("jump_balance_collection") is not None:
+            from native_stand.simulation.jump_teaching import collection_commands
+
+            self.teaching_commands = torch.tensor(collection_commands(job), device=self.device)
         self.training_semantics = dict(TRAINING_SEMANTICS)
         if self.job.assets.get("jump_compute") == "cuda_firmware_warp_inverse_v1":
             self.training_semantics["compute"] = "cuda_firmware_warp_inverse_v1"
@@ -162,18 +173,27 @@ class IsaacJump:
         # Runtime imports below occur only after the existing AppLauncher.
         from isaaclab.app import AppLauncher
 
-        with preserve_worker_signals():
-            self.app = AppLauncher(
-                {
-                    "headless": True,
-                    "device": self.device,
-                    "multi_gpu": False,
-                    "fast_shutdown": True,
-                }
-            ).app
-        # Kit6.2 fast shutdown calls os._exit. Defer it until the common worker
-        # has finalized its budget/report; never terminate inside adapter.close.
-        atexit.register(self._exit_app)
+        global _PROCESS_APP
+        if _PROCESS_APP is None:
+            with preserve_worker_signals():
+                self.app = AppLauncher(
+                    {
+                        "headless": True,
+                        "device": self.device,
+                        "multi_gpu": False,
+                        "fast_shutdown": True,
+                    }
+                ).app
+            _PROCESS_APP = self.app
+            # Kit fast shutdown must happen after the common worker settles.
+            atexit.register(self._exit_app)
+        else:
+            # Sequential public supervision collect phases share the one Kit
+            # process, while scenes/worlds always start fresh after close().
+            self.app = _PROCESS_APP
+            import isaaclab.sim as sim_utils
+
+            sim_utils.create_new_stage()
         from native_stand.simulation.jump_isaac_scene import IsaacScene
 
         refs = self.job.assets["jump_bindings"]
@@ -342,7 +362,11 @@ class IsaacJump:
                     & (e.gpu.field("phase") == BALANCE)
                     & (e.gpu.field("request_id") == 0)
                 )
-                e.prepare_device(feedback, request, reset_ids=reset_ids)
+                if self.teaching_commands is not None:
+                    request = torch.zeros_like(request)
+                e.prepare_device(
+                    feedback, request, reset_ids=reset_ids, command=self.teaching_commands
+                )
             self.prepared_tick = e.tick
             return
         if self.prepared_tick == e.tick and reset_ids is None:
@@ -593,6 +617,8 @@ class IsaacJump:
                 if self.requests[i] is not None:
                     self.courses[i].pending.pop(self.requests[i]["request_id"], None)
                 self.requests[i] = self.courses[i].next_episode()
+                if self.teaching_commands is not None:
+                    self.requests[i].update(kind="landing_only", drop_m=0.0, seconds=20.0)
             self.scene.reset(ids, [self.requests[i] for i in ids], self.inverse.initial)
             indices = torch.tensor(ids, device=self.device)
             q = self.scene.robot.data.joint_pos.torch[:, self.scene.ids][indices]
