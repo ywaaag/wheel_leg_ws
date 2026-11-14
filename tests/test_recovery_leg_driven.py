@@ -326,3 +326,15 @@ def test_progress_and_wheel_improvement_prevent_plateau_stop():
         record, _, stop = review_window(window, 0, history)
         assert not stop
         history.append(record)
+
+
+def test_reset_cannot_zero_borrowed_execution_caps():
+    lifecycle, g = life()
+    execution_caps = torch.tensor([[40.0, 40.0, 4.8, 40.0, 40.0, 4.8]]).expand(2, -1).clone()
+    lifecycle.effort_caps = execution_caps
+    before = execution_caps.clone()
+    lifecycle.reset(torch.arange(2), torch.ones(2) * 0.168, torch.zeros(2))
+    assert torch.equal(execution_caps, before)
+    assert "effort_caps" not in lifecycle.state_dict()
+    history = torch.zeros(2, 144) / execution_caps.repeat(1, 24)
+    assert torch.isfinite(history).all()

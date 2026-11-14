@@ -771,7 +771,10 @@ class IsaacRecovery:
 
 def make_env(job, *, output=None, measurement=None):
     return IsaacRecovery(
-        job, output=output or Path("/tmp/recovery_isaac_execution"), measurement=measurement
+        job,
+        output=output
+        or Path(job.assets.get("recovery_execution_artifacts", "/tmp/recovery_isaac_execution")),
+        measurement=measurement,
     )
 
 

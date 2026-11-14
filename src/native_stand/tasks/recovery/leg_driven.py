@@ -120,10 +120,12 @@ class Lifecycle:
         self.current_wheel = self.wheel_square.clone()
         self.step_terms = z[:, None].expand(-1, 10).clone()
         self.last_result = {}
+        self._state_names = tuple(k for k, v in vars(self).items() if torch.is_tensor(v))
 
     def reset(self, ids, h0, prefix_s):
         # Existing environment calls configure_reset immediately after physical FK.
-        for k, v in vars(self).items():
+        for k in self._state_names:
+            v = getattr(self, k)
             if torch.is_tensor(v):
                 v[ids] = -1 if k == "entry" else True if k == "sequence_valid" else 0
         self.h0[ids] = h0
@@ -429,9 +431,7 @@ class Lifecycle:
         )
 
     def state_dict(self):
-        return copy.deepcopy(
-            {k: v for k, v in vars(self).items() if torch.is_tensor(v) or k == "last_result"}
-        )
+        return copy.deepcopy({k: getattr(self, k) for k in (*self._state_names, "last_result")})
 
     def load_state_dict(self, state):
         if set(state) != set(self.state_dict()):
