@@ -264,7 +264,7 @@ function remoteDisplay(view){
  if(document.activeElement!==userInput)userInput.value=view.username;
  if(document.activeElement!==fingerprintInput)fingerprintInput.value=view.fingerprint;
  remoteInfo.textContent=`${view.host}:${view.port} · ${view.status} · ${view.last_success_unix_s?new Date(view.last_success_unix_s*1000).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'}):'尚无成功采集'} · 数据年龄 ${fmt(view.age_seconds,0)}秒 · ${view.stale?'过期缓存/无法核实当前状态':'缓存快照（非持续监控）'}`;
- resourceBox.replaceChildren();const res=view.snapshot?.resources;if(!res)return;
+ resourceBox.replaceChildren();if(view.snapshot?.discovery){const d=view.snapshot.discovery;el('p',`发现范围：${d.root} · 已载入${d.count}个run${d.limited?'（受数量/字节上限限制，未载入全部）':''}`,resourceBox,'muted');}const res=view.snapshot?.resources;if(!res)return;
  kv(resourceBox,[['CPU affinity',res.affinity?`${res.affinity.length}个逻辑CPU可见（不是quota）`:'未知'],['容器CPU quota',res['cpu.max']?.trim().split(' ')[0]==='max'?'不限额':fmt(Number(res['cpu.max']?.trim().split(' ')[0])/Number(res['cpu.max']?.trim().split(' ')[1]))+'核'],['容器cpu.max',res['cpu.max']],['容器内存上限',res['memory.max']?.trim()==='max'?'不限额':fmt(Number(res['memory.max'])/1073741824)+' GiB'],['容器内存当前',fmt(Number(res['memory.current'])/1073741824)+' GiB'],['数据盘空闲GiB',fmt(res.disk?.free_bytes/1073741824)],['GPU PID映射',res.gpu_pid_mapping]]);
  const gpu=(res.gpu||'').trim().split('\n').filter(Boolean).map(line=>line.split(',').map(x=>x.trim()));
  table(resourceBox,gpu,[['GPU名称',r=>r[0]],['UUID',r=>r[1]],['总显存MiB',r=>r[2]],['已用MiB',r=>r[3]],['空闲MiB',r=>r[4]],['瞬时利用率%',r=>r[5]],['温度°C',r=>r[6]],['功耗W',r=>r[7]]]);

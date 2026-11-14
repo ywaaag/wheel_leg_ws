@@ -223,3 +223,9 @@ PYTHONPATH=src python -m native_stand dashboard --root /path/to/local/runs \
 资源是瞬时快照：GPU整卡/compute进程显存与Torch指标分开；容器CPU配额取cgroup，affinity不是quota；GPU宿主PID不能直接当容器PID。缺启动身份start_ticks时进程保持UNKNOWN。没有启动/停止/恢复/清理/任意远端命令接口。Jump/Recovery远端路径未授权时不接入。
 
 连接地址、端口、用户名和指纹均为本次运行资料，不写死在源码；不能把上一次GPU、PID或机器配额当成当前事实。网页连接资料只保存到当前后端内存，密码变更仍在后端私密重新输入。默认手动采集；可显式开启“页面打开期间每120秒采集远端”，关闭页面即停止，无独立watcher。快照超过300秒标过期；普通本地刷新不触发SSH。已有看板systemd服务不自动存储远端密码，后台自动重启不会凭空恢复凭据。
+
+### 新训练自动出现在看板
+
+不需要另一套登记表。正式 `wheel-leg train` 已写入 `run.json` 和 `startup_handshake.json`，提交JSON现在返回 `dashboard.artifact_root/run/identity_record`，Codex应把该run及其身份交付给用户；看板登记失败不改变训练提交或预算，禁止重复提交训练来修复显示。
+
+本地看板 `--root /authorized/runs` 在每次页面数据刷新时发现直接子目录的新run。远端 `--remote-root` 可以指定单个run，或由用户明确授权的**runs目录**；点击“刷新远端快照”后自动发现直接子run，不递归扫描磁盘、不扫描端口。最多20个run（按产物文件更新时间选择最近项，不作为训练时间轴）、总传输14MiB；资源只采一次。新run继续复用原SSH连接资料与私密凭据，不加载checkpoint。下次更换平台重新配置连接；远端根目录只在后端参数中授权，网页不能自行扩大范围。页面自动刷新默认关闭。

@@ -68,6 +68,11 @@
 - 通知需明确授权与目标会话；通知失败不改变训练终态。
 - 旧入口 `command_v6.supervisor` 的多轮提交流程已退役；不要为了兼容重新加回 `--write/--check-submission/--launch` 链。
 
+## 训练看板接入
+
+- 经授权正式提交训练后，交付CLI返回的 `dashboard.artifact_root/run/identity_record`，复用run与startup_handshake，不另建登记表。看板只发现已授权产物根；远端runs根必须明确配置，不猜其他owner目录。
+- 看板显示失败不影响训练结算，不因未显示而重新提交/重启训练。只修复只读接线；连接凭据仅后端私密配置，不进入Git、run、报告或浏览器。开启下一次平台时显式更新连接与主机身份，不沿用旧资源核验。
+
 ## 文档维护
 
 - `README`：用途、环境与统一CLI；`AGENTS`：稳定规则与契约；`STATUS`：当前任务卡；`ARCHITECTURE`：模块与依赖；命令参数由 `--help` 维护。

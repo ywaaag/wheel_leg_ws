@@ -112,7 +112,7 @@ class RemoteSource:
             raise RemoteError("主机密钥不符")
         script = (
             Path(__file__).with_name("remote_probe.py").read_bytes()
-            + b"\nprint(json.dumps(collect(sys.argv[1]), allow_nan=False))\n"
+            + b"\nprint(json.dumps(discover(sys.argv[1]), allow_nan=False))\n"
         )
         encoded = base64.b64encode(script).decode()
         command = (
@@ -197,7 +197,12 @@ class RemoteSource:
             output = "".join(chunks).strip()
             if child.exitstatus != 0:
                 raise RemoteError(classify(output))
-            start = output.find('{"files"')
+            starts = [
+                output.find(marker)
+                for marker in ('{"files"', '{"discovered_runs"')
+                if marker in output
+            ]
+            start = min(starts) if starts else -1
             if start < 0:
                 raise RemoteError("远端只读协议不可用（系统python3/受控exec不支持）")
             return json.loads(output[start:])
@@ -210,6 +215,51 @@ class RemoteSource:
         try:
             self.status = "连接中"
             payload = self.runner()
+            if "discovered_runs" in payload:
+                children = []
+                for entry in payload["discovered_runs"][:20]:
+                    path = PurePosixPath(entry["root"])
+                    if path.parent != PurePosixPath(self.root) or ".." in path.parts:
+                        raise RemoteError("发现路径超出授权直接子目录")
+                    child = RemoteSource(
+                        host=self.host,
+                        port=self.port,
+                        username=self.username,
+                        root=str(path),
+                        fingerprint=self.fingerprint,
+                        runner=lambda item=entry: item["payload"],
+                    )
+                    result = child.refresh()
+                    if result["status"] != "成功":
+                        raise RemoteError("发现run读取失败：保留上次完整缓存")
+                    children.append(child)
+                old_children = getattr(self, "children", [])
+                self.children = children
+                self.last = {
+                    "runs": [run for child in children for run in child.last["runs"]],
+                    "resources": next(
+                        (child.last["resources"] for child in children if child.last["resources"]),
+                        {},
+                    ),
+                    "discovery": {
+                        "root": self.root,
+                        "scope": "直接子目录，最多20run/总传输14MiB",
+                        "count": len(children),
+                        "available_runs": payload.get("available_runs"),
+                        "limited": payload.get("limited", False),
+                    },
+                }
+                self.catalog.evidence = {
+                    key: value
+                    for child in children
+                    for key, value in child.catalog.evidence.items()
+                }
+                self.catalog.roots = tuple(Path(child.cache.name).resolve() for child in children)
+                for child in old_children:
+                    child.cache.cleanup()
+                self.last_success = time.time()
+                self.status = "成功"
+                return self.view()
             generation = tempfile.TemporaryDirectory(prefix="wheel-dashboard-remote-")
             directory = Path(generation.name) / "remote"
             directory.mkdir()
@@ -288,6 +338,9 @@ class RemoteSource:
                 run["remote_identity"] = identity
                 run["process"] = identity["status"]
                 run["source"] = f"ssh://{self.username}@{self.host}:{self.port}{self.root}"
+                run["id"] = hashlib.sha256(
+                    (self.host + ":" + str(self.port) + self.root).encode()
+                ).hexdigest()
                 run["remote"] = True
                 run["metrics_file_updated_at"] = (
                     None  # cache file mtime is not remote training time

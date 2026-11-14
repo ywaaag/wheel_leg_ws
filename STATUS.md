@@ -1,3 +1,5 @@
+看板自动发现增量：正式train提交结果返回已有产物根/run/启动握手引用；本地刷新和远端显式刷新可发现授权runs目录直接子run，最多20个/14MiB、资源单次采集。无新增registry或watcher，不提交训练；当前运行看板仍使用此前单run授权，扩大远端root须明确配置。
+
 公共看板远端只读接入：运行时显式host/port/user/run-root/已核验指纹，密码仅后端getpass内存；OpenSSH严格known_hosts并额外校验ED25519指纹。页面默认手动采集，可选页面存活期间120秒刷新；无远端agent、watcher或训练控制。真实只读快照确认Motion RUNNING/2079已耗更新、worker1485/start_ticks401486752身份匹配，容器14核quota/50GiB，GPU4090；均为采集时快照，不代表持续核验。读取失败保留旧缓存。Jump/Recovery远端目录未接入。针对性39通过、portable2015通过/31既有skip/10warning，架构217/0、Ruff0.8.4通过；实际IP浏览器资源与曲线验证通过。源码未写死平台地址或端口，下一次更换需显式配置和私密输入。
 
 <!-- dashboard-current -->

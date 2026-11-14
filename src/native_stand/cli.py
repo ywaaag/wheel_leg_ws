@@ -124,6 +124,12 @@ def cmd_train(args) -> int:
     reported = handshake.get("worker_reported") or {}
     payload = {
         "action": "submitted",
+        "dashboard": {
+            "artifact_root": str(Path(handshake["run"]).parent),
+            "run": handshake["run"],
+            "identity_record": "startup_handshake.json",
+            "discovery": "refresh dashboard authorized root; no training resubmission",
+        },
         "run": handshake["run"],
         "worker_pid": handshake["worker_pid"],
         "worker_identity": handshake["worker_identity"].get("status"),

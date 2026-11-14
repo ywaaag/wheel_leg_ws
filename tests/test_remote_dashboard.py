@@ -147,3 +147,35 @@ def test_expired_cached_snapshot(monkeypatch):
     captured=source.last_success
     monkeypatch.setattr(module.time,'time',lambda:captured+301)
     assert source.view()['stale'] and source.view()['age_seconds']==301
+
+
+def test_authorized_runs_discovery_and_stable_identity():
+    data={'discovered_runs':[{'root':'/allowed/run/first','payload':payload()},
+                             {'root':'/allowed/run/second','payload':payload()}]}
+    source=source_factory(runner=lambda:data)
+    first=source.refresh()
+    assert first['status']=='成功'
+    assert len(first['snapshot']['runs'])==2
+    identities=[row['id'] for row in first['snapshot']['runs']]
+    assert len(set(identities))==2
+    assert [row['id'] for row in source.refresh()['snapshot']['runs']]==identities
+    assert len(source.catalog.roots)==2
+    bad={'discovered_runs':[{'root':'/outside/run','payload':payload()}]}
+    source.runner=lambda:bad
+    assert source.refresh()['stale']
+    assert [row['id'] for row in source.last['runs']]==identities
+
+
+def test_probe_discovery_direct_children_only(tmp_path, monkeypatch):
+    import native_stand.integrations.remote_probe as probe
+    for name in ('one','two'):
+        path=tmp_path/name;path.mkdir();(path/'run.json').write_text('{}')
+    nested=tmp_path/'one'/'nested';nested.mkdir();(nested/'run.json').write_text('{}')
+    calls=[]
+    def collect(root, *, resources=True):
+        calls.append((root,resources))
+        return {'files':{}}
+    monkeypatch.setattr(probe,'collect',collect)
+    result=probe.discover(str(tmp_path))
+    assert len(result['discovered_runs'])==2
+    assert [value for _,value in calls]==[True,False]

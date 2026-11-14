@@ -9,7 +9,7 @@ import pathlib
 import subprocess
 
 
-def collect(root):
+def collect(root, *, resources=True):
     root = pathlib.Path(root).resolve()
     result = {"files": {}, "errors": [], "processes": [], "resources": {}}
     remaining = 12 * 1024 * 1024
@@ -111,6 +111,8 @@ def collect(root):
             )
         except (OSError, ValueError):
             continue
+    if not resources:
+        return result
     resources = result["resources"]
     resources["affinity"] = sorted(os.sched_getaffinity(0))
     for name in ("cpu.max", "memory.max", "memory.current", "cpu.stat"):
@@ -145,3 +147,33 @@ def collect(root):
         "UNKNOWN: container and host PID namespaces not assumed identical"
     )
     return result
+
+
+def discover(root):
+    """Only direct children of the explicitly authorized runs directory."""
+    root = pathlib.Path(root).resolve()
+    if (root / "run.json").is_file():
+        return collect(str(root))
+    if not root.is_dir():
+        raise ValueError("authorized run root unavailable")
+    # mtime only selects bounded recent artifacts, never a training time axis.
+    candidates = list(root.glob("*/run.json"))
+    paths = sorted(candidates, key=lambda path: path.stat().st_mtime_ns, reverse=True)[:20]
+    runs = []
+    total_bytes = 0
+    for path in paths:
+        directory = path.parent.resolve()
+        if not directory.is_relative_to(root):
+            continue
+        # Bounded discovery; resource snapshot only once, not one nvidia-smi per run.
+        payload = collect(str(directory), resources=not runs)
+        total_bytes += sum(len(entry["base64"]) for entry in payload["files"].values())
+        if total_bytes > 14 * 1024 * 1024:
+            break
+        runs.append({"root": str(directory), "payload": payload})
+    return {
+        "discovered_runs": runs,
+        "available_runs": len(candidates),
+        "included_runs": len(runs),
+        "limited": len(runs) < len(candidates),
+    }
