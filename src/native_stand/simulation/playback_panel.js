@@ -37,7 +37,7 @@ async function drain() {
 }
 function enqueue(payload) {state.pending={...(state.pending||{}),...payload};void drain();}
 function editable(element) {
-  return !!element && (element.isContentEditable || ['INPUT','SELECT','TEXTAREA','BUTTON'].includes(element.tagName));
+  return !!element && (element.isContentEditable || ['INPUT','SELECT','TEXTAREA'].includes(element.tagName));
 }
 function positive(id) {
   const value=Number($(id).value);
