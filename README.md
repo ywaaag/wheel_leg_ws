@@ -204,3 +204,22 @@ PYTHONPATH=src python -m native_stand dashboard --root /path/to/runs --port 8765
 Tailscale IP入口可用TCP转发：看板增加 `--public-host <本机Tailscale IPv4>`，仍只监听127.0.0.1；管理员显式执行 `sudo tailscale serve --bg --tcp=80 tcp://127.0.0.1:18765` 后，通过该Tailscale IP访问。HTTP Serve按域名路由，不能替代此IP入口。只对tailnet提供服务，不使用Funnel、不开放公网；其他Host仍拒绝。
 
 看板首页优先选择有指标的最近任务，提供中文摘要卡片和奖励、loss、KL、耗时、梯度、优化步数、LR、Torch显存八组SVG曲线；曲线可悬停看原值，缺指标明确留空。完整身份和原始JSON置于折叠证据区，不默认堆放。领域/任务可筛选；训练矩阵默认展示最近窗口。网页改版后刷新整个页面（Ctrl+F5），页面内“刷新数据”只更新产物。
+
+### 远程算力平台只读接入
+
+每次开启都显式传连接资料，没有源码默认地址、端口或密码：
+
+```bash
+PYTHONPATH=src python -m native_stand dashboard --root /path/to/local/runs \
+  --remote-motion --remote-host HOST --remote-port PORT --remote-user USER \
+  --remote-root /explicit/authorized/run --remote-fingerprint SHA256:VERIFIED_FINGERPRINT \
+  --remote-password-prompt
+```
+
+密码由后端 `getpass` 输入，仅当前进程内存，不在argv、配置、日志或网页中；不传prompt选项时使用现有SSH key/agent。下一次更换服务器或密码，重新启动**看板后端**输入新资料，不涉及训练。网页允许显式编辑host/port/user/已核验指纹；run允许目录仅由后端启动参数指定，不开放任意路径输入。修改连接后旧快照保留并标过期。已有known_hosts严格校验且额外核对ED25519指纹；新端口需先核对主机密钥再登记，绝不自动接受。OpenSSH/pexpect读取固定stdlib探针，不使用SFTP/scp，不安装远端agent；远端需系统python3，不依赖训练Python。
+
+点击“刷新远端快照”才连接；页面普通刷新只读缓存，不持续SSH轮询。采集总时限45秒、传输上限18MiB，文件白名单与SHA校验，最近5份诊断、20份有界评估、JSONL尾部最多2MiB。过大的候选/索引显示读取限制，不下载checkpoint、不自动hash模型。连接拒绝、认证失败、超时、主机身份问题与训练状态分别报告；失败不覆盖上次成功快照。
+
+资源是瞬时快照：GPU整卡/compute进程显存与Torch指标分开；容器CPU配额取cgroup，affinity不是quota；GPU宿主PID不能直接当容器PID。缺启动身份start_ticks时进程保持UNKNOWN。没有启动/停止/恢复/清理/任意远端命令接口。Jump/Recovery远端路径未授权时不接入。
+
+连接地址、端口、用户名和指纹均为本次运行资料，不写死在源码；不能把上一次GPU、PID或机器配额当成当前事实。网页连接资料只保存到当前后端内存，密码变更仍在后端私密重新输入。默认手动采集；可显式开启“页面打开期间每120秒采集远端”，关闭页面即停止，无独立watcher。快照超过300秒标过期；普通本地刷新不触发SSH。已有看板systemd服务不自动存储远端密码，后台自动重启不会凭空恢复凭据。

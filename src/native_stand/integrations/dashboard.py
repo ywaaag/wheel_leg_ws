@@ -12,7 +12,9 @@ from urllib.parse import parse_qs, urlsplit
 from native_stand.artifacts.dashboard import Catalog, compare, public
 
 
-def server(roots, *, host="127.0.0.1", port=8765, tensorboard_url=None, public_host=None):
+def server(
+    roots, *, host="127.0.0.1", port=8765, tensorboard_url=None, public_host=None, remote=None
+):
     if host != "127.0.0.1":
         raise ValueError("首版仅允许127.0.0.1；远端使用SSH端口转发")
     from native_stand.tasks.motion.dashboard import target_description, training_windows
@@ -41,6 +43,45 @@ def server(roots, *, host="127.0.0.1", port=8765, tensorboard_url=None, public_h
     current = {"runs": []}
 
     class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            # Only explicit remote refresh/port metadata; no general command or filesystem API.
+            origin = self.headers.get("Origin")
+            host_header = self.headers.get("Host", "")
+            if host_header.split(":")[0] not in allowed_hosts or (
+                origin and urlsplit(origin).netloc != host_header
+            ):
+                self.send_error(403)
+                return
+            if remote is None or self.path not in ("/api/remote/refresh", "/api/remote/connection"):
+                self.send_error(404)
+                return
+            length = int(self.headers.get("Content-Length", "0"))
+            if length > 1024:
+                self.send_error(413)
+                return
+            try:
+                data = json.loads(self.rfile.read(length) or b"{}")
+                if self.path.endswith("connection"):
+                    if set(data) != {"host", "port", "username", "fingerprint"}:
+                        raise ValueError("连接字段不完整")
+                    with remote.lock:
+                        remote.configure(**data)
+                    remote.status = "连接资料已修改：待手动刷新"
+                    result = remote.view()
+                else:
+                    if data:
+                        raise ValueError("no commands accepted")
+                    result = remote.refresh()
+                body = json.dumps(public(result), ensure_ascii=False).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(body)
+            except (ValueError, TypeError):
+                self.send_error(400)
+
         def do_GET(self):
             if self.headers.get("Host", "").split(":")[0] not in allowed_hosts:
                 self.send_error(403)
@@ -56,6 +97,11 @@ def server(roots, *, host="127.0.0.1", port=8765, tensorboard_url=None, public_h
                         mime = "text/javascript; charset=utf-8"
                     elif route == "/api/snapshot":
                         snapshot = catalog.snapshot()
+                        if remote:
+                            remote_view = remote.view()
+                            snapshot["remote"] = remote_view
+                            if remote.last:
+                                snapshot["runs"].extend(remote.last["runs"])
                         current.update(snapshot)
                         snapshot["targets"] = {"motion": targets}
                         snapshot["tensorboard_url"] = tensorboard_url
@@ -87,7 +133,13 @@ def server(roots, *, host="127.0.0.1", port=8765, tensorboard_url=None, public_h
                     elif route.startswith("/api/evidence/"):
                         token = route.removeprefix("/api/evidence/")
                         body = json.dumps(
-                            public(catalog.read_evidence(token)),
+                            public(
+                                (
+                                    remote.catalog
+                                    if remote and token in remote.catalog.evidence
+                                    else catalog
+                                ).read_evidence(token)
+                            ),
                             ensure_ascii=False,
                             allow_nan=False,
                         ).encode()
@@ -115,9 +167,16 @@ def server(roots, *, host="127.0.0.1", port=8765, tensorboard_url=None, public_h
     return ThreadingHTTPServer((host, port), Handler)
 
 
-def serve(roots, *, host="127.0.0.1", port=8765, tensorboard_url=None, public_host=None):
+def serve(
+    roots, *, host="127.0.0.1", port=8765, tensorboard_url=None, public_host=None, remote=None
+):
     with server(
-        roots, host=host, port=port, tensorboard_url=tensorboard_url, public_host=public_host
+        roots,
+        host=host,
+        port=port,
+        tensorboard_url=tensorboard_url,
+        public_host=public_host,
+        remote=remote,
     ) as http:
         print(f"只读看板 http://{host}:{http.server_port}", flush=True)
         http.serve_forever()

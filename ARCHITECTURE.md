@@ -205,3 +205,5 @@ Motion少量高度配方`configs/jobs/motion_height_small_dose_prepared.json`复
 ### 只读看板扩展
 
 `cli.dashboard → integrations.dashboard → artifacts.dashboard.Catalog`。HTTP服务仅绑定loopback，固定路由和opaque证据ID，不暴露文件目录、命令执行或训练控制。标准库读取不导入训练或物理依赖。领域通过纯计算展示适配器消费既有诊断，不重新评分；首个适配为 `tasks.motion.dashboard.training_windows`。新增领域提供目标说明、条件身份和已有判定；未提供的列保持UNKNOWN。不得从key猜测DR/地形或由部分指标推导已掌握。训练、固定模型和实机证据不得混排；后台采集/独立评估不属于看板。
+
+看板远端源由 `integrations.remote_dashboard.RemoteSource` 管理一次显式OpenSSH读取，固定 `remote_probe.collect` 只读探针由远端系统Python执行，不是训练入口或远端agent。传输校验后在私有临时目录形成派生视图，继续经 `artifacts.dashboard.Catalog` 和领域适配解析；原远端文件不改。连接身份由运行参数提供，密码仅后端内存，known_hosts加显式指纹双校验。HTTP只允许显式刷新与连接元数据修改，不提供shell/任意文件接口；无watcher、自动重连或训练控制。

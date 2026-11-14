@@ -1,3 +1,5 @@
+公共看板远端只读接入：运行时显式host/port/user/run-root/已核验指纹，密码仅后端getpass内存；OpenSSH严格known_hosts并额外校验ED25519指纹。页面默认手动采集，可选页面存活期间120秒刷新；无远端agent、watcher或训练控制。真实只读快照确认Motion RUNNING/2079已耗更新、worker1485/start_ticks401486752身份匹配，容器14核quota/50GiB，GPU4090；均为采集时快照，不代表持续核验。读取失败保留旧缓存。Jump/Recovery远端目录未接入。针对性39通过、portable2015通过/31既有skip/10warning，架构217/0、Ruff0.8.4通过；实际IP浏览器资源与曲线验证通过。源码未写死平台地址或端口，下一次更换需显式配置和私密输入。
+
 <!-- dashboard-current -->
 公共只读看板：独立分支 `feature/read-only-dashboard` 接通统一CLI、标准产物读取、HTTP和网页。Motion训练窗口已接入；Jump/Recovery提供通用状态与曲线，能力适配未支持；实机适配未支持。仅CPU/脚本fixture验收，不改变活动训练；初版针对性23通过，portable 1999通过/31既有skip，架构215/0、Ruff 0.8.4通过；浏览器验证曲线、筛选、比较和证据入口。未将训练窗口当作固定模型证书。看板后续修复：中文结构化卡片/表格与八组SVG曲线，默认选有指标的最近任务；移除跨run读取限额导致的后续任务饥饿，大state只读256KiB完整顶层摘要，共享大索引单独报错。原始JSON仅折叠展示。本次增量针对性26通过、portable 2002通过/31既有skip/10warning；真实IP浏览器验证Motion 7图、Recovery 5图、Jump 6图，缺指标留空，默认展开JSON为0。
 

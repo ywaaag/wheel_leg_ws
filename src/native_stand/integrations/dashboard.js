@@ -156,13 +156,14 @@ function render() {
   $('#content').replaceChildren();
   if (!run) { empty($('#content'),'当前筛选没有任务。'); return; }
   const rows = run.metrics.map(flatten), latest = rows.at(-1) || {};
+  if(run.remote){const view=snapshot.remote;const note=el('div',`远端快照 · ${view?.status || '未知'} · 数据年龄 ${fmt(view?.age_seconds,0)}秒 · 仅最后成功采集，不是实时存活保证。`,$('#content'),'notice');if(view?.stale)note.textContent+=' 当前刷新失败或连接资料变更；显示过期缓存。';}
   let sectionNode = section('overview','任务总览');
   const stats = el('div',undefined,sectionNode,'stats');
   [['已完成 PPO更新',fmt(run.updates_used,0),'state记录，非模型保存进度'],['执行块已耗',Object.entries(run.used || {}).map(([k,v])=>`${k}: ${fmt(v,0)}`).join(' · ') || '未知','原budget账本，不从曲线推算'],['执行块剩余',Object.entries(run.remaining || {}).map(([k,v])=>`${k}: ${fmt(v,0)}`).join(' · ') || '未知','不含未声明的祖先额度'],['最新奖励',fmt(latest.reward_mean,5),rows.length ? `日志 update ${latest.update}` : '该run尚无指标日志']].forEach(([label,value,note]) => { const card=el('div',undefined,stats,'stat');el('div',label,card,'muted');el('div',value,card,'value');el('small',note,card); });
   const info = el('div',undefined,sectionNode,'panel');
   const summaryLine=el('div',undefined,info,'row');el('strong',`${taskName(run.task)} / ${present(run.backend)}`,summaryLine);el('span',statusName(run.status),summaryLine,'badge');el('span','进程未核验',summaryLine,'muted');
   const identity=el('details',undefined,info);el('summary','任务、课程与数据身份',identity);
-  kv(identity,[['任务',run.name],['领域 / 后端',`${taskName(run.task)} / ${present(run.backend)}`],['运行状态',statusName(run.status)],['进程身份',run.process],['课程版本',run.course],['指标文件更新时间',run.metrics_file_updated_at]]);
+  kv(identity,[['任务',run.name],['领域 / 后端',`${taskName(run.task)} / ${present(run.backend)}`],['运行状态',statusName(run.status)],['进程身份',run.process],['冻结源码根（声明）',run.source_root_declared],['worker cwd（实际）',run.remote_worker?.cwd],['远端核验时间',run.remote_identity?.verified_unix_s ? new Date(run.remote_identity.verified_unix_s*1000).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'}):null],['课程版本',run.course],['指标文件更新时间',run.metrics_file_updated_at]]);
   el('small','状态来自落盘文件，不代表进程当前存活；文件时间不作为训练曲线时间轴。',info);
   sectionNode = section('trends','训练曲线','只显示已记录的原始值。阶段/attempt切换或update回退时断开；没有条件身份的奖励变化不代表能力进退。');
   if (!rows.length) empty(sectionNode,'该run没有可读取的metrics.jsonl，因此暂无曲线。可在顶部选择其他有日志的任务；读取问题见页面底部。');
@@ -216,12 +217,13 @@ function render() {
   sectionNode=section('data','数据来源与读取状态');
   const source=el('div',undefined,sectionNode,'panel');kv(source,[['允许的产物根',run.source],['本次读取时间',snapshot.read_at],['状态读取范围',run.state_read_scope],['进程核验',run.process],['事件目录',run.tensorboard_events_present?'检测到已有TensorBoard事件':'未检测到事件目录']]);
   if (run.errors.length) {el('div',`${run.errors.length}项缺失或读取限制；不等于任务失败。`,source,'notice');table(source,run.errors,[['文件',r=>r.file],['读取结果',r=>({FileNotFoundError:'文件未产生 / 不存在',ValueError:'大小、身份或格式限制'}[r.error] || r.error)],['说明',r=>r.message || '未知']]);}
+  if(run.remote_worker){const worker=run.remote_worker;el('h3','远端worker身份快照',source);kv(source,[['PID / start_ticks',`${worker.pid} / ${worker.start_ticks}`],['进程状态',worker.state],['实际cwd',worker.cwd],['完整argv',worker.argv],['RSS MiB',fmt(worker.rss_bytes/1048576)],['累计CPU ticks',present(worker.cpu_ticks)],['核验结论',run.remote_identity?.status]]);details(source,'NSpid及进程状态（不能自动推断宿主GPU PID映射）',worker.status);}
   details(source,'高级：原始预算与引用索引', {used:run.used,limits:run.limits,remaining:run.remaining,attempts:run.attempts,model_references:run.model_references});
 }
 function choices(preferred) {
   const runs=snapshot.runs.filter(run=>!$('#task').value||run.task===$('#task').value);
   runs.sort((a,b)=>Number(Boolean(b.metrics.length))-Number(Boolean(a.metrics.length)) || Number(b.status==='RUNNING')-Number(a.status==='RUNNING') || String(b.metrics_file_updated_at || b.run_metadata_updated_at).localeCompare(String(a.metrics_file_updated_at || a.run_metadata_updated_at)));
-  $('#run').replaceChildren();runs.forEach(run=>{const option=el('option',`${taskName(run.task)} · ${run.name} · ${run.metrics.length}条指标`,$('#run'));option.value=run.id;});
+  $('#run').replaceChildren();runs.forEach(run=>{const option=el('option',`${run.remote?'远端':'本地'} · ${taskName(run.task)} · ${run.name} · ${run.metrics.length}条指标`,$('#run'));option.value=run.id;});
   if (runs.some(run=>run.id===preferred)) $('#run').value=preferred;
   render();
 }
@@ -232,7 +234,7 @@ async function refresh() {
     const selected=$('#run').value, task=$('#task').value;snapshot=await response.json();
     $('#task').replaceChildren();el('option','全部领域',$('#task')).value='';
     [...new Set(snapshot.runs.map(run=>run.task).filter(Boolean))].sort().forEach(name=>{el('option',taskName(name),$('#task')).value=name;});
-    $('#task').value=task;$('#load-state').textContent=`读取时间 ${snapshot.read_at} · ${snapshot.runs.length}个本地产物run · 默认手动刷新`;
+    $('#task').value=task;$('#load-state').textContent=`读取时间 ${snapshot.read_at} · ${snapshot.runs.length}个已接入run（本地/远端见任务标签） · 默认手动刷新`;
     if(snapshot.tensorboard_url){const link=el('a',' 打开已有TensorBoard',$('#load-state'));link.href=snapshot.tensorboard_url;link.target='_blank';link.rel='noopener';}
     choices(selected);
   } catch(error) {$('#load-state').textContent='读取失败（不是训练失败）：'+error.message;}
@@ -241,3 +243,43 @@ async function refresh() {
 $('#refresh').onclick=refresh;$('#run').onchange=render;$('#task').onchange=()=>choices();
 $('#auto').onchange=()=>{clearInterval(timer);if($('#auto').checked)timer=setInterval(()=>{if(!$('#refresh').disabled)refresh();},30000);};
 window.addEventListener('pagehide',()=>clearInterval(timer));refresh();
+
+// Remote actions are restricted to collecting snapshots and editing the explicit SSH port.
+const remotePanel=el('div',undefined,document.querySelector('header'),'panel');
+el('h3','远程算力平台 · 只读',remotePanel);
+const remoteInfo=el('p','未启用远端源：后端需使用 --remote-motion。',remotePanel,'muted');
+const remoteControls=el('div',undefined,remotePanel,'row');
+const remoteRefresh=el('button','刷新远端快照',remoteControls);
+const portInput=el('input',undefined,remoteControls);portInput.type='number';portInput.placeholder='SSH端口';portInput.setAttribute('aria-label','远端SSH端口');
+const hostInput=el('input',undefined,remoteControls);hostInput.placeholder='SSH地址';
+const userInput=el('input',undefined,remoteControls);userInput.placeholder='用户名';
+const fingerprintInput=el('input',undefined,remoteControls);fingerprintInput.placeholder='已核验SHA256主机指纹';
+const portButton=el('button','保存连接资料',remoteControls);
+el('small','密码只在后端终端私密输入；修改密码需重新启动看板后端并输入新凭据。不扫描端口、不重连训练。',remotePanel);
+const resourceBox=el('div',undefined,remotePanel);
+function remoteDisplay(view){
+ if(!view)return;
+ if(document.activeElement!==portInput)portInput.value=view.port;
+ if(document.activeElement!==hostInput)hostInput.value=view.host;
+ if(document.activeElement!==userInput)userInput.value=view.username;
+ if(document.activeElement!==fingerprintInput)fingerprintInput.value=view.fingerprint;
+ remoteInfo.textContent=`${view.host}:${view.port} · ${view.status} · ${view.last_success_unix_s?new Date(view.last_success_unix_s*1000).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'}):'尚无成功采集'} · 数据年龄 ${fmt(view.age_seconds,0)}秒 · ${view.stale?'过期缓存/无法核实当前状态':'缓存快照（非持续监控）'}`;
+ resourceBox.replaceChildren();const res=view.snapshot?.resources;if(!res)return;
+ kv(resourceBox,[['CPU affinity',res.affinity?`${res.affinity.length}个逻辑CPU可见（不是quota）`:'未知'],['容器CPU quota',res['cpu.max']?.trim().split(' ')[0]==='max'?'不限额':fmt(Number(res['cpu.max']?.trim().split(' ')[0])/Number(res['cpu.max']?.trim().split(' ')[1]))+'核'],['容器cpu.max',res['cpu.max']],['容器内存上限',res['memory.max']?.trim()==='max'?'不限额':fmt(Number(res['memory.max'])/1073741824)+' GiB'],['容器内存当前',fmt(Number(res['memory.current'])/1073741824)+' GiB'],['数据盘空闲GiB',fmt(res.disk?.free_bytes/1073741824)],['GPU PID映射',res.gpu_pid_mapping]]);
+ const gpu=(res.gpu||'').trim().split('\n').filter(Boolean).map(line=>line.split(',').map(x=>x.trim()));
+ table(resourceBox,gpu,[['GPU名称',r=>r[0]],['UUID',r=>r[1]],['总显存MiB',r=>r[2]],['已用MiB',r=>r[3]],['空闲MiB',r=>r[4]],['瞬时利用率%',r=>r[5]],['温度°C',r=>r[6]],['功耗W',r=>r[7]]]);
+ const gpuProcesses=(res.gpu_processes||'').trim().split('\n').filter(Boolean).map(line=>line.split(',').map(x=>x.trim()));el('h3','GPU compute进程（宿主PID）',resourceBox);table(resourceBox,gpuProcesses,[['宿主PID',r=>r[0]],['GPU UUID',r=>r[1]],['进程显存MiB',r=>r[2]],['容器PID映射',()=> 'UNKNOWN（不直接等同）']]);
+}
+async function remoteAction(path,data){remoteRefresh.disabled=true;remoteInfo.textContent='连接中…（不改变训练）';try{let response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});if(!response.ok)throw Error('远端未启用或请求被拒绝');remoteDisplay(await response.json());await refresh();}catch(error){remoteInfo.textContent='读取失败，训练状态无法核实：'+error.message;}finally{remoteRefresh.disabled=false;}}
+remoteRefresh.onclick=()=>remoteAction('/api/remote/refresh',{});
+portButton.onclick=()=>remoteAction('/api/remote/connection',{host:hostInput.value.trim(),port:Number(portInput.value),username:userInput.value.trim(),fingerprint:fingerprintInput.value.trim()});
+
+// Existing local refresh stays local; it displays cached remote data without connecting SSH.
+const displayRemote=()=>{if(snapshot?.remote)remoteDisplay(snapshot.remote);};
+const observer=new MutationObserver(displayRemote);observer.observe($('#load-state'),{childList:true});
+
+let remoteTimer;
+const remoteAutoLabel=el('label',undefined,remoteControls,'muted');
+const remoteAuto=el('input',undefined,remoteAutoLabel);remoteAuto.type='checkbox';remoteAutoLabel.append(document.createTextNode(' 页面打开期间每120秒采集远端'));
+remoteAuto.onchange=()=>{clearInterval(remoteTimer);if(remoteAuto.checked)remoteTimer=setInterval(()=>{if(!remoteRefresh.disabled)remoteAction('/api/remote/refresh',{});},120000);};
+window.addEventListener('pagehide',()=>clearInterval(remoteTimer));

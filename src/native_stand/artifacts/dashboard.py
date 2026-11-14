@@ -30,6 +30,10 @@ def state_prefix(raw):
     position = text.index("{") + 1
     wanted = {
         "schema_version",
+        "owner",
+        "worker",
+        "worker_pid",
+        "worker_start_ticks",
         "run_id",
         "status",
         "stage",

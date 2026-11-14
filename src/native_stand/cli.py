@@ -168,12 +168,42 @@ def cmd_dashboard(args):
         return EXIT_OK
     from native_stand.integrations.dashboard import serve
 
+    remote = None
+    if args.remote_motion:
+        import getpass
+
+        from native_stand.integrations.remote_dashboard import RemoteSource
+
+        password = (
+            getpass.getpass("远端SSH密码（留空使用key/agent；仅当前进程内存）：")
+            if args.remote_password_prompt
+            else None
+        )
+        if not all(
+            (
+                args.remote_host,
+                args.remote_port,
+                args.remote_user,
+                args.remote_root,
+                args.remote_fingerprint,
+            )
+        ):
+            raise CommandError("远端读取需要显式host/port/user/root/fingerprint", EXIT_INVALID)
+        remote = RemoteSource(
+            host=args.remote_host,
+            port=args.remote_port,
+            username=args.remote_user,
+            root=args.remote_root,
+            fingerprint=args.remote_fingerprint,
+            password=password,
+        )
     serve(
         args.root,
         host=args.host,
         port=args.port,
         tensorboard_url=args.tensorboard_url,
         public_host=args.public_host,
+        remote=remote,
     )
     return EXIT_OK
 
@@ -810,6 +840,19 @@ def build_parser() -> argparse.ArgumentParser:
     dashboard.add_argument("--tensorboard-url", help="可选本机已存在TensorBoard链接；不启动进程")
     dashboard.add_argument(
         "--public-host", help="显式允许反向代理的IPv4 Host；服务仍只绑定loopback"
+    )
+    dashboard.add_argument(
+        "--remote-motion", action="store_true", help="启用明确Motion远端只读源；仅页面手动采集"
+    )
+    dashboard.add_argument("--remote-port", type=int, default=None)
+    dashboard.add_argument("--remote-host", help="本次明确授权的SSH地址")
+    dashboard.add_argument("--remote-user", help="SSH用户名")
+    dashboard.add_argument("--remote-root", help="唯一允许读取的远端run目录")
+    dashboard.add_argument("--remote-fingerprint", help="已独立核对的ED25519 SHA256主机指纹")
+    dashboard.add_argument(
+        "--remote-password-prompt",
+        action="store_true",
+        help="后端getpass私密输入；不落盘，不传浏览器",
     )
     dashboard.set_defaults(func=cmd_dashboard)
 
