@@ -95,6 +95,7 @@ def test_atlas_rotation_keeps_actual_grid_vertices_and_boundary_rejects():
 
 def test_legacy_wheel_cap_is_rejected_before_engine(tmp_path):
     import json
+
     from test_motion_production_integration import make_job
 
     job, _ = make_job(tmp_path, retention=False)
@@ -109,6 +110,7 @@ def test_legacy_wheel_cap_is_rejected_before_engine(tmp_path):
 def test_explicit_http_binding_uses_same_command_owner():
     import json
     import urllib.request
+
     from native_stand.simulation.playback_panel import start
     from native_stand.students.motion_panel import stop
 
@@ -133,6 +135,7 @@ def test_explicit_http_binding_uses_same_command_owner():
 
 def test_served_page_includes_packaged_keyboard_and_memory_charts():
     import urllib.request
+
     from native_stand.simulation.playback_panel import start
     from native_stand.students.motion_panel import stop
 
