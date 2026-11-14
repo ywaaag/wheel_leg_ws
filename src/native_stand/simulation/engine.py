@@ -163,6 +163,7 @@ class GenericPPOAdapter:
                     if not torch.cuda.is_initialized() or len(cuda) != torch.cuda.device_count():
                         raise ValueError("legacy恢复CUDA RNG映射不同")
                     torch.cuda.set_rng_state_all([x.cpu() for x in cuda])
+        self._loaded_payload = payload or {}
         prior = (payload or {}).get("warmup_updates_done")
         if (
             prior is None
@@ -210,6 +211,9 @@ class GenericPPOAdapter:
                 observations = self.env.observations()
                 actions = ppo.act(observations)
                 outcome = self.env.step(actions)
+                observe = getattr(self, "observe_transition", None)
+                if observe is not None:
+                    observe(outcome)
                 transition_valid = outcome.get("extras", {}).get("transition_valid")
                 if transition_valid is not None:
                     ppo.transition.observations["recovery_actor_valid"] &= transition_valid.reshape(

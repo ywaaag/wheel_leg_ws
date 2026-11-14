@@ -338,3 +338,173 @@ def test_reset_cannot_zero_borrowed_execution_caps():
     assert "effort_caps" not in lifecycle.state_dict()
     history = torch.zeros(2, 144) / execution_caps.repeat(1, 24)
     assert torch.isfinite(history).all()
+
+
+def adapter_fixture(tmp_path, *, source=None):
+    import dataclasses
+    from pathlib import Path
+    from types import SimpleNamespace as NS
+
+    from tensordict import TensorDict
+
+    from native_stand.artifacts.io import file_sha256, write_json
+    from native_stand.artifacts.model_refs import ModelIndex
+    from native_stand.experiments.config import load_job_config
+    from native_stand.simulation.driver import Backend
+
+    job = load_job_config(
+        Path(__file__).resolve().parents[1]
+        / "configs/jobs/recovery_leg_driven2100_10000_attempt3.json"
+    )
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    contract = tmp_path / "contract.json"
+    runtime = tmp_path / "runtime.json"
+    write_json(
+        contract,
+        dict(
+            action_version=job.action.version,
+            center_rad=[0.0] * 4,
+            leg_lower_rad=[-1.5] * 4,
+            leg_upper_rad=[1.5] * 4,
+        ),
+    )
+    write_json(runtime, dict(bindings={}))
+    job = dataclasses.replace(
+        job,
+        model=dataclasses.replace(job.model, actor_hidden_dims=(8,), critic_hidden_dims=(8,)),
+        runtime=dataclasses.replace(job.runtime, envs=2, steps_per_env=2, device="cpu"),
+        ppo=dataclasses.replace(job.ppo, epochs=1, minibatches=1),
+        initialization=dataclasses.replace(
+            job.initialization,
+            mode="full" if source else "scratch",
+            checkpoint=str(source) if source else None,
+            sha256=file_sha256(source) if source else None,
+        ),
+        assets={
+            "recovery_training_contract": dict(path=str(contract), sha256=file_sha256(contract)),
+            "recovery_isaac_runtime": dict(path=str(runtime), sha256=file_sha256(runtime)),
+        },
+    )
+    obs = TensorDict(
+        dict(
+            student_actor=torch.randn(2, 31),
+            student_critic=torch.randn(2, 942),
+            recovery_actor_valid=torch.ones(2, 1, dtype=torch.bool),
+        ),
+        [2],
+    )
+    io = NS(
+        env=NS(completed=[], completed_count=0),
+        observations=lambda: obs,
+        runtime_state=lambda: {},
+        close=lambda: None,
+    )
+    io.step = lambda actions: dict(
+        rewards=torch.tensor([[0.1], [0.2]]),
+        dones=torch.ones(2, dtype=torch.bool),
+        extras=dict(
+            transition=dict(
+                student_mask=torch.ones(2, dtype=torch.bool),
+                motor=torch.zeros(2, 6),
+                actual_actuator=torch.zeros(2, 6),
+            )
+        ),
+    )
+    context = NS(
+        job=job,
+        run_dir=tmp_path,
+        output=tmp_path,
+        updates_used=0,
+        refs=ModelIndex(tmp_path / "refs.json"),
+        store=NS(update=lambda **kw: None),
+        total_updates_before=lambda stage: 0,
+        curriculum_state=lambda: {},
+    )
+    return context, Backend("CPU-I/O", lambda job: io)
+
+
+def test_worker_dispatches_leg_recipe_to_real_adapter(tmp_path, monkeypatch):
+    from native_stand.experiments import worker
+    from native_stand.simulation import driver
+    from native_stand.simulation.recovery_adapter import RecoveryAdapter
+
+    context, backend = adapter_fixture(tmp_path)
+    monkeypatch.setattr(worker, "resolve_backend", lambda job: backend)
+
+    def consume(context, adapter, *, stage, resume_from):
+        assert type(adapter) is RecoveryAdapter
+        adapter.build(context, stage, resume_from)
+        assert adapter.leg_driven and adapter.readback is not None
+        metrics = adapter.update_once(context, 0)
+        context.updates_used = 1
+        adapter.after_update(context, 0, metrics)
+        state = adapter.capture(context, dict(updates=1))
+        assert state["warmup_updates_done"] == 1
+        assert "recovery_episode_cursor" in state
+        assert "leg_driven_review_history" in state
+        assert (tmp_path / "optimization_audit_00001.json").exists()
+        return state
+
+    monkeypatch.setattr(driver, "run_stage", consume)
+    state = worker._execute_stage(context, "formal", None)
+    assert state["counters"]["updates"] == 1
+
+
+def test_full_source_preserves_warmup_and_first_actor_update(tmp_path):
+    from native_stand.artifacts.checkpoint import save_full
+    from native_stand.simulation.recovery_adapter import RecoveryAdapter
+
+    context, backend = adapter_fixture(tmp_path / "first")
+    first = RecoveryAdapter(backend)
+    first.build(context, "formal", None)
+    for i in range(6):
+        metrics = first.update_once(context, i)
+        context.updates_used += 1
+        first.after_update(context, i, metrics)
+    source = tmp_path / "source.pt"
+    state = first.capture(context, dict(updates=6))
+    assert state["warmup_updates_done"] == 5
+    save_full(source, state)
+    restored_context, backend = adapter_fixture(tmp_path / "next", source=source)
+    restored = RecoveryAdapter(backend)
+    restored.build(restored_context, "formal", None)
+    assert restored._warmup == 0 and restored._prior_warmup == 5
+    assert restored.ppo.optimizer.state_dict()["actor"]["state"]
+    metrics = restored.update_once(restored_context, 0)
+    assert metrics["actor_optimizer_steps"] > 0 and not metrics["critic_only"]
+    restored_context.updates_used = 1
+    restored.after_update(restored_context, 0, metrics)
+    assert restored.readback.actor_updates == 1
+    for i in range(1, 12):
+        metrics = restored.update_once(restored_context, i)
+        restored_context.updates_used += 1
+        restored.after_update(restored_context, i, metrics)
+    import json
+
+    assert json.loads((restored_context.output / "engineering_smoke.json").read_text())[
+        "engineering_smoke_passed"
+    ]
+
+
+def test_full_source_retains_remaining_critic_only_updates(tmp_path):
+    from native_stand.artifacts.checkpoint import save_full
+    from native_stand.simulation.recovery_adapter import RecoveryAdapter
+
+    context, backend = adapter_fixture(tmp_path / "first")
+    first = RecoveryAdapter(backend)
+    first.build(context, "formal", None)
+    for i in range(3):
+        metrics = first.update_once(context, i)
+        context.updates_used += 1
+        first.after_update(context, i, metrics)
+    source = tmp_path / "partial_warmup.pt"
+    save_full(source, first.capture(context, dict(updates=3)))
+    context, backend = adapter_fixture(tmp_path / "next", source=source)
+    restored = RecoveryAdapter(backend)
+    restored.build(context, "formal", None)
+    assert restored._prior_warmup == 3 and restored._warmup == 2
+    for i in range(3):
+        metrics = restored.update_once(context, i)
+        assert metrics["critic_only"] == (i < 2)
+        context.updates_used += 1
+        restored.after_update(context, i, metrics)

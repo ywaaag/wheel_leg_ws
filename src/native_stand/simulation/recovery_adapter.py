@@ -15,7 +15,12 @@ class RecoveryAdapter(GenericPPOAdapter):
         super().build(context, stage, resume_from)
         self.selection = context.job.diagnostics["training_candidate_selection"]
         self.leg_driven = context.job.reward.version == "recovery_leg_driven_low_wheel_v1"
-        payload0 = resume_from.payload if resume_from is not None else {}
+        payload0 = self._loaded_payload
+        self.readback = None
+        if self.leg_driven:
+            from native_stand.simulation.recovery_isaac.training_readback import TrainingReadback
+
+            self.readback = TrainingReadback(context, self.env, self.ppo.actor)
         self.leg_review_history = copy.deepcopy(payload0.get("leg_driven_review_history", []))
         recipe = context.job.as_run_record()
         self.domain = json_digest(
@@ -46,7 +51,7 @@ class RecoveryAdapter(GenericPPOAdapter):
                 },
             )
         )
-        payload = resume_from.payload if resume_from is not None else {}
+        payload = payload0
         self.legacy_unscoped = copy.deepcopy(
             payload.get("legacy_unscoped_completed_statistics", [])
         )
@@ -100,7 +105,20 @@ class RecoveryAdapter(GenericPPOAdapter):
                 ),
             )
 
+    def observe_transition(self, outcome):
+        if self.readback is not None:
+            self.readback.step(outcome)
+
+    def update_once(self, context, index):
+        if self.readback is not None:
+            self.readback.before_update(
+                self.ppo, allow_actor=context.updates_used + 1 > self._warmup
+            )
+        return super().update_once(context, index)
+
     def after_update(self, context, index, metrics):
+        if self.readback is not None:
+            self.readback.after_update(self.ppo)
         timer = getattr(self, "measurement", None)
         with timer.section("course_statistics", synchronize=False) if timer else nullcontext():
             return self._consume_completed(context, index, metrics)

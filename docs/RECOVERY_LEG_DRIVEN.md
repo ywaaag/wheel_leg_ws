@@ -2,7 +2,7 @@
 
 本配方是独立新任务：合法Swing→收短→短腿转向承重构型→伸腿抬升→接稳0.5秒。不是旧Recovery自主保持10秒能力的重新认证。Motion实际接管仍需独立连续交接验收。
 
-正式入口：`wheel-leg train --config configs/jobs/recovery_leg_driven2100_10000_attempt2.json --dry-run`；实际执行同一CLI、owner/worker、公共driver和PhysicalPPO。几何/奖励/课程在`tasks/recovery/leg_driven.py`，Isaac环境负责真实1ms几何、轮速、姿态、动力学读回，不新增训练循环。完整恢复仍经`wheel-leg resume`，保存阶段、课程级别、1ms统计、双Adam及执行状态。
+正式入口：`wheel-leg train --config configs/jobs/recovery_leg_driven2100_10000_attempt3.json --dry-run`；实际执行同一CLI、owner/worker、公共driver和PhysicalPPO。几何/奖励/课程在`tasks/recovery/leg_driven.py`，Isaac环境负责真实1ms几何、轮速、姿态、动力学读回，不新增训练循环。完整恢复仍经`wheel-leg resume`，保存阶段、课程级别、1ms统计、双Adam及执行状态。
 
 Actor为31→2048→1024→512→6；输入列、真实dq、实际采用previous和年龄不变。输出仍为固定中心三次腿绝对目标与100×轮mean；轮Kv=.2、PD40/2、40/4.8Nm及1/5/10ms、Actor20ms、目标5ms、轮PD后7/11ms保持。没有运行时轮速裁剪、虚拟锁轮、额外滤波或补偿。
 
@@ -19,3 +19,5 @@ C0→C3按4/2/1/.5rad/s成本尺度收紧，完整Swing比例30%→70%→85%，�
 最终目标：每轮真实轮速RMS≤.5rad/s、峰值≤2rad/s；全程倾角峰值≤15°、至少95%时间≤10°；合法顺序完成并稳定0.5秒。低速不能抵消趴地，成功也不能抵消过度倾斜。每个候选绑定课程级别/条件，辅助reset不能当完整Swing成绩。训练与硬件成功分开报告。
 
 本机资源/授权/几何与CPU收据位于`/home/kellen/wheel_leg_training_data/recovery_leg_driven_20261114/preparation`，具体run身份、实际消耗和真实物理检查取对应run/state/budget，不从本说明推断正在训练。用户授权新10000更新、墙钟null；磁盘/共享GPU/停止仍经提交前检，不停止他人任务。
+
+工程接线修正：worker显式将新reward分派到RecoveryAdapter，公共rollout通过观察回调提供真实transition，课程/候选仍由adapter保存。first12检查仅报告真实控制、奖励、结束与优化器/权重变化，不声称梯度分解诊断。完整来源保留warmup完成数，不按新run重新执行五次Critic-only；u6接续额度9994，源回合未完成部分fresh reset。
