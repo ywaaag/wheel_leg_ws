@@ -14,6 +14,9 @@ class RecoveryAdapter(GenericPPOAdapter):
     def build(self, context, stage, resume_from):
         super().build(context, stage, resume_from)
         self.selection = context.job.diagnostics["training_candidate_selection"]
+        self.leg_driven = context.job.reward.version == "recovery_leg_driven_low_wheel_v1"
+        payload0 = resume_from.payload if resume_from is not None else {}
+        self.leg_review_history = copy.deepcopy(payload0.get("leg_driven_review_history", []))
         recipe = context.job.as_run_record()
         self.domain = json_digest(
             dict(
@@ -129,6 +132,10 @@ class RecoveryAdapter(GenericPPOAdapter):
                     row["DR_strength"],
                 ]
             )
+            if self.leg_driven:
+                key = json_digest(
+                    [key, row["leg_driven"]["course_level"], row["leg_driven"]["initial_phase"]]
+                )
             aggregate = self.window.setdefault(
                 key,
                 dict(
@@ -150,13 +157,38 @@ class RecoveryAdapter(GenericPPOAdapter):
                     },
                 ),
             )
+            if self.leg_driven:
+                info = row["leg_driven"]
+                aggregate["condition"].update(
+                    course_level=info["course_level"], initial_phase=info["initial_phase"]
+                )
+                aggregate["phase_progress_sum"] = aggregate.get("phase_progress_sum", 0.0) + max(
+                    0, info["final_phase"] - info["initial_phase"]
+                )
+                aggregate["wheel_rms_sum"] = aggregate.get("wheel_rms_sum", 0.0) + max(
+                    info["wheel_rms"]
+                )
+                aggregate["sequence_valid"] = aggregate.get("sequence_valid", 0) + int(
+                    info["sequence_valid"]
+                )
+                aggregate["wheel_peak_max"] = max(
+                    aggregate.get("wheel_peak_max", 0.0), max(info["wheel_peak"])
+                )
+                aggregate["wheel_rms_max"] = max(
+                    aggregate.get("wheel_rms_max", 0.0), max(info["wheel_rms"])
+                )
+                aggregate["tilt_peak_max_rad"] = max(
+                    aggregate.get("tilt_peak_max_rad", 0.0), info["tilt_peak_rad"]
+                )
             aggregate["ended"] += 1
             aggregate["student_success"] += int(
                 row["success"] is True and row["teacher_seconds"] == 0
             )
             aggregate["student_seconds"] += row["student_seconds"]
             aggregate["teacher_seconds"] += row["teacher_seconds"]
-            aggregate["quality"] += int(row["physical_quality"] is True)
+            aggregate["quality"] += int(
+                row["leg_driven"]["quality"] if self.leg_driven else row["physical_quality"] is True
+            )
         self.cursor = env.completed_count
         if context.updates_used % self.selection["every_updates"] == 0:
             self.pending = dict(
@@ -165,6 +197,31 @@ class RecoveryAdapter(GenericPPOAdapter):
                 comparison_sha256=self.domain,
                 rows=copy.deepcopy(self.window),
             )
+            if self.leg_driven:
+                from native_stand.tasks.recovery.leg_driven import review_window
+
+                level = env.courses[0].stage
+                record, advance, plateau = review_window(
+                    list(self.window.values()), level, self.leg_review_history
+                )
+                record["through_update"] = context.updates_used
+                self.leg_review_history.append(record)
+                metrics["leg_driven_review"] = record
+                write_json(
+                    context.run_dir / "leg_driven_course.json",
+                    dict(history=self.leg_review_history, level=level + int(advance)),
+                )
+                if advance:
+                    for course in env.courses:
+                        course.stage = level + 1
+                if plateau:
+                    from native_stand.experiments.state import write_stop_request
+
+                    write_stop_request(
+                        context.run_dir,
+                        reason="leg_driven_five_windows_without_improvement",
+                        requester="Recovery course",
+                    )
             self.window = {}
 
     def capture(self, context, counters):
@@ -175,6 +232,7 @@ class RecoveryAdapter(GenericPPOAdapter):
             recovery_training_window=copy.deepcopy(self.window),
             recovery_pending_publication=copy.deepcopy(self.pending),
             training_candidates=copy.deepcopy(self.candidates),
+            leg_driven_review_history=copy.deepcopy(self.leg_review_history),
         )
         return result
 
@@ -202,7 +260,16 @@ class RecoveryAdapter(GenericPPOAdapter):
                     or row["teacher_seconds"]
                 ):
                     continue
+                if self.leg_driven and (
+                    row["objective"] != "Swing"
+                    or row["student_success"] / row["ended"] < 0.95
+                    or row["quality"] / row["ended"] < 0.9
+                    or row.get("sequence_valid", 0) / row["ended"] < 0.98
+                ):
+                    continue
                 rank = [row["student_success"] / row["ended"], row["quality"] / row["ended"]]
+                if self.leg_driven:
+                    rank = [row["condition"]["course_level"], *rank]
                 pool = result["candidates_by_objective"][row["objective"]]
                 if key not in pool or rank > pool[key]["evidence"]["rank"]:
                     pool[key] = dict(

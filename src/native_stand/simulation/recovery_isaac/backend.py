@@ -52,6 +52,11 @@ SNAPSHOT = "recovery_Isaac_observable_execution_snapshot_v1"
 def validate_job(job):
     if job.task != "recovery" or job.backend != "isaac_recovery":
         raise ValueError("Explicit independent Recovery Isaac job required")
+    from native_stand.tasks.recovery.leg_driven import CRITIC_VERSION as LEG_CRITIC
+    from native_stand.tasks.recovery.leg_driven import CRITIC_WIDTH
+    from native_stand.tasks.recovery.leg_driven import VERSION as LEG_REWARD
+
+    leg_driven = job.reward.version == LEG_REWARD
     standalone = job.assets.get("recovery_standalone_course")
     if standalone:
         from native_stand.tasks.recovery.standalone_course import VERSION
@@ -70,6 +75,7 @@ def validate_job(job):
         REWARD_CRITIC_VERSION: REWARD_CRITIC_WIDTH,
         HANDOVER_CRITIC: HANDOVER_WIDTH,
         HEIGHT_CRITIC: HEIGHT_WIDTH,
+        LEG_CRITIC: CRITIC_WIDTH,
     }.get(job.model.critic_privileged_version)
     if (
         job.model.actor_input,
@@ -93,6 +99,17 @@ def validate_job(job):
         and standalone.get("version") == "recovery_Swing_priority_own_hold_v2"
     ):
         expected_reward = job.reward.version
+    if leg_driven:
+        expected_reward = LEG_REWARD
+        if job.model.critic_privileged_version != LEG_CRITIC:
+            raise ValueError("Leg-driven task requires its actual causal Critic")
+        ref = job.assets.get("recovery_leg_driven_geometry")
+        if not ref or file_sha256(ref["path"]) != ref["sha256"]:
+            raise ValueError("Leg-driven geometry identity required")
+        if any(
+            job.assets.get(k) for k in ("qualified_physical_BC_anchor", "old_Recovery_action_prior")
+        ):
+            raise ValueError("Old high-wheel-speed demonstrations conflict with leg-driven goal")
     if job.reward.version != expected_reward:
         raise ValueError("Explicit Isaac reward revision required")
     if job.runtime.envs < 1 or job.runtime.device != "cuda:0":
@@ -112,7 +129,7 @@ def validate_job(job):
         raise ValueError("Frozen physical timing/PD")
     expected_caps = (
         [40.0, 40.0, 4.8, 40.0, 40.0, 4.8]
-        if job.reward.version == "recovery_preentry_runaway48_physical_v8"
+        if leg_driven or job.reward.version == "recovery_preentry_runaway48_physical_v8"
         else [40.0, 40.0, 2.44694786377709, 40.0, 40.0, 2.44694786377709]
     )
     if list(c.effort_limits_nm) != expected_caps:
@@ -207,7 +224,12 @@ def preflight(job, *, for_learning=False, resources=False):
         if (
             changed != {"critic_privileged_version"}
             or contract["critic_privileged_version"]
-            not in (REWARD_CRITIC_VERSION, HANDOVER_CRITIC, HEIGHT_CRITIC)
+            not in (
+                REWARD_CRITIC_VERSION,
+                HANDOVER_CRITIC,
+                HEIGHT_CRITIC,
+                "recovery_leg_driven_causal942_v1",
+            )
             or m["source_actor_sha256"] != job.assets["recovery_initial_actor"]["sha256"]
             or m["target_contract_sha256"] != job.assets["recovery_training_contract"]["sha256"]
         ):
@@ -218,7 +240,27 @@ def preflight(job, *, for_learning=False, resources=False):
     ):
         raise ValueError("Initialization identity")
     acceptance = read_json(job.assets["recovery_isaac_acceptance"]["path"])
-    if for_learning:
+    if for_learning and job.reward.version == "recovery_leg_driven_low_wheel_v1":
+        auth = read_json(job.assets["training_authorization"]["path"])
+        if (
+            file_sha256(job.assets["training_authorization"]["path"])
+            != job.assets["training_authorization"]["sha256"]
+        ):
+            raise ValueError("Leg-driven training authorization identity")
+        if auth.get("new_training_updates") != 10000 or auth.get("wall_s", "MISSING") is not None:
+            raise ValueError("Leg-driven explicit bounded update authorization required")
+        if not acceptance.get("CPU_leg_driven_wiring_accepted"):
+            raise ValueError("Leg-driven CPU consumer wiring not accepted")
+        if acceptance.get("actor_sha256") != job.assets["recovery_initial_actor"]["sha256"]:
+            raise ValueError("Leg-driven Actor source mismatch")
+        if (
+            acceptance.get("runtime_contract_sha256")
+            != job.assets["recovery_isaac_runtime"]["sha256"]
+        ):
+            raise ValueError("Leg-driven runtime identity mismatch")
+        if job.assets.get("recovery_probe_controls"):
+            raise ValueError("Engineering fixture controls cannot train")
+    elif for_learning:
         if acceptance.get("Isaac_PPO0_wiring_accepted") is not True:
             raise ValueError("Isaac PPO0 live wiring NOT_RUN/unaccepted; no real PPO launch")
         if acceptance.get("actor_sha256") != job.assets["recovery_initial_actor"]["sha256"]:
@@ -335,6 +377,9 @@ class IsaacRecovery:
             measurement if measurement is not None else Measurement(False, job.runtime.device)
         )
         self.env = None
+        self.output = Path(output)
+        self.output.mkdir(parents=True, exist_ok=True)
+        self.app = None
         self._owns_app = application is None
         if application is None:
             preflight(job, resources=True)
@@ -344,7 +389,12 @@ class IsaacRecovery:
 
             with preserve_worker_signals():
                 self.app = AppLauncher(
-                    {"headless": True, "device": job.runtime.device, "multi_gpu": False}
+                    {
+                        "headless": True,
+                        "device": job.runtime.device,
+                        "multi_gpu": False,
+                        "fast_shutdown": False,
+                    }
                 ).app
         else:
             preflight(job, resources=False)
@@ -352,6 +402,12 @@ class IsaacRecovery:
         try:
             self._initialize(job, output)
         except BaseException as exc:
+            import traceback
+
+            write_json(
+                self.output / "construction_failure.json",
+                dict(error=repr(exc), traceback=traceback.format_exc()),
+            )
             try:
                 self.close()
             except BaseException as cleanup:
@@ -365,7 +421,9 @@ class IsaacRecovery:
         self.output = Path(output)
         self.output.mkdir(parents=True, exist_ok=True)
         template = execution_json(runtime["bindings"]["scene_spec"]["path"], job.assets)
-        sys.path.insert(0, template["asset_module_root"])
+        from .bindings import asset_module_root
+
+        sys.path.insert(0, str(asset_module_root(template)))
         from native_stand.command_v6.runtime.configure import verify_asset_import
         from native_stand.env import NativeStandCfg
 
@@ -438,6 +496,14 @@ class IsaacRecovery:
         cfg.decimation = 10
         cfg.episode_length_s = 23.0
         cfg.is_finite_horizon = True
+        from native_stand.tasks.recovery.leg_driven import VERSION as LEG_REWARD
+
+        if job.reward.version == LEG_REWARD:
+            cfg.recovery_leg_driven = dict(
+                geometry=read_json(job.assets["recovery_leg_driven_geometry"]["path"]),
+                gamma=job.ppo.gamma,
+            )
+            cfg.episode_length_s = 6.0
         cfg.recovery_measurement = self.measurement
         cfg.recovery_effort_caps = job.control.effort_limits_nm
         cfg.recovery_swing_priority = (
@@ -695,7 +761,10 @@ class IsaacRecovery:
             self.env = None
             if self._owns_app and self.app is not None:
                 try:
-                    self.app.close()
+                    app = self.app
+                    import atexit
+
+                    atexit.register(lambda: app.close())
                 finally:
                     self.app = None
 

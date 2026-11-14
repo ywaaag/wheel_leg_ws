@@ -187,3 +187,5 @@ Space停止，Esc停止并暂停，R归零并重置；键盘不自动解除暂�
 
 
 少量高度训练准备配置：`configs/jobs/motion_height_small_dose_prepared.json`。使用原v3课程将10%总样本分给0.20～0.40m六个离散高度的站立与±0.25m/s平地运动，先变高再运动，55%基础复习保留。准备配置零额度，实际切换需最终完整停止点及剩余额度SHA分配；详情见Motion能力矩阵“少量变高度并行训练”。不新增授权，不把准备配置或高度输出范围称为已掌握能力。
+
+腿主导低轮速Recovery的新配方、初始化变换、942D Critic、课程和验收边界见[专项说明](docs/RECOVERY_LEG_DRIVEN.md)。`configs/jobs/recovery_leg_driven2100_10000.json`使用原六通道物理动作合同，完整起身后接稳0.5秒；不继承旧10秒保持或实机能力认证。

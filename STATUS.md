@@ -1,5 +1,11 @@
 # 当前任务
 
+## 腿主导低轮速Recovery新任务（2026-11-14）
+
+用户授权新10000更新、墙钟null。独立worktree `/home/kellen/wheel_leg_recovery_leg_ws` / `recovery/leg-driven-low-wheel` 从main `6df1353`建立；旧Recovery训练已用户停止于3149，新任务不挪旧余额。复用2100骨干/四腿输出，显式零初始化两个轮输出末层，新Critic942/双Adam；关闭旧大轮速动作prior与BC。顺序/全程真实轮速/姿态、1ms统计、分段辅助课程与候选门已实现；真实PhysX和训练启动待对应收据，不把dry-run或CPU当开训。当前本机另有Jump owner，未操作；GPU共享仍需本次用户明确选择。主源/电控未改。
+
+
+
 ## Motion少量变高度接续（2026-11-13）
 
 用户要求当前加入0.20～0.40m站立与平地运动。独立`motion/height-small-dose`分支准备10%变高度、28%转弯、7%地形和55%基础复习；六目标高度0.20/0.24/0.28/0.32/0.36/0.40m，各自站立/±0.25m/s，复用原rate-limited高度优先时序及SplitCourse。不改PPO/奖励/KL/执行合同。新增完整课程接续记录只结转原10000授权的实际剩余，累计上限16738不变，真实停止点与云端结果以数据根`motion_height_small_dose_20261113/`收据为准；旧远端Motion已通过公共stop request-only正常STOPPED_BOUNDED于500，failure=null，完整u500 SHA `1ad4a858baebffa1a0cad2e989c57e054934940372a593be9842f4a7e6801e89`；保存点差额0。本授权剩余9500，历史累计7238、模型进度7097，累计上限16738保持。远端新冻结`candidate_revisions/motion_height_small_dose_v2/src`599模块摘要`c408dc029ae2036dd9233f5d98e3f8d54b88e67a6a6710b6ac21d3521460c81e`，配置`height_small_dose_v2_20261113/cloud_config.json`；78cohort/407高度槽位，最小11槽。完整PPO双Adam CPU装配与dry-run通过；首版预检曾拒绝重复877→881路径，修正并保留拒绝现场，新run `motion_height_small_dose_remaining9500`唯一提交成功，worker1485身份OK，启动快照RUNNING/0更新/failure=null，首个PPO更新尚未确认，未新增watcher。最终相关54 passed（6.62s），portable1988 passed/31既有skip/10warning（131.70s），架构212/0、Ruff0.8.4 CI范围check/format通过。

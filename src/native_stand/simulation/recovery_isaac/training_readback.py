@@ -126,6 +126,8 @@ class TrainingReadback:
                 and self.critic_updates == 12
                 and changed
             )
+            if c.job.reward.version == "recovery_leg_driven_low_wheel_v1":
+                passed = passed and self.done_count > 0 and not self.prefix
             if getattr(getattr(self.env, "env", None), "handover_mode", False):
                 passed = (
                     passed
