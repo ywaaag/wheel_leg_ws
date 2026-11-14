@@ -178,6 +178,22 @@ probe 收据没有同一 PD tick 的 held q/dq、P/D、补偿、adopted 序列�
 
 本次来源、完整字段及数值收据为 `artifacts/jump_execution_audit_20261114/motion4300_low_command_domains_20261115_v1.json`。新增物理/GPU/BC/PPO及worker操作均0。
 
+### 静态编码与机械阴性结果（2026-11-15补充）
+
+已收到既有armature+zero-drag组合对照的阴性结论：主要小命令响应未恢复。本轮未打开该对照的原始run或查询worker，将此结果按owner提供的证据记录；不将这套差异提升为主要解释，不采用诊断参数。组合阴性也不等于分别排除了armature、阻力及其相互作用。
+
+用户提供的320组真实CPU对照使用同一传感值、同一实际previous、zero/±.2vx/±.3yaw：冻结 `mcu_interface.encode`＋同源 `interface.frame`，对当前真实C `RLMotion31BuildObservation`＋`motion_teacher_observation(jump37_to_motion31_v1)`，31列逐位一致、max_abs_error=0、C返回码全0、原Jump37输入未变。本轮没有重复这320组调用，只独立核对所用源码SHA及冻结绑定。该证据排除的是这组同输入测试边界的列序/缩放/flags数学差异，不能证明轨迹上游提供的反馈值、坐标变换及采样时相正确。
+
+独立核验的冻结源码：`mcu_interface.py` SHA `5165922fcb62b1fec0c1baaa00bce47af277ccb47c16d2eb88985e9e4e968151`；`interface.py` SHA `435d58d56255dbe5ca0e1085932f7ccb07c0a4b23e4fb2a7d8d867bf7d9cf427`，均匹配4300原manifest。当前teaching的 `rl_motion31.c` SHA `4a99e09b7ba87f68244151889dfd0f0caa633e3743f6a1d3cd7ed2dfd3d5082b`、`jump_labels.py` SHA `53baea7b1d5f8177541fe985545ead22d5d1fc3037e33d19ca5435e56cc41180` 也与所报版本一致。
+
+保存的 `2026_11_15__jump_closed_loop_teaching_v4/run.json` 明确source_root为teaching worktree；Teacher `inference.output_contract` 与 `labels.contract` 两个JSON对象均精确等于4300原 `effective_environment.json.action_output`，未用新poly5替换旧查表中心。当前 `jump_isaac.py:365–369` 显式把 `teaching_commands` 传给 `prepare_device(command=...)`，不能依据旧plane工作区的默认zero分支宣称这里命令被清零。
+
+Actor输入保持绝对q/腿previous÷1.5、轮previous÷100、dq×.05、命令 `[vx/4,yaw/4,h/.5]`；Teacher flags为 `[1,0,0,1,0,0]`，没有减入C0中心或用实际高度替换高度命令。旧Isaac训练窗只证明已有±.25/.5vx及±1/1.5/2/3/4等yaw目标的相应训练统计；ramp经过±.3不等于±.3保持认证。
+
+零漂还有明确的原奖励背景：冻结 `antiosc_reward.py` SHA `5e9cc8a0b64ad2d4ff37bd4627ab8e5e05ea667e55e823deb1d8db6a67d8ffc4` 与原manifest相同，`:22` 定义 `4-.25*Huber(relu(abs(vx)-.15)/.30)`，因此该项在±.15m/s内有平台。`:69–77` 仅在vx/yaw目标均0且eligible时替换linear tracking/error两项；同源 `fullchain_runtime_impl.py:134–135` 有实际调用，其他奖励项仍保留。它说明该零速项没有在平台内继续区分精细零速，不能单独解释reverse/yaw不对称，更不能把旧负漂与当前正漂归为相同原因。
+
+当前证据没有定位新的静态encoder错误。后续解释继续限定在已有有符号响应与真实执行证据：yaw+.3欠响应，yaw-.3已响应同时漂移；缺5ms held q/dq、采用序号及P/D/C分层时，不根据RMSE推反号，不补造时序根因。完整来源与证据性质在 `encoder_and_v4_contract_identity_20261115_v1.json`；本次无新C编译、物理、GPU、BC、PPO、worker操作或正式合同变更。
+
 ## 验证和剩余门槛
 
 - 领域 CPU56项通过（21.59s），其中新增真实 C 边界5项；使用 portable guard 禁止 mj_step、CUDA 初始化及 AppLauncher。
