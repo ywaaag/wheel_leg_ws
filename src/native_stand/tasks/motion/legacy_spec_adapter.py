@@ -87,8 +87,12 @@ def build_environment_spec(template, source, job, *, stage_builder):
         source_actor_sha256=job.initialization.sha256,
         warmup_updates_per_phase=0,
         no_independent_evaluation=True,
-        critic=f"full same-semantic{job.model.critic_input} resume",
-        optimizer="full split Adam resume",
+        critic=(
+            f"fresh {job.model.critic_input} Critic with configured warmup"
+            if source.get("initialization_record", {}).get("mode") == "actor_only"
+            else f"full same-semantic{job.model.critic_input} resume"
+        ),
+        optimizer=("fresh split Adam" if "optimizer" not in source else "full split Adam resume"),
         scale_corrections=dict(config),
         scale_correction_version=VERSION,
     )

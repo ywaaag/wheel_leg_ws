@@ -525,7 +525,18 @@ class MotionProductionAdapter:
                 COURSE_RECORDS,
             )
 
-            if branch["version"] in COURSE_RECORDS:
+            from native_stand.artifacts.motion_actor_admission import VERSION as ACTOR_GRANT
+
+            if branch["version"] == ACTOR_GRANT:
+                for key in (
+                    "source",
+                    "output_contract",
+                    "authorization",
+                    "settlement",
+                    "allocation",
+                ):
+                    references["branch_" + key] = paths.view(branch[key])
+            elif branch["version"] in COURSE_RECORDS:
                 for key in ("source_run", "observed_state", "observed_budget", "output_contract"):
                     references["branch_" + key] = paths.view(branch[key])
                 if branch["version"] in (ALLOCATED_COURSE, CONTINUED_COURSE):
@@ -541,9 +552,10 @@ class MotionProductionAdapter:
                 settlement = paths.read(branch["settlement"]["path"])
                 for key in ("selected_checkpoint", "final_checkpoint"):
                     references[key] = {k: settlement[key][k] for k in ("path", "sha256")}
-            references["source_center_binding"] = paths.view(
-                branch["selection_record"]["source_center_binding"]
-            )
+            if branch["version"] != ACTOR_GRANT:
+                references["source_center_binding"] = paths.view(
+                    branch["selection_record"]["source_center_binding"]
+                )
         register_dependencies(
             self.context.refs, consumer=self.context.run_dir.name, references=references
         )

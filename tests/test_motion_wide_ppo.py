@@ -199,3 +199,24 @@ def test_wide_actor_fresh_critic_std_and_bank_optimizer_resume(tmp_path):
         ],
         build_task(job).center.centers(torch.tensor([0.34])),
     )
+
+
+def test_wide_production_dependency_preparation_uses_actor_admission(tmp_path):
+    from types import SimpleNamespace as NS
+    from native_stand.artifacts.model_refs import ModelIndex
+    from native_stand.artifacts.io import read_json
+    from native_stand.simulation.isaac.motion_backend import MotionProductionAdapter
+
+    job, payload, contract = wide(tmp_path)
+    source = training_source(
+        payload, job, contract, dict(actor_hidden_dims=[8], critic_hidden_dims=[8])
+    )
+    adapter = MotionProductionAdapter()
+    adapter.job = job
+    adapter.source = source
+    adapter.same_run = False
+    adapter.template = read_json(job.assets["runtime_template"])
+    adapter.context = NS(run_dir=tmp_path / "run", refs=ModelIndex(tmp_path / "models.json"))
+    adapter._prepare_training()
+    assert adapter.spec["action_output"] == contract
+    assert adapter.state["assessment_keys"]
