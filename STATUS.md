@@ -7,6 +7,16 @@
 
 # 当前任务
 
+## Motion低高度受载补教（2026-11-14）
+
+用户授权反复蒸馏/补教，保留0.34m高速、自转、转弯与地形。本机CPU沿统一distill/owner/worker/supervision完成3×16=48轮BC，10848次监督Adam step；前轮32轮保留，合计80轮，PPO新增0，本阶段2781/10000、剩7219保持。每块为新数据与Actor初始化、新BC Adam；不冒充跨块完整优化器恢复。
+
+原u2200 Teacher按自身015合同解码后，显式高度分段物理示范偏移补低高度平衡；Torch标签与NumPy采集共用任务模块。Student不带运行时示范偏移，仅自身050/80输出合同；0.20/0.22中心取训练站立实际adopted PD目标拟合，输入、真实dq、PD、限矩、V4与延迟不变。新增Teacher标签preflight在owner提交前拒绝非法声明。050 PPO继续显式拒绝。
+
+仅train条件反馈补教，开发/留出整回合隔离。第三块第9轮Actor按预声明开发闭环规则选定，SHA `258aae9d904fc3718ddc7938a556c523ff75228a0a7f2707f72b2162d9930d98`；开发22/22完整且相对筛选22/22，完整BC恢复点第16轮另存。精确训练条件复放0.20m实际0.199962m、双支撑100%、腿raw均值最大绝对值0.01429；0.22m实际0.223691m。约0.24m仍近1cm高度偏差；自转双支撑、欠转及地形欠速均不能因模仿保真判定能力通过。
+
+正式配方`configs/jobs/motion_low_support_reteach_bc16.json`复用preset；公共看板的原startup_handshake交接见数据根`motion_low_support_reteach_20261114/dashboard_handoff.json`，不另建登记表。冻结后独立留出结果、完整模型/BC/导出SHA、源码快照和继续起点见同目录REPORT、delivery及PLAY。固定模型MuJoCo标称证据与训练窗口分开；完整DR/扰动、PhysX、实机不授予通过。集成CPU portable2037 passed/31既有skip/10warning（137.83秒），架构219/0，Ruff0.8.4 check/218文件format通过。旧冻结源码、预算、原模型和其他任务保持。
+
 ## Motion物理目标蒸馏与受载中心（2026-11-14）
 
 用户授权停训、蒸馏并保全模型。以已回传完整u2200为冻结Teacher，本机CPU经公共distill/owner/worker/supervision实际完成8+24=32轮BC、2600次监督Adam step，PPO新增0；原阶段2781/10000、剩7219保持。首个缺wheel身份的初始化attempt消耗0，原失败与结算保留。Actor结构不缩小，050/80显式合同与Teacher015各自解码物理标签；输入、PD、限矩、V4、真实dq和延迟不变。原完整模型、BC恢复状态、候选和ONNX均保留在数据根`motion_distill_wide_20261114/`及原729文件保全包。

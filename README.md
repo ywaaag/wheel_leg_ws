@@ -128,6 +128,8 @@ Motion的`motion_multiheight020_support_center_050_80_v1`是独立±0.50rad/±80
 
 低高度受载补教可显式声明Teacher标签`kind=motion_support_teacher`、原`contract`和`support_shift`。后者字段为`version=motion_height_support_teacher_v1`、递增`height_m`（覆盖0.20～0.40m）、每节点四腿`offset_rad`（镜像、绝对值≤0.35rad）和`evidence_sha256`。Teacher先按原合同解码，再加偏移；Student仍使用`motion_contract`反解。采集Teacher时，在有界诊断协议声明同一`teacher_support_shift`，轮目标不变；Student播放/采集必须省略此字段，避免重复施加。受载示范与真实模型能力分别记录，不把工程偏移当作Student已学会。
 
+可复用配方为`configs/jobs/motion_low_support_reteach_bc16.json`（preset加显式覆盖）：绑定本机数据根中的Teacher、完整episode划分数据、上一块Actor及输出合同SHA，每块16轮BC、新Adam；先`wheel-leg distill --config configs/jobs/motion_low_support_reteach_bc16.json --dry-run --json`审阅。它是已完成第3块的复现实验配方，不是继续执行指令，也不刷新PPO额度。后续补教须使用新的训练数据/版本；开发及留出不能回流本候选训练。
+
 正式链为 `wheel-leg play` → `simulation.playback.plan/create_player/run_loop` →
 `MotionPlayer` → 公共推理factory、共享C编码/解码/PD及`PlaybackExecution`完整V4。
 网页仅复用已有`students.motion_panel.Plan`锁与HTTP命令/遥测服务，不创建第二个物理循环。

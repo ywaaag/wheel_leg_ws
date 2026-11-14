@@ -1,0 +1,1243 @@
+{
+  "schema_version": 1,
+  "preset": "motion48_supported_v1",
+  "name": "motion_low_support_block3_BC16",
+  "backend": "cpu",
+  "algorithm": "distillation",
+  "initialization": {
+    "mode": "scratch"
+  },
+  "model": {
+    "interface": "multiskill_mcu_v2",
+    "actor_hidden_dims": [
+      2048,
+      1024,
+      512
+    ],
+    "critic_hidden_dims": [
+      512,
+      512,
+      256
+    ],
+    "actor_input": 31,
+    "critic_input": 881,
+    "critic_privileged_version": "motion48_height_bank_contact_causal881_v1",
+    "action_version": "motion_multiheight020_support_center_050_80_v1",
+    "kind": "mlp"
+  },
+  "observation": {
+    "frame_dim": 22,
+    "actor_dim": 31,
+    "critic_dim": 881,
+    "leg_input_scale_rad": 1.5,
+    "wheel_input_scale_rad_s": 100.0
+  },
+  "action": {
+    "version": "motion_multiheight020_support_center_050_80_v1",
+    "leg_scale_rad": 0.5,
+    "wheel_scale_rad_s": 80
+  },
+  "control": {
+    "physics_dt_s": 0.001,
+    "pd_dt_s": 0.005,
+    "policy_dt_s": 0.01,
+    "leg_kp": 40.0,
+    "leg_kd": 2.0,
+    "wheel_kv": 0.2,
+    "effort_limits_nm": [
+      40.0,
+      40.0,
+      4.8,
+      40.0,
+      40.0,
+      4.8
+    ],
+    "height_command_m": 0.34
+  },
+  "limits": {
+    "smoke_updates": 0,
+    "formal_updates": 0,
+    "chain_wall_s": 1800
+  },
+  "runtime": {
+    "envs": 1,
+    "steps_per_env": 1,
+    "device": "cpu",
+    "headless": true,
+    "seed": 2026111401
+  },
+  "storage": {
+    "max_output_bytes": 1073741824,
+    "terminal_reserve_bytes": 134217728,
+    "save_traces": false,
+    "tensorboard": false
+  },
+  "assets": {
+    "center": {
+      "hip_above_root_m": 2.4e-05,
+      "wheel_radius_m": 0.06,
+      "equivalent_upper_m": 0.21,
+      "equivalent_lower_m": 0.25,
+      "hip_zero_deg": 47.1033888,
+      "active_zero_deg": 47.1080837,
+      "height_range_m": [
+        0.2,
+        0.4
+      ],
+      "height_command_m": 0.34,
+      "support_offset_table": {
+        "height_m": [
+          0.2,
+          0.22,
+          0.24,
+          0.26,
+          0.28,
+          0.3,
+          0.32,
+          0.34,
+          0.36,
+          0.38,
+          0.4
+        ],
+        "offset_rad": [
+          [
+            -0.020571343873936665,
+            -0.05702757119884094
+          ],
+          [
+            -0.11081284820703796,
+            -0.1555440107178515
+          ],
+          [
+            -0.3491564187176722,
+            -0.37790762516905463
+          ],
+          [
+            -0.348948829817821,
+            -0.37771180030381957
+          ],
+          [
+            -0.34882198437598766,
+            -0.37759639082806856
+          ],
+          [
+            -0.3487552522000352,
+            -0.37754057053821566
+          ],
+          [
+            -0.3435389986364944,
+            -0.3728135666205402
+          ],
+          [
+            -0.3310294178646732,
+            -0.36850653305619374
+          ],
+          [
+            -0.37905064299573055,
+            -0.392152213326292
+          ],
+          [
+            -0.3467577911753633,
+            -0.34899861273727373
+          ],
+          [
+            -0.4210038034297835,
+            -0.4434557257496142
+          ]
+        ]
+      }
+    },
+    "runtime_template": "/root/gpufree-data/wheel_leg_motion/dependencies/home/kellen/wheel_leg_native_train/configs/experiments/2026_11_5-16_51__motion_smoke12_supported015_dqgain_formal9988/spec.json",
+    "runtime_template_sha256": "bce931ba337f694d9d616260d2a4b73bb618447d1337c7fefa65ef7b8316f288",
+    "delayed_execution": {
+      "version": "motion48_v4_wheel_reported_delay_actor20_dr_v2",
+      "actor_packet_nominal_ms": 20,
+      "actor_leg_packet_nominal_ms": 20,
+      "actor_packet_DR_support_ms": [
+        0,
+        10,
+        20
+      ],
+      "target_nominal_ms": 5,
+      "wheel_channels": [
+        2,
+        5
+      ],
+      "wheel_transport_nominal_ms": [
+        7,
+        11
+      ],
+      "wheel_tau_ms": [
+        0.0,
+        0.0
+      ],
+      "wheel_transport_DR_halfwidth_ms": 4.0,
+      "wheel_delay_semantics": "reported combined onset, represented once as post-PD transport; not an independently measured pure delay",
+      "leg_response": "complete V4 tuple and existing DR; no additional20ms motor delay",
+      "DR": "existing reset-only per-env curriculum, nominal anchors retained",
+      "previous": "actual locally adopted physical target; not sensor-delayed",
+      "input_scales": [
+        1.5,
+        100.0
+      ],
+      "motor_limits_unchanged": false
+    },
+    "terrain_scene": {
+      "version": "motion_H1_periodic_grid_scene_v2",
+      "families": [
+        "steep_waves_H1",
+        "cobblestones_H1",
+        "broken_rubble_H1",
+        "pitted_road_H1"
+      ],
+      "length_m": 6.0,
+      "width_m": 3.0,
+      "cell_m": 0.02,
+      "repetitions": 25,
+      "spawn_x_m": 12.1,
+      "critic_context": "881; vertical root height over actual local collision triangle; actual wheel K/C",
+      "assets": [
+        {
+          "family": "steep_waves_H1",
+          "usd": {
+            "path": "/root/gpufree-data/wheel_leg_motion/candidate/assets/terrains/motion_H1_periodic_v2/steep_waves_H1/terrain.usdc",
+            "sha256": "1979226deccc6a90f07c07cbc0a6938d89c14e580a2d916e8919252a405b5a42"
+          },
+          "heights": {
+            "path": "/root/gpufree-data/wheel_leg_motion/candidate/assets/terrains/motion_H1_periodic_v2/steep_waves_H1/heightfield.npz",
+            "sha256": "460d310abcba8a6123912f801538933ee978a5ace4fb04968530d23697613a7e"
+          }
+        },
+        {
+          "family": "cobblestones_H1",
+          "usd": {
+            "path": "/root/gpufree-data/wheel_leg_motion/candidate/assets/terrains/motion_H1_periodic_v2/cobblestones_H1/terrain.usdc",
+            "sha256": "99587daf1ff3ffee6dc0818e9d908f8f47f9309c379505aba9508dce928a9261"
+          },
+          "heights": {
+            "path": "/root/gpufree-data/wheel_leg_motion/candidate/assets/terrains/motion_H1_periodic_v2/cobblestones_H1/heightfield.npz",
+            "sha256": "fcb9e4a1bf92a6040964d86e6c34b70e9fcc02822f638ccd543364b4171e7631"
+          }
+        },
+        {
+          "family": "broken_rubble_H1",
+          "usd": {
+            "path": "/root/gpufree-data/wheel_leg_motion/candidate/assets/terrains/motion_H1_periodic_v2/broken_rubble_H1/terrain.usdc",
+            "sha256": "2b21ea316e01b15b3f48f8edb1255291c9689e3216e49dfa06c6b4aeb832d631"
+          },
+          "heights": {
+            "path": "/root/gpufree-data/wheel_leg_motion/candidate/assets/terrains/motion_H1_periodic_v2/broken_rubble_H1/heightfield.npz",
+            "sha256": "5369f79d844f05dd95f7cadd14f7ccb9932a4b264129d8707c204fc11d030c64"
+          }
+        },
+        {
+          "family": "pitted_road_H1",
+          "usd": {
+            "path": "/root/gpufree-data/wheel_leg_motion/candidate/assets/terrains/motion_H1_periodic_v2/pitted_road_H1/terrain.usdc",
+            "sha256": "1d29e9177db14c9ccc9216ff03c0b0d1022dc244bce66db6522a1ac211775234"
+          },
+          "heights": {
+            "path": "/root/gpufree-data/wheel_leg_motion/candidate/assets/terrains/motion_H1_periodic_v2/pitted_road_H1/heightfield.npz",
+            "sha256": "d5e88988ade36461526486ae8c7f1c1b7e5f841a7d33561a690721c76fc114f3"
+          }
+        }
+      ],
+      "boundary_policy": "terminated_then_legal_reset; invalid terminal height excluded; no fictitious plane or timeout bootstrap",
+      "boundary_margin_m": 0.12,
+      "lateral_repetitions": 3,
+      "seam_contract": "periodic_C0_edges_v1",
+      "horizon_guard": {
+        "episode_s": 30.0,
+        "forward_speed_mps": 3.6,
+        "distance_factor": 1.2
+      }
+    },
+    "path_mapping": {
+      "path": "/home/kellen/wheel_leg_training_data/playback/motion_u1500/runtime_paths.json",
+      "sha256": "41b935ca814dcfc3771ce443a1152a7df50483cb19e77ef65d45409fe9eb01f9"
+    },
+    "output_contract": "/home/kellen/wheel_leg_training_data/motion_low_support_reteach_20261114/student_output_contract.json",
+    "output_contract_sha256": "787199ffdaeb273bf8a98fb69370aac4b7902706964e7cd12eae5e75dc648536",
+    "wheel_identification_record": "/root/gpufree-data/wheel_leg_motion/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_2-09_16__v4_coupled_actuator_network/wheel_identification_receipt.json",
+    "wheel_identification_sha256": "74d096bbe5a451394471f5631aad2dbbab5dfaa6b2015bb68ac8f5c4f24d608f"
+  },
+  "notifications": {
+    "enabled": false
+  },
+  "supervision": {
+    "teachers": [
+      {
+        "name": "u2200",
+        "path": "/home/kellen/wheel_leg_training_data/motion_preservation/20261114_height_stop/extracted/runs/motion_height_small_dose_remaining9500/checkpoints/model_update_2200.pt",
+        "sha256": "43dd6b50d838d2ed21d93eab3123a12e48d1bd6d6a28857eb2c558a59254ba8b",
+        "inference": {
+          "kind": "tanh",
+          "input_dim": 31,
+          "hidden_dims": [
+            2048,
+            1024,
+            512
+          ],
+          "output_dim": 6,
+          "input_contract": {
+            "version": "multiskill_mcu_v2",
+            "observation": {
+              "frame_dim": 22,
+              "actor_dim": 31,
+              "critic_dim": 881,
+              "leg_input_scale_rad": 1.5,
+              "wheel_input_scale_rad_s": 100.0
+            }
+          },
+          "output_contract": {
+            "kind": "EXPLICIT_PPO_OUTPUT_CONTRACT",
+            "action_version": "motion_multiheight020_support_center_015_80_v2",
+            "input_version": "multiskill_mcu_v2",
+            "actor_dimensions": [
+              31,
+              2048,
+              1024,
+              512,
+              6
+            ],
+            "hidden_activation": "ELU(alpha=1)",
+            "mean_activation": "Tanh",
+            "leg_halfwidth_rad": 0.15,
+            "wheel_halfwidth_rad_s": 80.0,
+            "output_order_geometric": [
+              "right_hip",
+              "right_active",
+              "right_wheel",
+              "left_hip",
+              "left_active",
+              "left_wheel"
+            ],
+            "center_rule": "current commanded height -> identical geometry + piecewise-linear support offsets; stationary transition before travel; no extrapolation",
+            "center_formula": {
+              "version": "flat_two_link_geometry_v1",
+              "hip_above_root_m": 2.4e-05,
+              "wheel_radius_m": 0.06,
+              "equivalent_upper_m": 0.21,
+              "equivalent_lower_m": 0.25,
+              "hip_zero_deg": 47.1033888,
+              "active_zero_deg": 47.1080837,
+              "clearance_m": 0.0
+            },
+            "center_source": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_07__motion_multiheight_center_distillation/center_fit.json",
+            "center_scope": "V4 nominal quiet zero-command target reference; ability assessed separately",
+            "height_definition": "\u6c34\u5e73\u5730\u9762\u81f3\u539f\u6a21\u578broot\u539f\u70b9\u7684\u7ad6\u76f4\u9ad8\u5ea6\uff1b\u9acb\u8f74\u6bd4root\u9ad80.000024m\uff0c\u8f6e\u534a\u5f840.060m",
+            "input_leg_q_and_previous_scale_rad": 1.5,
+            "input_wheel_previous_scale_rad_s": 100.0,
+            "previous_source": "actual adopted physical targets after mechanical protection; never raw action or unadopted prediction",
+            "height_command_range_m": [
+              0.2,
+              0.4
+            ],
+            "height_change_within_episode": true,
+            "encoder_zero_change": false,
+            "hard_symmetry_projection": false,
+            "extra_history_or_estimator": false,
+            "control_reference_only": {
+              "physics_pd_policy_ms": [
+                1,
+                5,
+                10
+              ],
+              "leg_Kp": 40,
+              "leg_Kd": 2,
+              "wheel_Kv": 0.2,
+              "leg_motor_cap_nm": 40,
+              "wheel_driver_cap_nm": 4.8
+            },
+            "distillation_teacher_recommendation": {
+              "role": "history only; current PPO source4300 in source_derivation.json"
+            },
+            "source_scope": "\u8be5\u6279\u6052\u901f\u7269\u7406\u76ee\u6807\u8868\u793a\u8303\u56f4\u53ef\u68c0\u67e5\uff0c\u53d7\u6270\u3001\u542f\u52a8\u548c\u5b9e\u673a\u6297\u632f\u4e0d\u7531\u8986\u76d6\u7387\u4fdd\u8bc1",
+            "training_plant": "NOT_SELECTED_BY_INTERFACE_DESIGN",
+            "Critic_PPO_Adam_resume": "NOT_SELECTED; \u65e7\u6559\u5e08Critic/Adam\u4e0d\u7531\u672c\u52a8\u4f5c\u58f0\u660e\u81ea\u52a8\u5bfc\u5165",
+            "BC_updates": 0,
+            "PPO_updates": 0,
+            "new_decoder_physics": "same instantaneous physical decoder; actual height-first schedule verified in Isaac_probe3",
+            "runtime_recipe_ready": true,
+            "deployment_ready": false,
+            "support_offset_table": {
+              "height_m": [
+                0.2,
+                0.22,
+                0.24,
+                0.26,
+                0.28,
+                0.3,
+                0.32,
+                0.34,
+                0.36,
+                0.38,
+                0.4
+              ],
+              "offset_rad": [
+                [
+                  -0.34999398292359407,
+                  -0.37872519076649647
+                ],
+                [
+                  -0.3494817997850088,
+                  -0.3782216827382334
+                ],
+                [
+                  -0.3491564187176722,
+                  -0.37790762516905463
+                ],
+                [
+                  -0.348948829817821,
+                  -0.37771180030381957
+                ],
+                [
+                  -0.34882198437598766,
+                  -0.37759639082806856
+                ],
+                [
+                  -0.3487552522000352,
+                  -0.37754057053821566
+                ],
+                [
+                  -0.3435389986364944,
+                  -0.3728135666205402
+                ],
+                [
+                  -0.34415705961703547,
+                  -0.36427784427970067
+                ],
+                [
+                  -0.35197404473890415,
+                  -0.35372561665494917
+                ],
+                [
+                  -0.3467577911753633,
+                  -0.34899861273727373
+                ],
+                [
+                  -0.34154153761182243,
+                  -0.3442716088195983
+                ]
+              ]
+            },
+            "center_fit_components": {
+              "old9995_linear_offset_coeff_high_to_low": [
+                [
+                  0.26081267817704235,
+                  -0.24175490013552764
+                ],
+                [
+                  0.2363501958837719,
+                  -0.30465423371135797
+                ]
+              ],
+              "v4_correction_table_rad": [
+                [
+                  -0.09656784493742587,
+                  -0.0634323289915068
+                ],
+                [
+                  -0.0965678449374259,
+                  -0.0634323289915068
+                ],
+                [
+                  -0.10240215948150783,
+                  -0.0596236105683427
+                ],
+                [
+                  -0.11543539816691734,
+                  -0.053798386861266645
+                ],
+                [
+                  -0.11543539816691736,
+                  -0.053798386861266645
+                ],
+                [
+                  -0.11543539816691734,
+                  -0.053798386861266645
+                ]
+              ],
+              "reference_height_m": 0.34,
+              "deployment_evaluation": "Equivalent combined offset table, no separate runtime adaptation"
+            },
+            "qualified_center_anchor_heights_m": [
+              0.32,
+              0.34,
+              0.36
+            ],
+            "unvalidated_center_heights_m": [
+              0.3,
+              0.38,
+              0.4
+            ],
+            "execution_timing_contract": {
+              "version": "motion48_v4_wheel_reported_delay_actor20_dr_v2",
+              "actor_packet_nominal_ms": 20,
+              "actor_leg_packet_nominal_ms": 20,
+              "actor_packet_DR_support_ms": [
+                0,
+                10,
+                20
+              ],
+              "target_nominal_ms": 5,
+              "wheel_channels": [
+                2,
+                5
+              ],
+              "wheel_transport_nominal_ms": [
+                7,
+                11
+              ],
+              "wheel_tau_ms": [
+                0.0,
+                0.0
+              ],
+              "wheel_transport_DR_halfwidth_ms": 4.0,
+              "wheel_delay_semantics": "reported combined onset, represented once as post-PD transport; not an independently measured pure delay",
+              "leg_response": "complete V4 tuple and existing DR; no additional20ms motor delay",
+              "DR": "existing reset-only per-env curriculum, nominal anchors retained",
+              "previous": "actual locally adopted physical target; not sensor-delayed",
+              "input_scales": [
+                1.5,
+                100.0
+              ],
+              "motor_limits_unchanged": false
+            }
+          },
+          "activation": "ELU"
+        },
+        "labels": {
+          "kind": "motion_support_teacher",
+          "contract": {
+            "kind": "EXPLICIT_PPO_OUTPUT_CONTRACT",
+            "action_version": "motion_multiheight020_support_center_015_80_v2",
+            "input_version": "multiskill_mcu_v2",
+            "actor_dimensions": [
+              31,
+              2048,
+              1024,
+              512,
+              6
+            ],
+            "hidden_activation": "ELU(alpha=1)",
+            "mean_activation": "Tanh",
+            "leg_halfwidth_rad": 0.15,
+            "wheel_halfwidth_rad_s": 80.0,
+            "output_order_geometric": [
+              "right_hip",
+              "right_active",
+              "right_wheel",
+              "left_hip",
+              "left_active",
+              "left_wheel"
+            ],
+            "center_rule": "current commanded height -> identical geometry + piecewise-linear support offsets; stationary transition before travel; no extrapolation",
+            "center_formula": {
+              "version": "flat_two_link_geometry_v1",
+              "hip_above_root_m": 2.4e-05,
+              "wheel_radius_m": 0.06,
+              "equivalent_upper_m": 0.21,
+              "equivalent_lower_m": 0.25,
+              "hip_zero_deg": 47.1033888,
+              "active_zero_deg": 47.1080837,
+              "clearance_m": 0.0
+            },
+            "center_source": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_07__motion_multiheight_center_distillation/center_fit.json",
+            "center_scope": "V4 nominal quiet zero-command target reference; ability assessed separately",
+            "height_definition": "\u6c34\u5e73\u5730\u9762\u81f3\u539f\u6a21\u578broot\u539f\u70b9\u7684\u7ad6\u76f4\u9ad8\u5ea6\uff1b\u9acb\u8f74\u6bd4root\u9ad80.000024m\uff0c\u8f6e\u534a\u5f840.060m",
+            "input_leg_q_and_previous_scale_rad": 1.5,
+            "input_wheel_previous_scale_rad_s": 100.0,
+            "previous_source": "actual adopted physical targets after mechanical protection; never raw action or unadopted prediction",
+            "height_command_range_m": [
+              0.2,
+              0.4
+            ],
+            "height_change_within_episode": true,
+            "encoder_zero_change": false,
+            "hard_symmetry_projection": false,
+            "extra_history_or_estimator": false,
+            "control_reference_only": {
+              "physics_pd_policy_ms": [
+                1,
+                5,
+                10
+              ],
+              "leg_Kp": 40,
+              "leg_Kd": 2,
+              "wheel_Kv": 0.2,
+              "leg_motor_cap_nm": 40,
+              "wheel_driver_cap_nm": 4.8
+            },
+            "distillation_teacher_recommendation": {
+              "role": "history only; current PPO source4300 in source_derivation.json"
+            },
+            "source_scope": "\u8be5\u6279\u6052\u901f\u7269\u7406\u76ee\u6807\u8868\u793a\u8303\u56f4\u53ef\u68c0\u67e5\uff0c\u53d7\u6270\u3001\u542f\u52a8\u548c\u5b9e\u673a\u6297\u632f\u4e0d\u7531\u8986\u76d6\u7387\u4fdd\u8bc1",
+            "training_plant": "NOT_SELECTED_BY_INTERFACE_DESIGN",
+            "Critic_PPO_Adam_resume": "NOT_SELECTED; \u65e7\u6559\u5e08Critic/Adam\u4e0d\u7531\u672c\u52a8\u4f5c\u58f0\u660e\u81ea\u52a8\u5bfc\u5165",
+            "BC_updates": 0,
+            "PPO_updates": 0,
+            "new_decoder_physics": "same instantaneous physical decoder; actual height-first schedule verified in Isaac_probe3",
+            "runtime_recipe_ready": true,
+            "deployment_ready": false,
+            "support_offset_table": {
+              "height_m": [
+                0.2,
+                0.22,
+                0.24,
+                0.26,
+                0.28,
+                0.3,
+                0.32,
+                0.34,
+                0.36,
+                0.38,
+                0.4
+              ],
+              "offset_rad": [
+                [
+                  -0.34999398292359407,
+                  -0.37872519076649647
+                ],
+                [
+                  -0.3494817997850088,
+                  -0.3782216827382334
+                ],
+                [
+                  -0.3491564187176722,
+                  -0.37790762516905463
+                ],
+                [
+                  -0.348948829817821,
+                  -0.37771180030381957
+                ],
+                [
+                  -0.34882198437598766,
+                  -0.37759639082806856
+                ],
+                [
+                  -0.3487552522000352,
+                  -0.37754057053821566
+                ],
+                [
+                  -0.3435389986364944,
+                  -0.3728135666205402
+                ],
+                [
+                  -0.34415705961703547,
+                  -0.36427784427970067
+                ],
+                [
+                  -0.35197404473890415,
+                  -0.35372561665494917
+                ],
+                [
+                  -0.3467577911753633,
+                  -0.34899861273727373
+                ],
+                [
+                  -0.34154153761182243,
+                  -0.3442716088195983
+                ]
+              ]
+            },
+            "center_fit_components": {
+              "old9995_linear_offset_coeff_high_to_low": [
+                [
+                  0.26081267817704235,
+                  -0.24175490013552764
+                ],
+                [
+                  0.2363501958837719,
+                  -0.30465423371135797
+                ]
+              ],
+              "v4_correction_table_rad": [
+                [
+                  -0.09656784493742587,
+                  -0.0634323289915068
+                ],
+                [
+                  -0.0965678449374259,
+                  -0.0634323289915068
+                ],
+                [
+                  -0.10240215948150783,
+                  -0.0596236105683427
+                ],
+                [
+                  -0.11543539816691734,
+                  -0.053798386861266645
+                ],
+                [
+                  -0.11543539816691736,
+                  -0.053798386861266645
+                ],
+                [
+                  -0.11543539816691734,
+                  -0.053798386861266645
+                ]
+              ],
+              "reference_height_m": 0.34,
+              "deployment_evaluation": "Equivalent combined offset table, no separate runtime adaptation"
+            },
+            "qualified_center_anchor_heights_m": [
+              0.32,
+              0.34,
+              0.36
+            ],
+            "unvalidated_center_heights_m": [
+              0.3,
+              0.38,
+              0.4
+            ],
+            "execution_timing_contract": {
+              "version": "motion48_v4_wheel_reported_delay_actor20_dr_v2",
+              "actor_packet_nominal_ms": 20,
+              "actor_leg_packet_nominal_ms": 20,
+              "actor_packet_DR_support_ms": [
+                0,
+                10,
+                20
+              ],
+              "target_nominal_ms": 5,
+              "wheel_channels": [
+                2,
+                5
+              ],
+              "wheel_transport_nominal_ms": [
+                7,
+                11
+              ],
+              "wheel_tau_ms": [
+                0.0,
+                0.0
+              ],
+              "wheel_transport_DR_halfwidth_ms": 4.0,
+              "wheel_delay_semantics": "reported combined onset, represented once as post-PD transport; not an independently measured pure delay",
+              "leg_response": "complete V4 tuple and existing DR; no additional20ms motor delay",
+              "DR": "existing reset-only per-env curriculum, nominal anchors retained",
+              "previous": "actual locally adopted physical target; not sensor-delayed",
+              "input_scales": [
+                1.5,
+                100.0
+              ],
+              "motor_limits_unchanged": false
+            }
+          },
+          "support_shift": {
+            "version": "motion_height_support_teacher_v1",
+            "height_m": [
+              0.2,
+              0.24,
+              0.4
+            ],
+            "offset_rad": [
+              [
+                0.18,
+                0.18,
+                -0.18,
+                0.18
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "evidence_sha256": "655582b2e662135f504ee8672ed4ea8e3e0f607498247164ccb120cdd6eb471f"
+          }
+        },
+        "priority": 0,
+        "conditions": {},
+        "qualified": true
+      }
+    ],
+    "phases": [
+      {
+        "operation": "label"
+      },
+      {
+        "operation": "fit",
+        "rounds": 16
+      }
+    ],
+    "student": {
+      "kind": "tanh",
+      "input_dim": 31,
+      "hidden_dims": [
+        2048,
+        1024,
+        512
+      ],
+      "output_dim": 6,
+      "input_contract": {
+        "version": "multiskill_mcu_v2",
+        "observation": {
+          "frame_dim": 22,
+          "actor_dim": 31,
+          "critic_dim": 881,
+          "leg_input_scale_rad": 1.5,
+          "wheel_input_scale_rad_s": 100.0
+        }
+      },
+      "output_contract": {
+        "kind": "EXPLICIT_PPO_OUTPUT_CONTRACT",
+        "action_version": "motion_multiheight020_support_center_050_80_v1",
+        "input_version": "multiskill_mcu_v2",
+        "actor_dimensions": [
+          31,
+          2048,
+          1024,
+          512,
+          6
+        ],
+        "hidden_activation": "ELU(alpha=1)",
+        "mean_activation": "Tanh",
+        "leg_halfwidth_rad": 0.5,
+        "wheel_halfwidth_rad_s": 80.0,
+        "output_order_geometric": [
+          "right_hip",
+          "right_active",
+          "right_wheel",
+          "left_hip",
+          "left_active",
+          "left_wheel"
+        ],
+        "center_rule": "current commanded height -> identical geometry + piecewise-linear support offsets; stationary transition before travel; no extrapolation",
+        "center_formula": {
+          "version": "flat_two_link_geometry_v1",
+          "hip_above_root_m": 2.4e-05,
+          "wheel_radius_m": 0.06,
+          "equivalent_upper_m": 0.21,
+          "equivalent_lower_m": 0.25,
+          "hip_zero_deg": 47.1033888,
+          "active_zero_deg": 47.1080837,
+          "clearance_m": 0.0
+        },
+        "center_source": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_07__motion_multiheight_center_distillation/center_fit.json",
+        "center_scope": "V4 nominal quiet zero-command target reference; ability assessed separately",
+        "height_definition": "\u6c34\u5e73\u5730\u9762\u81f3\u539f\u6a21\u578broot\u539f\u70b9\u7684\u7ad6\u76f4\u9ad8\u5ea6\uff1b\u9acb\u8f74\u6bd4root\u9ad80.000024m\uff0c\u8f6e\u534a\u5f840.060m",
+        "input_leg_q_and_previous_scale_rad": 1.5,
+        "input_wheel_previous_scale_rad_s": 100.0,
+        "previous_source": "actual adopted physical targets after mechanical protection; never raw action or unadopted prediction",
+        "height_command_range_m": [
+          0.2,
+          0.4
+        ],
+        "height_change_within_episode": true,
+        "encoder_zero_change": false,
+        "hard_symmetry_projection": false,
+        "extra_history_or_estimator": false,
+        "control_reference_only": {
+          "physics_pd_policy_ms": [
+            1,
+            5,
+            10
+          ],
+          "leg_Kp": 40,
+          "leg_Kd": 2,
+          "wheel_Kv": 0.2,
+          "leg_motor_cap_nm": 40,
+          "wheel_driver_cap_nm": 4.8
+        },
+        "distillation_teacher_recommendation": {
+          "role": "history only; current PPO source4300 in source_derivation.json"
+        },
+        "source_scope": "\u8be5\u6279\u6052\u901f\u7269\u7406\u76ee\u6807\u8868\u793a\u8303\u56f4\u53ef\u68c0\u67e5\uff0c\u53d7\u6270\u3001\u542f\u52a8\u548c\u5b9e\u673a\u6297\u632f\u4e0d\u7531\u8986\u76d6\u7387\u4fdd\u8bc1",
+        "training_plant": "NOT_SELECTED_BY_INTERFACE_DESIGN",
+        "Critic_PPO_Adam_resume": "NOT_SELECTED; \u65e7\u6559\u5e08Critic/Adam\u4e0d\u7531\u672c\u52a8\u4f5c\u58f0\u660e\u81ea\u52a8\u5bfc\u5165",
+        "BC_updates": 0,
+        "PPO_updates": 0,
+        "new_decoder_physics": "same instantaneous physical decoder; actual height-first schedule verified in Isaac_probe3",
+        "runtime_recipe_ready": true,
+        "deployment_ready": false,
+        "support_offset_table": {
+          "height_m": [
+            0.2,
+            0.22,
+            0.24,
+            0.26,
+            0.28,
+            0.3,
+            0.32,
+            0.34,
+            0.36,
+            0.38,
+            0.4
+          ],
+          "offset_rad": [
+            [
+              -0.020571343873936665,
+              -0.05702757119884094
+            ],
+            [
+              -0.11081284820703796,
+              -0.1555440107178515
+            ],
+            [
+              -0.3491564187176722,
+              -0.37790762516905463
+            ],
+            [
+              -0.348948829817821,
+              -0.37771180030381957
+            ],
+            [
+              -0.34882198437598766,
+              -0.37759639082806856
+            ],
+            [
+              -0.3487552522000352,
+              -0.37754057053821566
+            ],
+            [
+              -0.3435389986364944,
+              -0.3728135666205402
+            ],
+            [
+              -0.3310294178646732,
+              -0.36850653305619374
+            ],
+            [
+              -0.37905064299573055,
+              -0.392152213326292
+            ],
+            [
+              -0.3467577911753633,
+              -0.34899861273727373
+            ],
+            [
+              -0.4210038034297835,
+              -0.4434557257496142
+            ]
+          ]
+        },
+        "center_fit_components": {
+          "old9995_linear_offset_coeff_high_to_low": [
+            [
+              0.26081267817704235,
+              -0.24175490013552764
+            ],
+            [
+              0.2363501958837719,
+              -0.30465423371135797
+            ]
+          ],
+          "v4_correction_table_rad": [
+            [
+              -0.09656784493742587,
+              -0.0634323289915068
+            ],
+            [
+              -0.0965678449374259,
+              -0.0634323289915068
+            ],
+            [
+              -0.10240215948150783,
+              -0.0596236105683427
+            ],
+            [
+              -0.11543539816691734,
+              -0.053798386861266645
+            ],
+            [
+              -0.11543539816691736,
+              -0.053798386861266645
+            ],
+            [
+              -0.11543539816691734,
+              -0.053798386861266645
+            ]
+          ],
+          "reference_height_m": 0.34,
+          "deployment_evaluation": "Equivalent combined offset table, no separate runtime adaptation"
+        },
+        "qualified_center_anchor_heights_m": [
+          0.32,
+          0.34,
+          0.36
+        ],
+        "unvalidated_center_heights_m": [
+          0.3,
+          0.38,
+          0.4
+        ],
+        "execution_timing_contract": {
+          "version": "motion48_v4_wheel_reported_delay_actor20_dr_v2",
+          "actor_packet_nominal_ms": 20,
+          "actor_leg_packet_nominal_ms": 20,
+          "actor_packet_DR_support_ms": [
+            0,
+            10,
+            20
+          ],
+          "target_nominal_ms": 5,
+          "wheel_channels": [
+            2,
+            5
+          ],
+          "wheel_transport_nominal_ms": [
+            7,
+            11
+          ],
+          "wheel_tau_ms": [
+            0.0,
+            0.0
+          ],
+          "wheel_transport_DR_halfwidth_ms": 4.0,
+          "wheel_delay_semantics": "reported combined onset, represented once as post-PD transport; not an independently measured pure delay",
+          "leg_response": "complete V4 tuple and existing DR; no additional20ms motor delay",
+          "DR": "existing reset-only per-env curriculum, nominal anchors retained",
+          "previous": "actual locally adopted physical target; not sensor-delayed",
+          "input_scales": [
+            1.5,
+            100.0
+          ],
+          "motor_limits_unchanged": false
+        }
+      },
+      "activation": "ELU"
+    },
+    "student_labels": {
+      "kind": "motion_contract",
+      "contract": {
+        "kind": "EXPLICIT_PPO_OUTPUT_CONTRACT",
+        "action_version": "motion_multiheight020_support_center_050_80_v1",
+        "input_version": "multiskill_mcu_v2",
+        "actor_dimensions": [
+          31,
+          2048,
+          1024,
+          512,
+          6
+        ],
+        "hidden_activation": "ELU(alpha=1)",
+        "mean_activation": "Tanh",
+        "leg_halfwidth_rad": 0.5,
+        "wheel_halfwidth_rad_s": 80.0,
+        "output_order_geometric": [
+          "right_hip",
+          "right_active",
+          "right_wheel",
+          "left_hip",
+          "left_active",
+          "left_wheel"
+        ],
+        "center_rule": "current commanded height -> identical geometry + piecewise-linear support offsets; stationary transition before travel; no extrapolation",
+        "center_formula": {
+          "version": "flat_two_link_geometry_v1",
+          "hip_above_root_m": 2.4e-05,
+          "wheel_radius_m": 0.06,
+          "equivalent_upper_m": 0.21,
+          "equivalent_lower_m": 0.25,
+          "hip_zero_deg": 47.1033888,
+          "active_zero_deg": 47.1080837,
+          "clearance_m": 0.0
+        },
+        "center_source": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_07__motion_multiheight_center_distillation/center_fit.json",
+        "center_scope": "V4 nominal quiet zero-command target reference; ability assessed separately",
+        "height_definition": "\u6c34\u5e73\u5730\u9762\u81f3\u539f\u6a21\u578broot\u539f\u70b9\u7684\u7ad6\u76f4\u9ad8\u5ea6\uff1b\u9acb\u8f74\u6bd4root\u9ad80.000024m\uff0c\u8f6e\u534a\u5f840.060m",
+        "input_leg_q_and_previous_scale_rad": 1.5,
+        "input_wheel_previous_scale_rad_s": 100.0,
+        "previous_source": "actual adopted physical targets after mechanical protection; never raw action or unadopted prediction",
+        "height_command_range_m": [
+          0.2,
+          0.4
+        ],
+        "height_change_within_episode": true,
+        "encoder_zero_change": false,
+        "hard_symmetry_projection": false,
+        "extra_history_or_estimator": false,
+        "control_reference_only": {
+          "physics_pd_policy_ms": [
+            1,
+            5,
+            10
+          ],
+          "leg_Kp": 40,
+          "leg_Kd": 2,
+          "wheel_Kv": 0.2,
+          "leg_motor_cap_nm": 40,
+          "wheel_driver_cap_nm": 4.8
+        },
+        "distillation_teacher_recommendation": {
+          "role": "history only; current PPO source4300 in source_derivation.json"
+        },
+        "source_scope": "\u8be5\u6279\u6052\u901f\u7269\u7406\u76ee\u6807\u8868\u793a\u8303\u56f4\u53ef\u68c0\u67e5\uff0c\u53d7\u6270\u3001\u542f\u52a8\u548c\u5b9e\u673a\u6297\u632f\u4e0d\u7531\u8986\u76d6\u7387\u4fdd\u8bc1",
+        "training_plant": "NOT_SELECTED_BY_INTERFACE_DESIGN",
+        "Critic_PPO_Adam_resume": "NOT_SELECTED; \u65e7\u6559\u5e08Critic/Adam\u4e0d\u7531\u672c\u52a8\u4f5c\u58f0\u660e\u81ea\u52a8\u5bfc\u5165",
+        "BC_updates": 0,
+        "PPO_updates": 0,
+        "new_decoder_physics": "same instantaneous physical decoder; actual height-first schedule verified in Isaac_probe3",
+        "runtime_recipe_ready": true,
+        "deployment_ready": false,
+        "support_offset_table": {
+          "height_m": [
+            0.2,
+            0.22,
+            0.24,
+            0.26,
+            0.28,
+            0.3,
+            0.32,
+            0.34,
+            0.36,
+            0.38,
+            0.4
+          ],
+          "offset_rad": [
+            [
+              -0.020571343873936665,
+              -0.05702757119884094
+            ],
+            [
+              -0.11081284820703796,
+              -0.1555440107178515
+            ],
+            [
+              -0.3491564187176722,
+              -0.37790762516905463
+            ],
+            [
+              -0.348948829817821,
+              -0.37771180030381957
+            ],
+            [
+              -0.34882198437598766,
+              -0.37759639082806856
+            ],
+            [
+              -0.3487552522000352,
+              -0.37754057053821566
+            ],
+            [
+              -0.3435389986364944,
+              -0.3728135666205402
+            ],
+            [
+              -0.3310294178646732,
+              -0.36850653305619374
+            ],
+            [
+              -0.37905064299573055,
+              -0.392152213326292
+            ],
+            [
+              -0.3467577911753633,
+              -0.34899861273727373
+            ],
+            [
+              -0.4210038034297835,
+              -0.4434557257496142
+            ]
+          ]
+        },
+        "center_fit_components": {
+          "old9995_linear_offset_coeff_high_to_low": [
+            [
+              0.26081267817704235,
+              -0.24175490013552764
+            ],
+            [
+              0.2363501958837719,
+              -0.30465423371135797
+            ]
+          ],
+          "v4_correction_table_rad": [
+            [
+              -0.09656784493742587,
+              -0.0634323289915068
+            ],
+            [
+              -0.0965678449374259,
+              -0.0634323289915068
+            ],
+            [
+              -0.10240215948150783,
+              -0.0596236105683427
+            ],
+            [
+              -0.11543539816691734,
+              -0.053798386861266645
+            ],
+            [
+              -0.11543539816691736,
+              -0.053798386861266645
+            ],
+            [
+              -0.11543539816691734,
+              -0.053798386861266645
+            ]
+          ],
+          "reference_height_m": 0.34,
+          "deployment_evaluation": "Equivalent combined offset table, no separate runtime adaptation"
+        },
+        "qualified_center_anchor_heights_m": [
+          0.32,
+          0.34,
+          0.36
+        ],
+        "unvalidated_center_heights_m": [
+          0.3,
+          0.38,
+          0.4
+        ],
+        "execution_timing_contract": {
+          "version": "motion48_v4_wheel_reported_delay_actor20_dr_v2",
+          "actor_packet_nominal_ms": 20,
+          "actor_leg_packet_nominal_ms": 20,
+          "actor_packet_DR_support_ms": [
+            0,
+            10,
+            20
+          ],
+          "target_nominal_ms": 5,
+          "wheel_channels": [
+            2,
+            5
+          ],
+          "wheel_transport_nominal_ms": [
+            7,
+            11
+          ],
+          "wheel_tau_ms": [
+            0.0,
+            0.0
+          ],
+          "wheel_transport_DR_halfwidth_ms": 4.0,
+          "wheel_delay_semantics": "reported combined onset, represented once as post-PD transport; not an independently measured pure delay",
+          "leg_response": "complete V4 tuple and existing DR; no additional20ms motor delay",
+          "DR": "existing reset-only per-env curriculum, nominal anchors retained",
+          "previous": "actual locally adopted physical target; not sensor-delayed",
+          "input_scales": [
+            1.5,
+            100.0
+          ],
+          "motor_limits_unchanged": false
+        }
+      }
+    },
+    "dataset": {
+      "path": "/home/kellen/wheel_leg_training_data/motion_low_support_reteach_20261114/episodes_block3.npz",
+      "sha256": "010a926a4a34406ebad7169a144dfc7e7f1fa4e51d612accbbd9889327f40694",
+      "collection_id": "low_support_aggregate_block3"
+    },
+    "initial_student": {
+      "path": "/home/kellen/wheel_leg_training_data/motion_low_support_reteach_20261114/runs/motion_low_support_block2_BC16/supervision/phase_001_fit/student_actor.pt",
+      "sha256": "f58b1af0bcb222601e183c035ce46ce5a1478b21ac11d9cc5222394fbcf3fc0b"
+    },
+    "repetitions": 1,
+    "batch_size": 256,
+    "learning_rate": 5e-06,
+    "validation_fraction": 0.2,
+    "holdout_fraction": 0.2
+  }
+}
