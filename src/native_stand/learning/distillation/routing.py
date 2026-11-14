@@ -129,6 +129,10 @@ def label(teachers, observation, conditions, student_codec, *, student_kind=None
     owner = torch.full((len(observation),), -1, dtype=torch.long, device=observation.device)
     for index, teacher in sorted(enumerate(teachers), key=lambda row: -row[1].priority):
         mask = (owner < 0) & teacher.eligible(conditions, len(observation), observation.device)
+        if teacher.observation_adapter is not None:
+            from native_stand.learning.distillation.jump_labels import motion_teacher_eligible
+
+            mask &= motion_teacher_eligible(observation, teacher.observation_adapter)
         if bool(mask.any()):
             teacher_observation = observation[mask]
             if teacher.observation_adapter is not None:

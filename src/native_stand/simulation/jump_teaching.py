@@ -40,7 +40,8 @@ class BalanceCollection:
         # Teacher only labels supported, upright student states. Uncovered
         # states stay recorded/unlabelled, never converted to success labels.
         safe = (
-            measured["contact"].all(-1)
+            self.env.observations()["recovery_actor_valid"][:, 0]
+            & measured["contact"].all(-1)
             & ~measured["restricted"]
             & (measured["tilt"].abs().amax(-1) < 0.35)
             & (measured["root"][:, 2] > 0.25)

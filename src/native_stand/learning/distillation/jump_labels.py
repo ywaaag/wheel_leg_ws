@@ -82,3 +82,14 @@ def match_jump_executor(physical, conditions, mask, version):
     if (result.abs() > guard).any():
         raise ValueError("Teacher executor target outside Jump guard; no clipping")
     return result
+
+
+def motion_teacher_eligible(observation, version):
+    if version != "jump37_to_motion31_v1" or observation.shape[-1] != 37:
+        raise ValueError("Explicit Jump37 to Motion31 adapter required")
+    return (
+        (observation[:, 25:31] == observation.new_tensor([0, 0, 1, 0, 0, 1])).all(-1)
+        & (observation[:, 24] >= 0.6)
+        & (observation[:, 24] <= 0.8)
+        & torch.isfinite(observation).all(-1)
+    )

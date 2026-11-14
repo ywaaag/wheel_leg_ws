@@ -26,6 +26,8 @@ def test_motion_projection_keeps_actual_physical_previous_and_replaces_only_flag
 
 def test_routing_projects_teacher_only_and_preserves_raw_student_labels():
     x = torch.randn(4, 37)
+    x[:, 24] = 0.68
+    x[:, 25:31] = x.new_tensor([0, 0, 1, 0, 0, 1])
     seen = []
 
     def mean(obs):
@@ -114,3 +116,12 @@ def test_supervision_request_does_not_reserve_or_settle_ppo_course():
     assert request["kind"] == "landing_only" and request["drop_m"] == 0
     assert next_request["request_id"] == 2
     assert course.state_dict() == before
+
+
+def test_inactive_zero_actor_is_uncovered_even_if_physical_contact_is_safe():
+    from native_stand.learning.distillation.jump_labels import motion_teacher_eligible
+
+    x = torch.zeros(2, 37)
+    x[0, 24] = 0.68
+    x[0, 25:31] = x.new_tensor([0, 0, 1, 0, 0, 1])
+    assert motion_teacher_eligible(x, "jump37_to_motion31_v1").tolist() == [True, False]
