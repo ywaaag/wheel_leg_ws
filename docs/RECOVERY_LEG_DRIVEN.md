@@ -2,7 +2,7 @@
 
 本配方是独立新任务：合法Swing→收短→短腿转向承重构型→伸腿抬升→接稳0.5秒。不是旧Recovery自主保持10秒能力的重新认证。Motion实际接管仍需独立连续交接验收。
 
-正式入口：`wheel-leg train --config configs/jobs/recovery_leg_driven2100_10000.json --dry-run`；实际执行同一CLI、owner/worker、公共driver和PhysicalPPO。几何/奖励/课程在`tasks/recovery/leg_driven.py`，Isaac环境负责真实1ms几何、轮速、姿态、动力学读回，不新增训练循环。完整恢复仍经`wheel-leg resume`，保存阶段、课程级别、1ms统计、双Adam及执行状态。
+正式入口：`wheel-leg train --config configs/jobs/recovery_leg_driven2100_10000_attempt2.json --dry-run`；实际执行同一CLI、owner/worker、公共driver和PhysicalPPO。几何/奖励/课程在`tasks/recovery/leg_driven.py`，Isaac环境负责真实1ms几何、轮速、姿态、动力学读回，不新增训练循环。完整恢复仍经`wheel-leg resume`，保存阶段、课程级别、1ms统计、双Adam及执行状态。
 
 Actor为31→2048→1024→512→6；输入列、真实dq、实际采用previous和年龄不变。输出仍为固定中心三次腿绝对目标与100×轮mean；轮Kv=.2、PD40/2、40/4.8Nm及1/5/10ms、Actor20ms、目标5ms、轮PD后7/11ms保持。没有运行时轮速裁剪、虚拟锁轮、额外滤波或补偿。
 
