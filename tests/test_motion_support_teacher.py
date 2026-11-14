@@ -100,3 +100,23 @@ def test_public_teacher_routing_records_shift_identity_and_rejects_student_inver
     assert owners.tolist() == [0] * 4 and valid.all()
     with pytest.raises(ValueError, match="inverse"):
         codec.labels(torch.zeros(4, 6), x)
+
+
+def test_supervision_preflight_rejects_shift_before_owner_creates_run(tmp_path):
+    from dataclasses import replace
+
+    from test_public_migration import supervision_job
+
+    from native_stand.experiments.supervision import preflight
+
+    job = supervision_job(tmp_path)
+    invalid = shift()
+    invalid["offset_rad"][0][0] = 2
+    t = replace(
+        job.supervision.teachers[0],
+        labels=dict(kind="motion_support_teacher", support_shift=invalid),
+    )
+    job = replace(job, supervision=replace(job.supervision, teachers=(t,)))
+    with pytest.raises(ValueError, match="bounded"):
+        preflight(job)
+    assert not (tmp_path / "runs").exists()
