@@ -151,6 +151,33 @@ probe 收据没有同一 PD tick 的 held q/dq、P/D、补偿、adopted 序列�
 
 因此目前没有现成单Teacher证据保证当前Jump Plant的全部低速。小855文件可读不等于其闭环能力已认证；本轮未运行ONNX、重建缺失大模型或以旧final/holdout拟合新标签。
 
+### 4300低命令域复核（2026-11-15）
+
+不能将当前Jump的跟踪缺口倒推为“4300原来不会低速”，也不能把它全部归因于BC。已按两份旧JSON的SHA逐项核对，未查询正在进行的轮机械对照。
+
+原Isaac `diagnostics/update_04300.json` 的 nominal行如下。各行完整结束数与通过数相同，任务及质量通过率均为1：
+
+| cohort | vx/yaw命令 | mean_physical_response | 完整结束回合 |
+|---|---|---:|---:|
+| 32 | +.25 / 0 | +.222944m/s | 42 |
+| 35 | +.5 / 0 | +.489716m/s | 40 |
+| 53 | -.25 / 0 | -.267841m/s | 42 |
+| 56 | -.5 / 0 | -.492373m/s | 40 |
+| 74 | 0 / +1 | +.998189rad/s | 62 |
+| 89 | 0 / -1 | -1.003255rad/s | 62 |
+
+该文件明确scope为跨多个策略更新的随机训练回合，不是固定4300独立证书。DR行仍有几何/运动失败，不能用上述nominal结果覆盖。它支持原域训练中已有低速响应；不能外推固定4300在±.2vx/±.3yaw或Jump执行下通过。
+
+零命令统计也不能混用：`cohort_statistics.hold.cohort_0.mean` 给出的有符号vx为-.060436755m/s、height=.34007975m、双轮接触1；`onpolicy.rows[0].mean_physical_response=null` 不是实际速度0。其episode均值 `horizontal_speed_mps=.03676036` 是另一聚合口径，不能拿来替换该有符号vx。
+
+固定4300的旧MuJoCo对照文件为 `artifacts/2026_11_10__motion48_anchored_recovery10000/source_comparison/source4300/episodes.json`，SHA为 `9cbe05a326d20cb7232e56ca424b59defac7856bb8a23797ea888ce96242f74b`。在4.8Nm参考Plant和声明初态下，nominal_vx0实际33.52s、5–33.52s窗vx=-.164034m/s、heightMAE=.001352m、双支撑1。spin±1的yaw为+1.085384/-1.069666rad/s，但双支撑仅.891059/.837027，两项质量失败。这不是原Isaac或当前Jump结果；本轮没有固定原域±.2vx/±.3yaw独立结果，保持UNKNOWN。
+
+用户提供的BC60与同Jump教师RMSE分别约为：vx+.2 `.0738/.0728`、vx-.2 `.1831/.1814`、yaw+.3 `.2959/.2929`、yaw-.3 `.025/.0263`。本轮只记录该摘要，没有查询BC运行或重跑。它支持BC主要复制当前Teacher执行已有的追踪缺口，而非证明全低速能力或将缺口归为BC新增。BC的signed yaw mean未由这些RMSE给出，不能仅据RMSE判反向；Teacher的已有signed样本分析仍按前表表达。
+
+当前Jump正漂与旧MuJoCo负漂不能因绝对量接近被称为同一固有偏置。已有armature+zero-drag组合对照待唯一owner自然结算后，比较仍应绑定同seed、时序、初态及实际readback；如改善，只能先归因于这套轮机械组合，不能分别认定armature或摩擦为唯一原因。不据本节更换通用Teacher或改变Plant。
+
+本次来源、完整字段及数值收据为 `artifacts/jump_execution_audit_20261114/motion4300_low_command_domains_20261115_v1.json`。新增物理/GPU/BC/PPO及worker操作均0。
+
 ## 验证和剩余门槛
 
 - 领域 CPU56项通过（21.59s），其中新增真实 C 边界5项；使用 portable guard 禁止 mj_step、CUDA 初始化及 AppLauncher。
