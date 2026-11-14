@@ -2,9 +2,7 @@
 
 ## 腿主导低轮速Recovery新任务（2026-11-14）
 
-用户授权新10000更新、墙钟null。独立worktree `/home/kellen/wheel_leg_recovery_leg_ws` / `recovery/leg-driven-low-wheel` 从main `6df1353`建立；旧Recovery训练已用户停止于3149，新任务不挪旧余额。复用2100骨干/四腿输出，显式零初始化两个轮输出末层，新Critic942/双Adam；关闭旧大轮速动作prior与BC。顺序/全程真实轮速/姿态、1ms统计、分段辅助课程与候选门已实现；首次提交在初始观测处因Lifecycle reset误清执行限矩而FAILED/0更新；修复为仅重置声明的自有状态，失败run与原配方保留。后续attempt2分配仍为10000总额度（前段已耗0），不刷新额度。实际开训以对应run收据为准。当前本机另有Jump owner，未操作；用户已明确允许共享GPU，提交前仍核对显存/磁盘及唯一Recovery worker。主源/电控未改。
-
-
+独立worktree `/home/kellen/wheel_leg_recovery_leg_ws`，用户授权10000更新、墙钟null、允许与Jump共享GPU。attempt1构造失败0更新；attempt2真实完成6次后因worker未分派RecoveryAdapter而工程停止，完整u6与原账本保留。新版本修正worker正式分派及first12真实transition/优化器检查，完整来源warmup/双Adam/RNG保留，不重做warmup。attempt3配置仅分配9994次，累计仍10000；源未完成回合fresh reset。实际启动及能力以数据根run收据为准。旧Recovery、主源、电控、Motion远端与Jump均不改。
 
 ## Motion少量变高度接续（2026-11-13）
 

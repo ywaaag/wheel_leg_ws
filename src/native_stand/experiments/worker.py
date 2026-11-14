@@ -629,10 +629,10 @@ def _execute_stage(context, stage: str, payload: dict[str, Any] | None):
                     )
                 )
             return drive(context, JumpAdapter(backend), stage=stage, resume_from=payload)
-        if (
-            context.job.backend == "isaac_recovery"
-            and context.job.assets.get("recovery_standalone_course", {}).get("version")
+        if context.job.backend == "isaac_recovery" and (
+            context.job.assets.get("recovery_standalone_course", {}).get("version")
             == "recovery_Swing_priority_own_hold_v2"
+            or context.job.reward.version == "recovery_leg_driven_low_wheel_v1"
         ):
             from native_stand.simulation.driver import run_stage as drive
             from native_stand.simulation.recovery_adapter import RecoveryAdapter
