@@ -195,3 +195,45 @@ Space停止，Esc停止并暂停，R归零并重置；键盘不自动解除暂�
 
 
 少量高度训练准备配置：`configs/jobs/motion_height_small_dose_prepared.json`。使用原v3课程将10%总样本分给0.20～0.40m六个离散高度的站立与±0.25m/s平地运动，先变高再运动，55%基础复习保留。准备配置零额度，实际切换需最终完整停止点及剩余额度SHA分配；详情见Motion能力矩阵“少量变高度并行训练”。不新增授权，不把准备配置或高度输出范围称为已掌握能力。
+
+### 只读训练与能力看板
+
+```bash
+PYTHONPATH=src python -m native_stand dashboard --root /path/to/runs --dry-run
+PYTHONPATH=src python -m native_stand dashboard --root /path/to/runs --port 8765
+```
+
+打开 `http://127.0.0.1:8765`。`--root` 可重复，指定单个 run 或直接包含 run 的目录；不是任意文件浏览器。远端可在远端运行同一命令，再自行 SSH 端口转发；本命令不连接远端。默认手动刷新，可显式开启页面内30秒刷新。没有训练控制、评估或删除接口，也不启动 TensorBoard。
+
+状态和消耗读取 run/state/budget；曲线直接读取 JSONL，不要求 events。RUNNING 不代表进程已核验。训练窗口、固定模型评估、实机证据分别显示；缺失值为 UNKNOWN，不生成能力排名。Motion展示已有 maneuver 训练窗口；Jump/Recovery通用状态和曲线可读，领域能力适配暂不支持。固定模型展示已有评估索引并核对SHA；实机适配尚未支持。读取限制为最近2000条指标、100份诊断，每root最多50个run，普通文件读取上限4MiB；大state仅解析前256KiB的完整顶层摘要字段，不宣称整体校验通过；共享索引超限单独报错，不阻塞其他任务；截断边界和读取错误不代表任务失败。不同评分域不直接比较，训练窗口不是保存点的固定成绩。
+
+若已有 TensorBoard 服务，可显式传 `--tensorboard-url http://127.0.0.1:6006` 提供跳转；只检测已有事件目录，不转换、不写入原run。TensorBoard自身使用方式参见[官方文档](https://www.tensorflow.org/tensorboard/get_started)。目标矩阵从现有Motion文档读取；不包含该文档的安装显示不支持。旧诊断缺少明确窗口计数身份时，样本计数显示UNKNOWN，原始值保留在证据中。评分阈值或条件未产出时不猜测，比较显示证据不足。
+
+Tailscale IP入口可用TCP转发：看板增加 `--public-host <本机Tailscale IPv4>`，仍只监听127.0.0.1；管理员显式执行 `sudo tailscale serve --bg --tcp=80 tcp://127.0.0.1:18765` 后，通过该Tailscale IP访问。HTTP Serve按域名路由，不能替代此IP入口。只对tailnet提供服务，不使用Funnel、不开放公网；其他Host仍拒绝。
+
+看板首页优先选择有指标的最近任务，提供中文摘要卡片和奖励、loss、KL、耗时、梯度、优化步数、LR、Torch显存八组SVG曲线；曲线可悬停看原值，缺指标明确留空。完整身份和原始JSON置于折叠证据区，不默认堆放。领域/任务可筛选；训练矩阵默认展示最近窗口。网页改版后刷新整个页面（Ctrl+F5），页面内“刷新数据”只更新产物。
+
+### 远程算力平台只读接入
+
+每次开启都显式传连接资料，没有源码默认地址、端口或密码：
+
+```bash
+PYTHONPATH=src python -m native_stand dashboard --root /path/to/local/runs \
+  --remote-motion --remote-host HOST --remote-port PORT --remote-user USER \
+  --remote-root /explicit/authorized/run --remote-fingerprint SHA256:VERIFIED_FINGERPRINT \
+  --remote-password-prompt
+```
+
+密码由后端 `getpass` 输入，仅当前进程内存，不在argv、配置、日志或网页中；不传prompt选项时使用现有SSH key/agent。下一次更换服务器或密码，重新启动**看板后端**输入新资料，不涉及训练。网页允许显式编辑host/port/user/已核验指纹；run允许目录仅由后端启动参数指定，不开放任意路径输入。修改连接后旧快照保留并标过期。已有known_hosts严格校验且额外核对ED25519指纹；新端口需先核对主机密钥再登记，绝不自动接受。OpenSSH/pexpect读取固定stdlib探针，不使用SFTP/scp，不安装远端agent；远端需系统python3，不依赖训练Python。
+
+点击“刷新远端快照”才连接；页面普通刷新只读缓存，不持续SSH轮询。采集总时限45秒、传输上限18MiB，文件白名单与SHA校验，最近5份诊断、20份有界评估、JSONL尾部最多2MiB。过大的候选/索引显示读取限制，不下载checkpoint、不自动hash模型。连接拒绝、认证失败、超时、主机身份问题与训练状态分别报告；失败不覆盖上次成功快照。
+
+资源是瞬时快照：GPU整卡/compute进程显存与Torch指标分开；容器CPU配额取cgroup，affinity不是quota；GPU宿主PID不能直接当容器PID。缺启动身份start_ticks时进程保持UNKNOWN。没有启动/停止/恢复/清理/任意远端命令接口。Jump/Recovery远端路径未授权时不接入。
+
+连接地址、端口、用户名和指纹均为本次运行资料，不写死在源码；不能把上一次GPU、PID或机器配额当成当前事实。网页连接资料只保存到当前后端内存，密码变更仍在后端私密重新输入。默认手动采集；可显式开启“页面打开期间每120秒采集远端”，关闭页面即停止，无独立watcher。快照超过300秒标过期；普通本地刷新不触发SSH。已有看板systemd服务不自动存储远端密码，后台自动重启不会凭空恢复凭据。
+
+### 新训练自动出现在看板
+
+不需要另一套登记表。正式 `wheel-leg train` 已写入 `run.json` 和 `startup_handshake.json`，提交JSON现在返回 `dashboard.artifact_root/run/identity_record`，Codex应把该run及其身份交付给用户；看板登记失败不改变训练提交或预算，禁止重复提交训练来修复显示。
+
+本地看板 `--root /authorized/runs` 在每次页面数据刷新时发现直接子目录的新run。远端 `--remote-root` 可以指定单个run，或由用户明确授权的**runs目录**；点击“刷新远端快照”后自动发现直接子run，不递归扫描磁盘、不扫描端口。最多20个run（按产物文件更新时间选择最近项，不作为训练时间轴）、总传输14MiB；资源只采一次。新run继续复用原SSH连接资料与私密凭据，不加载checkpoint。下次更换平台重新配置连接；远端根目录只在后端参数中授权，网页不能自行扩大范围。页面自动刷新默认关闭。

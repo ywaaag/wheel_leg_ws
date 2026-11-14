@@ -12,3 +12,5 @@ onnx==1.21.0
 # Static USD dependency closure and non-integrating MuJoCo model contracts.
 usd-core==25.11
 mujoco==3.8.0
+# Optional dashboard OpenSSH password prompt transport (no remote training dependency).
+pexpect==4.9.0

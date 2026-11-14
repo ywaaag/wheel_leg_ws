@@ -37,7 +37,8 @@ def build_report(run_dir: str | Path, *, metrics_tail: int = 5, state_snapshot=N
         lines.append(f"- 失败: {state['failure']}")
     lines.append("")
     lines.append("## 评估")
-    for kind, entry in sorted((evaluations.get("evaluations") or {}).items()):
+    for entry in evaluations.get("evaluations") or []:
+        kind = entry["kind"]
         path = Path(entry["path"])
         summary = summarize(read_json(path, {})) if path.is_file() else {"status": "MISSING"}
         lines.append(

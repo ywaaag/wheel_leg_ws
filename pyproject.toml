@@ -20,7 +20,7 @@ wheel-leg = "native_stand.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-native_stand = ["simulation/*.json", "simulation/*.js", "simulation/control_core_source/*", "simulation/jump_control_source/*", "**/*.html"]
+native_stand = ["simulation/*.json", "simulation/*.js", "integrations/*.js", "simulation/control_core_source/*", "simulation/jump_control_source/*", "**/*.html"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
