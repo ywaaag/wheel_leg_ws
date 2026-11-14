@@ -125,3 +125,28 @@ def test_inactive_zero_actor_is_uncovered_even_if_physical_contact_is_safe():
     x[0, 24] = 0.68
     x[0, 25:31] = x.new_tensor([0, 0, 1, 0, 0, 1])
     assert motion_teacher_eligible(x, "jump37_to_motion31_v1").tolist() == [True, False]
+
+
+def test_bc_inference_contract_normalizes_default_activation(tmp_path):
+    from native_stand.learning.inference import InferenceSpec, build_actor, load_model
+    from native_stand.artifacts.io import file_sha256
+
+    record = dict(
+        kind="direct",
+        input_dim=37,
+        hidden_dims=[8, 4],
+        output_dim=6,
+        input_contract={"version": "test"},
+        output_contract={"mean_activation": "linear"},
+    )
+    spec = InferenceSpec.from_record(record)
+    actor = build_actor(spec)
+    path = tmp_path / "student.pt"
+    torch.save({"actor": actor.state_dict(), "inference_spec": record}, path)
+    loaded = load_model(path, spec, sha256=file_sha256(path))
+    x = torch.randn(5, 37)
+    torch.testing.assert_close(loaded.mean(x), actor({"student_actor": x}))
+    record["activation"] = "ReLU"
+    torch.save({"actor": actor.state_dict(), "inference_spec": record}, path)
+    with pytest.raises(ValueError, match="activation"):
+        load_model(path, spec, sha256=file_sha256(path))
