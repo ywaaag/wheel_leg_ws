@@ -22,9 +22,12 @@ class InitialStates:
 
     def select(self, specs, origins, *, height_conditioned):
         names = [
-            (f"standing_h{s['height_m']:.2f}" if height_conditioned else "standing")
-            if s["standing"]
-            else "Swing"
+            s.get("pose_name")
+            or (
+                (f"standing_h{s['height_m']:.2f}" if height_conditioned else "standing")
+                if s["standing"]
+                else "Swing"
+            )
             for s in specs
         ]
         ids = torch.tensor([self.indices[name] for name in names], device=self.q.device)

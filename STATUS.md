@@ -25,6 +25,10 @@
 
 # 当前任务
 
+## Recovery阶段推进重启（2026-11-15）
+
+用户授权设计配方并重启，独立`recovery/leg-progress-v2` worktree从main `17e1ac7`建立，保留旧Recovery与所有run。原10000已耗1406，余8594；正式配置`configs/jobs/recovery_leg_progress_remaining8594.json`只分配余额，墙钟null。CPU参考路径闭链/限位可行，hip近饱和是参考需要，未扩scale。新增阶段误差成本、6/6/10阶段事件奖励、不可恢复顺序失败结束、9/s保守失败尾款，采样40%完整Swing+35%转腿难点；轮std0.5显式合同，确定性输出不变。从原2100派生零轮head Actor均值重新初始化，新942 Critic/双Adam/首5 warmup，非u1400完整恢复。准备与实际启动证据见数据根`recovery_leg_progress_20261115`；真实能力NOT_RUN。
+
 ## Motion原Student050新PPO长训准备（2026-11-15）
 
 用户明确选用原Student `258aae9d`，授权完成接线/smoke并新授10000次在线更新、训练墙钟不限；GPU由用户稍后开启，本轮不自动长训、不建watcher。旧累计在线9519与104轮BC保留，旧7219余额退役。52次本机smoke实际COMPLETED，全部计入新额度，余9948；正式历史基数9571、累计上限19519，不退款故障或回退消耗。两个初期0更新失败与账本保留。新正式run尚未创建。

@@ -227,3 +227,5 @@ Motion少量高度配方`configs/jobs/motion_height_small_dose_prepared.json`复
 `artifacts/runtime_paths.py::resolve_runs_root`在写入边界解析显式runs-root或WHEEL_LEG_DATA_ROOT，不在模块导入时绑定源码目录。owner创建run并记录同一根目录的models.json，PPO与监督均复用；resume遵循原run记录。export默认使用数据根，不回写源码run。显式导出/诊断/导入目标由调用者选择已确认数据盘，测试可用/tmp。
 
 `integrations/cloud_bundle.py::adopt_local_dependencies`接收明确保留集合，逐文件核验来源/目标、拒绝冲突，复用已有内容；只对显式不可变文件硬链接，可变文件复制。ModelIndex保护先于派生映射发布，故障重试重新核SHA；该接口不扫描历史、不删除原件。回执不是第二套资产保护索引，删除仍以唯一ModelIndex及实际消费者为准。RuntimePaths读取派生映射，原配置/spec和模型不改写。
+
+腿主导Recovery增量：`tasks/recovery/leg_driven.py`提供几何顺序、实际1ms轮速/姿态成本、942D因果Critic后缀及训练窗口课程；复用现有Recovery backend/adapter、PhysicalActor和公共owner/worker/driver，不新增执行入口。新任务接稳0.5秒与旧own-hold10语义分开；详见`docs/RECOVERY_LEG_DRIVEN.md`。

@@ -28,6 +28,8 @@ def environment_class(
     from native_stand.env import NativeStandEnv
 
     class RecoveryEnv(NativeStandEnv):
+        leg_driven = None
+
         def __init__(self, cfg, **kwargs):
             from native_stand.simulation.scenes import FlatHeight, SceneConfig
 
@@ -84,7 +86,22 @@ def environment_class(
                 )
             if getattr(cfg, "recovery_preentry_reward", False):
                 from .preentry_lifecycle import Lifecycle as life_class
-            self.life = life_class(n, self.device)
+            self.leg_driven = getattr(cfg, "recovery_leg_driven", None)
+            if self.leg_driven:
+                from native_stand.tasks.recovery.leg_driven import Course
+                from native_stand.tasks.recovery.leg_driven import Lifecycle as LegLifecycle
+
+                course_class = Course
+                self.life = LegLifecycle(
+                    n,
+                    self.device,
+                    self.leg_driven["geometry"],
+                    self.leg_driven["gamma"],
+                    anti_prone=self.leg_driven.get("anti_prone"),
+                    progression=self.leg_driven.get("progression"),
+                )
+            else:
+                self.life = life_class(n, self.device)
             self.phase_readback = None
             if getattr(cfg, "recovery_preentry_reward", False):
                 from native_stand.tasks.recovery.phase_readback import PhaseReadback
@@ -100,7 +117,12 @@ def environment_class(
             self.physics = PhysicalParameters(self, contract, initials["mechanics"])
             self.init_catalog = initials
             self.initial_states = InitialStates(initials, self.robot.joint_names, self.device)
-            self.courses = [course_class(cfg.seed + i) for i in range(n)]
+            self.courses = [
+                course_class(cfg.seed + i, fractions=self.leg_driven["course_fractions"])
+                if self.leg_driven
+                else course_class(cfg.seed + i)
+                for i in range(n)
+            ]
             if getattr(cfg, "recovery_standalone_course", False):
                 for course in self.courses:
                     course.stage = getattr(cfg, "recovery_standalone_initial_stage", 0)
@@ -278,6 +300,22 @@ def environment_class(
             root_contact = matrix[:, self.root_sensor_id].sum(-2).norm(dim=-1)
             return frame, q, v, state, position, velocity, clearance, root_contact, angular
 
+        def leg_geometry_readback(self):
+            data = self.robot.data
+            quaternion = data.root_link_quat_w.torch
+            centers = data.body_pos_w.torch[:, self.wheel_body_ids]
+            anchors = [
+                data.body_pos_w.torch[:, parent]
+                + quat_apply(data.body_quat_w.torch[:, parent], local.expand(self.num_envs, -1))
+                for parent, local in self.hip_anchors
+            ]
+            vectors = quat_apply_inverse(
+                quaternion[:, None, :].expand(-1, 2, -1), centers - torch.stack(anchors, 1)
+            )
+            return torch.cat(
+                (vectors.norm(dim=-1), torch.atan2(-vectors[:, :, 2], -vectors[:, :, 1])), -1
+            )
+
         def commanded_height(self):
             from native_stand.tasks.recovery.height_context import command
 
@@ -309,6 +347,22 @@ def environment_class(
             pre_tick = self.execution.tick
             age = self.episode_steps.float() * 0.01 + (pre_tick % 10) * 0.001
             motor, net = self.execution.step(q, v)
+            if self.leg_driven:
+                data = self.robot.data
+                quaternion = data.root_link_quat_w.torch
+                gravity = quat_apply_inverse(
+                    quaternion, q.new_tensor([0.0, 0.0, -1.0]).expand(self.num_envs, -1)
+                )
+                angular = quat_apply_inverse(quaternion, data.root_link_ang_vel_w.torch)
+                self.life.substep(
+                    self.leg_geometry_readback(),
+                    v[:, WHEELS],
+                    gravity,
+                    angular,
+                    data.root_link_lin_vel_w.torch[:, 2],
+                    motor,
+                    self.execution.caps,
+                )
             self.effort.copy_(motor)
             self.robot.set_joint_effort_target_index(target=motor, joint_ids=self.ids)
             self.last_passive.copy_(
@@ -399,6 +453,8 @@ def environment_class(
                 if getattr(self.cfg, "recovery_preentry_reward", False)
                 else {}
             )
+            if self.leg_driven:
+                reward_inputs = dict(geometry=self.leg_geometry)
             result = self.life.observe(
                 time_s=time,
                 state=state,
@@ -406,7 +462,7 @@ def environment_class(
                 motor=self.execution.motor,
                 student=self.student_mask,
                 terminal=fault,
-                truncated=time >= 23.0,
+                truncated=time >= self.life.max_s,
                 hp10=hp,
                 angular_velocity=angular,
                 **reward_inputs,
@@ -451,7 +507,9 @@ def environment_class(
                 if self.handover_mode
                 else torch.zeros_like(self.student_mask)
             )
-            self.transition["initial_Swing"] = self.life.h0 < 0.27
+            self.transition["initial_Swing"] = (
+                (self.life.initial_phase == 0) if self.leg_driven else self.life.h0 < 0.27
+            )
             self.transition["task_success"] = result["success"].clone()
             terminated = result["terminated"]
             if getattr(self.cfg, "recovery_probe_full23", False):
@@ -565,6 +623,11 @@ def environment_class(
                             if steps >= 2300
                             else "fault",
                         )
+                    if self.leg_driven:
+                        self.completed[-1]["leg_driven"] = self.life.episode_record(i)
+                        self.completed[-1]["initial_Swing"] = (
+                            self.episode_spec[i]["group"] == "full_Swing"
+                        )
                     self.completed_count += 1
                     if len(self.completed) > 4096:
                         self.completed = self.completed[-4096:]
@@ -646,6 +709,14 @@ def environment_class(
                 self.measured()
                 self.phase_readback.reset(
                     ids, self.leg_geometry[ids], root[:, 2] - self.scene.env_origins[ids, 2]
+                )
+            if self.leg_driven:
+                self.measured()
+                self.life.configure_reset(
+                    ids,
+                    self.leg_geometry[ids],
+                    torch.tensor([s["initial_phase"] for s in specs], device=self.device),
+                    torch.tensor([s["course_level"] for s in specs], device=self.device),
                 )
             if self.height_conditioned:
                 self.life.command_height[ids] = self.height_initial[ids]
