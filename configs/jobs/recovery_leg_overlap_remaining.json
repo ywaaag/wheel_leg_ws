@@ -116,7 +116,7 @@
     },
     "recovery_isaac_acceptance": {
       "path": "/home/kellen/wheel_leg_training_data/recovery_overlap_20261115/preparation/cpu_acceptance.json",
-      "sha256": "2ead34aa65e255ec80e26c515c0b4d9018b6350012648e43567c26943cda0062"
+      "sha256": "1efa261847131f3b49c96b721584310e3112901e6a31eb12d98dbde53b205d2e"
     },
     "physical_gpu_uuid": "GPU-e704e7d4-2965-4712-9759-ba6b9910bd72",
     "gpu_resource_policy": {

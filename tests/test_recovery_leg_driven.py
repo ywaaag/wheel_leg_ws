@@ -953,6 +953,27 @@ def test_progress_recipe_public_preflight_enforces_acceptance_and_budget(tmp_pat
         ),
     )
     assert preflight(j)["PPO_updates"] == 0
+    # Public load_job_config represents initialization paths as Path objects;
+    # a JSON-bound transition necessarily stores a string. Compare identities.
+    from native_stand.artifacts.io import json_digest
+
+    full = dataclasses.replace(
+        j, initialization=dataclasses.replace(j.initialization, mode="full", checkpoint=path)
+    )
+    transition = ref(
+        "transition.json",
+        dict(
+            version="recovery_full_recipe_transition_v1",
+            source_checkpoint=dict(path=str(path), sha256=file_sha256(path)),
+            to_reward_sha256=json_digest(full.as_run_record()["reward"]),
+            to_curriculum_sha256=json_digest(full.as_run_record()["curriculum"]),
+            fresh_physical_reset=True,
+        ),
+    )
+    full = dataclasses.replace(
+        full, assets=dict(full.assets, recovery_recipe_transition=transition)
+    )
+    assert preflight(full)["PPO_updates"] == 0
     invalid = dataclasses.replace(j, limits=dataclasses.replace(j.limits, formal_updates=8595))
     with pytest.raises(ValueError, match="refund"):
         preflight(invalid)
@@ -1059,7 +1080,11 @@ def test_recipe_change_requires_bound_transition_and_preserves_full_learning(tmp
     )
     fields = copy.deepcopy(c.job.reward.fields)
     fields["progression"]["coordination"] = "overlap_short_turn_v1"
-    c.job = dataclasses.replace(c.job, reward=dataclasses.replace(c.job.reward, fields=fields))
+    c.job = dataclasses.replace(
+        c.job,
+        reward=dataclasses.replace(c.job.reward, fields=fields),
+        initialization=dataclasses.replace(c.job.initialization, checkpoint=cp),
+    )
     with pytest.raises(ValueError, match="transition identity"):
         RecoveryAdapter(b).build(c, "formal", None)
     recipe = c.job.as_run_record()

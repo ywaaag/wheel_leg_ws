@@ -288,7 +288,8 @@ def preflight(job, *, for_learning=None, resources=False):
         if (
             transition.get("version") != "recovery_full_recipe_transition_v1"
             or job.initialization.mode != "full"
-            or transition["source_checkpoint"]["path"] != job.initialization.checkpoint
+            or Path(transition["source_checkpoint"]["path"]).resolve()
+            != Path(job.initialization.checkpoint).resolve()
             or transition["source_checkpoint"]["sha256"] != job.initialization.sha256
             or file_sha256(job.initialization.checkpoint) != job.initialization.sha256
             or transition["to_reward_sha256"] != json_digest(job.as_run_record()["reward"])

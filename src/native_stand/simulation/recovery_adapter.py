@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import os
 from contextlib import nullcontext
+from pathlib import Path
 
 from native_stand.artifacts.io import file_sha256, json_digest, write_json
 from native_stand.simulation.engine import GenericPPOAdapter
@@ -67,7 +68,8 @@ class RecoveryAdapter(GenericPPOAdapter):
             source = transition["source_checkpoint"]
             if (
                 transition.get("version") != "recovery_full_recipe_transition_v1"
-                or source["path"] != context.job.initialization.checkpoint
+                or Path(source["path"]).resolve()
+                != Path(context.job.initialization.checkpoint).resolve()
                 or source["sha256"] != context.job.initialization.sha256
                 or file_sha256(source["path"]) != source["sha256"]
                 or transition["from_comparison_sha256"] != old_candidates["comparison_sha256"]
