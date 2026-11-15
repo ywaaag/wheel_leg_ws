@@ -125,3 +125,54 @@ PPO在u1034正常STOPPED_BOUNDED，累计1577/10000、余8423；BC仅记监督�
 闭环补教收尾（2026-11-15）：v4正常完成60轮BC、3060次优化；学生独立64env12s无done/restricted，所有组root均值约.354m，最大tilt .024rad，原1ms物理门保持。+0.2m/s严格跟踪（vx/yaw各误差<.1）各行至少11.61s；zero vxRMSE .136、reverse .183、正yaw RMSE .296，不能宣称全基础运动通过。教师轮armature/0drag对照未解决主要偏差，诊断参数不进入正式训练。用户明确仿真漂移不作为长训前置门槛，要求立即恢复跳跃学习；保留这些限制作为训练基线。
 
 BC学生经统一CLI export按监督配方的InferenceSpec导出，不从PPO job重建输入语义；来源与目标合同冲突仍拒绝。导出Actor-only经正式Jump PPO factory CPU装配，全部Actor张量/输出逐位一致，双Adam为空，不继承BC Adam/RNG/Critic。后续新PPO从BC60 Actor-only初始化，Critic重建并按既有5次预热，总任务已耗1577、仅余8423，不刷新。真实补教/独立检查/导出与初始化收据位于artifacts/jump_diagnosis_20261113/closed_loop_teaching_v180。
+
+## 结果课程与 Jump 专家（2026-11-15）
+
+显式配方 `configs/jobs/jump_outcome_isaac_local.json` 使用
+`assets.jump_objective=jump_unassisted_outcome_v1` 和
+`reward.version=jump_unassisted_outcome_reward_v3`。
+沿用统一 CLI → owner/worker → 公共 driver → JumpAdapter → IsaacJump → 公共 PPO。
+新 `tasks/jump/outcome.py` 只声明控制 profile 与奖励配置，不是第二个 trainer。
+
+新 profile 的实际 C config id 为 `0x4A050402`；ABI4 结构、37D/raw Normal、腿0.5rad/轮10rad/s、
+40/4.8Nm、1/5/10ms、V4、原Cylinder＋native Plane不变。
+`jump_contract_data`继续声明基础Actor接口及legacy默认；新profile显式覆盖其中的请求/下蹲/阶段超时。
+C库保留legacy默认 `0x4A050401` 以支持已有消费者。新模型的CLI export在execution中同时保存
+`jump_controller`；执行新模型必须显式选用新config id，不能只看37D维数。
+
+每回合从真实支撑初态开始，300ms后保持请求直至安全接受或回合结束。
+保留原C支撑、姿态、fresh输入和机械保护；接受直接进入PUSH，允许策略自行压缩和蹬伸，
+不强制先蹲至0.15m/350ms。PUSH最多1200ms；2s尚无真实takeoff即任务timeout，完整回合最多6s。
+100%回合为主动跳跃，目标COM腾空后上升2/5/10cm，对应双轮净空0.5/2/4cm。
+每个环境独立按正常PPO结束回合形成32回合窗口，连续两窗完整成功率≥80%、fault<5%才晋级；
+连续两窗<40%回退。不因更新数、phase切换或loss下降升级。
+
+奖励只在完整主动跳跃（支撑起跳、真实离地、apex/高度/净空、落稳、同一Jump Actor回BALANCE）
+给最终42分；失败扣24，任务timeout扣32，时间成本1/s，并保留姿态、冲击、滑移及机械代价。
+下蹲、伸腿、收腿、缓冲姿态没有直接正奖励。向上速度与真实takeoff/升高/apex/落稳只形成有界势函数，
+采用 `gamma(dt)*Phi(next)-Phi(previous)`，终态Phi=0；1ms子步shaping以子步discount加权聚合到10ms。
+因此完整失败轨迹的折扣过程收益抵消，不能靠重复蹲起、局部起跳或拖延失败保留过程奖金。
+真实离地仍要求双轮>2mm净空且无接触持续4ms、上升速度>0.1m/s，有PUSH和支撑历史且无外力辅助。
+允许落稳水平速度误差<0.5m/s，零命令停车精度不作为此次门槛。
+
+当前训练由一个Jump Actor全程负责，从BC60 Actor-only初始化均值权重；探索腿0.06rad、轮1rad/s，
+Critic/两Adam/课程全新，旧u654完整学习状态保留但不混用新奖励。4096×64=262144样本/更新，
+4epochs/64minibatches、Actor LR3e-5、Critic LR9e-5、5次Critic预热计入预算；每100次保存。
+任务累计已用2231/10000，本配方只分配剩7769，不退款或刷新。保存/恢复继续完整保留学习状态；
+PhysX hidden solver不声称可恢复，物理使用显式fresh-reset。
+
+每更新沿公共MetricsWriter保存正常结束回合的请求、接受、真实takeoff、apex、落稳、成功、fault和最大rise，
+以及10个C阶段的累计控制秒数；无独立能力评估或watcher。课程/候选仍只消费正常训练结束回合。
+新旧reward/course/controller语义不一致的full restore被拒绝。
+
+后续架构建议是Motion平地专家与Jump完整跳跃专家按任务交接；本轮没有接入运行时双网混合或共享trunk。
+Motion现有no_old_C_spring与Jump C spring、目标中心、时序/previous cache不能直接混合。
+必须先验证接管初态、整个跳跃、落稳后交回Motion的连续性，再扩展带速度跳跃。
+Motion负责人只读复核另确认：现有Jump回BALANCE后owner仍是Jump，own_completion不代表Motion接住；
+真实q/dq与采用目标必须落入Motion可接管域，V4/传感历史不能reset；5ms边界的owner/epoch采用须原子化，旧请求必须失效。
+当前配方仍为vx/yaw=0，未宣称运动跳或双专家部署已实现，也不把工程验收称为跳跃能力通过。
+
+本轮工程收据：相关CPU143通过，portable1972通过/31历史skip，Ruff0.8.4与架构220/0通过。
+真实CUDA420帧C状态/Actor编码逐位，PD容差2e-6，编译reward与scalar最大差8.9e-16。
+32env×4000tick正常零PPO接线PASS，36次Critic逐位、30次inverse对照及partial/fresh reset通过；
+63结束回合请求63/接受61/真实takeoff0/成功0，不是能力认证。收据 `artifacts/jump_outcome_v199/`。

@@ -1,5 +1,7 @@
 # 当前任务
 
+Jump结果课程（2026-11-15）：独立worktree `wheel_leg_jump_outcome_ws` / `jump/outcome-curriculum`。用户目标改为先学完整跳跃，再扩展带速度；旧v194正常STOPPED_BOUNDED、failure=null、654次，本任务累计2231/剩7769。新配置100%主动跳、2/5/10cm结果课程、300ms保持请求、安全接受直接PUSH、不强制下蹲；完整落稳完成42分，过程势函数终态抵消、1ms→10ms折扣对齐。BC60 Actor-only均值继承，明确探索，fresh Critic/双Adam；4096×64、save100、原Cylinder＋Plane和40/4.8Nm保持。CPU143/portable1972通过（31历史skip），真实CUDA状态/编码逐位、reward误差8.9e-16；32env×4000tick物理门/reset/读回PASS，63结束回合61接受、真实takeoff0。正在准备统一CLI有界PPO验收，新版尚未开训，不宣称能力accepted；精确收据在 `artifacts/jump_outcome_v199/`。
+
 Jump闭环补教已完成：统一owner的v4正常COMPLETED/failure=null，60BC轮/3060优化步，复用首轮768000物理步并新增1536000。BC60学生64env独立12s无回合结束/非轮接触，root约.354m、tilt最大.024rad、原1mm/2mm门通过；前向+.2m/s跟踪连续11.61s，零命令漂移/反向和正yaw跟踪仍不足，不宣称基础运动或跳跃accepted。用户明确漂移不作为开训门槛，要求优先Jump长训；从BC60 Actor-only新建PPO，保留已耗1577/剩8423，不混用BC与PPO Adam。CLI export已复用监督InferenceSpec修复，真实包及PPO factory CPU装配逐位一致、全新双Adam；portable1964/31历史skip、架构219/0、CI Ruff通过。精确运行状态以run原始state/预算为准。
 
 当前覆盖（原Cylinder＋原生Plane，2026-11-14）：用户明确倾向学习Motion静态Plane。独立jump/native-plane开发，无热改。CPU/GPU400tick冲量/reset、两次4096x6400tick原1mm/2mm门通过。新增终态Critic CPU snapshot引用释放，真实CPU数值/weakref与同窗口RSS从43GB增长改为约10.6GB。旧v15遭系统OOM，公共owner已结算FAILED75，最后有效u3；累计543/余9457，未保存72次不退款。正式配方切native_plane_v1，不再使用凸包/薄盒；正在完成最终回归与正常PPO保存恢复，尚未重新长训。以下旧状态均按原冻结run读取。
