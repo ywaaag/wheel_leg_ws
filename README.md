@@ -242,6 +242,16 @@ CPU测试用脚本I/O引擎替身贯穿正式分派，验证预算、异常记�
 
 ### 本体感知Recovery→Motion交接
 
-`configs/jobs/recovery2100_motion015_handoff_posture.json`使用同一电控C的编码器/IMU姿态与构型准备门，不读取地面高度或法向力作为交接条件。准备门要求直立锥0.10rad、角速度≤1rad/s、腿速度≤3rad/s、四腿相对Motion0.34m中心误差≤0.50rad，连续200ms后检查Motion目标连续性。它不是触地证明，悬空直立也可能通过。默认真实电控配置与操作见独立015集成仓`docs/RECOVERY2100_HANDOFF.md`。
+`configs/jobs/recovery2100_motion015_handoff_posture.json`使用同一电控C的编码器/IMU姿态与构型准备门，不读取地面高度或法向力作为交接条件。准备门要求直立锥0.10rad、角速度≤1rad/s、腿速度≤3rad/s、四腿相对Motion0.34m中心误差≤0.50rad，连续200ms后检查Motion目标连续性。它不是触地证明，悬空直立也可能通过。默认真实电控配置与操作见独立015集成仓中的Recovery2100交接说明。
 
 7个development Swing条件中6个在0.60–0.94秒交接并连续保持12.06–12.40秒，另一个在交接前失败。数据根`recovery_motion_handoff/posture200ms_r2`保留原始证据；r1的窄门未交接证据保持只读。观测时序差异与硬件标定仍须实测，不作为实机认证。
+
+### 015软件弹簧补偿A/B
+
+`configs/jobs/tjb_recover_motion015_spring_comparison.json`经正式`wheel-leg sim2sim`比较旧tjb_recover在当前PD40/2/.2、40/4.8Nm下有无015补偿；`configs/jobs/motion015_spring_standing_comparison.json`另比较015 Motion从站立启动。两者仅仿真，不默认改电控固件。
+
+variant的`spring_compensation=true`启用SHA绑定的电控`RLControlCompensateSpring`和`getPhi`。补偿按5ms更新并保持，仅补偿项保持，V4原电机响应仍1ms变化；按真实网络→电机顺序/符号换算，相加后腿限40Nm，轮不变。保持相同V4 NET/地面/随机种子，未额外添加被动弹簧模型。
+
+当前V4 NET是拟合负载而非经实机认证的明确被动弹簧。此试验比较“在原仿真上附加015补偿命令”的效果，不能等同于有真实弹簧实车的补偿辨识。C依赖SHA、原始物理轨迹、实际消耗、饱和与补偿量随run保存。
+
+[015补偿A/B结果、调用链和仿真边界](docs/SPRING_COMPENSATION_AB.md)。

@@ -61,6 +61,7 @@ def test_partial_engine_failure_preserves_exact_executed_substeps(monkeypatch):
         qfrc_actuator=np.zeros(6),
     )
     env.data = [data]
+    env.motor_transform = None
     env.models = [SimpleNamespace()]
     env.refs = dict(
         qpos=np.arange(6),
