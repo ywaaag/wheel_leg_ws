@@ -255,3 +255,5 @@ variant的`spring_compensation=true`启用SHA绑定的电控`RLControlCompensate
 当前V4 NET是拟合负载而非经实机认证的明确被动弹簧。此试验比较“在原仿真上附加015补偿命令”的效果，不能等同于有真实弹簧实车的补偿辨识。C依赖SHA、原始物理轨迹、实际消耗、饱和与补偿量随run保存。
 
 [015补偿A/B结果、调用链和仿真边界](docs/SPRING_COMPENSATION_AB.md)。
+
+[015补偿A/B有效性修正：不能据此否定实机补偿](docs/SPRING_AB_VALIDITY_REVIEW.md)。
