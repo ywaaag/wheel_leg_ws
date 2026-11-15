@@ -100,9 +100,15 @@ def validate_job(job):
     ):
         expected_reward = job.reward.version
     if leg_driven:
-        from native_stand.tasks.recovery.leg_driven import anti_prone_config
+        from native_stand.tasks.recovery.leg_driven import (
+            anti_prone_config,
+            course_fractions,
+            progression_config,
+        )
 
         anti_prone_config(job.reward.fields.get("anti_prone"))
+        progress_recipe = progression_config(job.reward.fields.get("progression"))
+        course_fractions(job.curriculum.stages)
         expected_reward = LEG_REWARD
         if job.model.critic_privileged_version != LEG_CRITIC:
             raise ValueError("Leg-driven task requires its actual causal Critic")
@@ -155,7 +161,8 @@ def validate_job(job):
     if (
         job.ppo.entropy_coef != 0
         or job.ppo.critic_warmup_updates != 5
-        or (job.ppo.exploration_leg_rad, job.ppo.exploration_wheel_rad_s) != (0.02, 2.0)
+        or (job.ppo.exploration_leg_rad, job.ppo.exploration_wheel_rad_s)
+        != (0.02, 0.5 if leg_driven and progress_recipe is not None else 2.0)
     ):
         raise ValueError("Fixed physical std / five Critic-only updates")
 
@@ -168,7 +175,9 @@ def available(job):
     return (importlib.util.find_spec("isaaclab") is not None), "Isaac Lab interpreter required"
 
 
-def preflight(job, *, for_learning=False, resources=False):
+def preflight(job, *, for_learning=None, resources=False):
+    if for_learning is None:
+        for_learning = job.algorithm == "ppo" and job.reward.fields.get("progression") is not None
     validate_job(job)
     from native_stand.tasks.recovery.spec import build_task
 
@@ -242,6 +251,33 @@ def preflight(job, *, for_learning=False, resources=False):
         or job.initialization.sha256 != job.assets["recovery_initial_actor"]["sha256"]
     ):
         raise ValueError("Initialization identity")
+    if job.reward.fields.get("progression") is not None:
+        allocation_ref = job.assets["training_allocation"]
+        if file_sha256(allocation_ref["path"]) != allocation_ref["sha256"]:
+            raise ValueError("Recovery allocation identity differs")
+        allocation = read_json(allocation_ref["path"])
+        charged = 0
+        for row in allocation["prior_attempts"]:
+            for name in ("state", "budget"):
+                if file_sha256(row[name]["path"]) != row[name]["sha256"]:
+                    raise ValueError("Recovery prior settlement identity differs")
+            prior_budget = read_json(row["budget"]["path"])
+            prior_state = read_json(row["state"]["path"])
+            used = sum(prior_budget["used"].values())
+            if (
+                used != row["used"]
+                or used != prior_state["updates_used"]
+                or prior_state["status"] not in ("FAILED", "STOPPED_BOUNDED", "COMPLETED")
+            ):
+                raise ValueError("Recovery prior settlement is not terminal and consistent")
+            charged += used
+        if (
+            charged != allocation["prior_updates_used"]
+            or charged + job.limits.formal_updates != allocation["authorized_total_updates"]
+            or job.limits.formal_updates != allocation["new_run_updates"]
+            or job.limits.smoke_updates != 0
+        ):
+            raise ValueError("Recovery allocation cannot refund prior updates")
     acceptance = read_json(job.assets["recovery_isaac_acceptance"]["path"])
     if for_learning and job.reward.version == "recovery_leg_driven_low_wheel_v1":
         auth = read_json(job.assets["training_authorization"]["path"])
@@ -502,10 +538,14 @@ class IsaacRecovery:
         from native_stand.tasks.recovery.leg_driven import VERSION as LEG_REWARD
 
         if job.reward.version == LEG_REWARD:
+            from native_stand.tasks.recovery.leg_driven import course_fractions
+
             cfg.recovery_leg_driven = dict(
                 geometry=read_json(job.assets["recovery_leg_driven_geometry"]["path"]),
                 gamma=job.ppo.gamma,
                 anti_prone=job.reward.fields.get("anti_prone"),
+                progression=job.reward.fields.get("progression"),
+                course_fractions=course_fractions(job.curriculum.stages),
             )
             cfg.episode_length_s = 6.0
         cfg.recovery_measurement = self.measurement

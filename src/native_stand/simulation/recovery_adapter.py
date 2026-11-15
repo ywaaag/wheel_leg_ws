@@ -183,6 +183,13 @@ class RecoveryAdapter(GenericPPOAdapter):
                 aggregate["phase_progress_sum"] = aggregate.get("phase_progress_sum", 0.0) + max(
                     0, info["final_phase"] - info["initial_phase"]
                 )
+                aggregate["continuous_progress_sum"] = (
+                    aggregate.get("continuous_progress_sum", 0.0)
+                    + max(0, info["final_phase"] - info["initial_phase"])
+                    + info.get("progress", 0.0)
+                )
+                aggregate["phase_reached"] = aggregate.get("phase_reached", [0, 0, 0, 0])
+                aggregate["phase_reached"][info["final_phase"]] += 1
                 aggregate["wheel_rms_sum"] = aggregate.get("wheel_rms_sum", 0.0) + max(
                     info["wheel_rms"]
                 )

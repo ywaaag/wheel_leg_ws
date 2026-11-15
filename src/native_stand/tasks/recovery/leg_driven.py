@@ -49,6 +49,51 @@ def anti_prone_density(recipe, *, phase, progress, stage_age, height, gate):
     return -recipe["max_rate"] * ramp * low * (1 - 0.5 * progress.clamp(0, 1)) * active
 
 
+def progression_config(value=None):
+    """Optional revision; old frozen rewards keep their original behavior."""
+    if value is None:
+        return None
+    keys = {
+        "version",
+        "remaining_rate",
+        "completion_bonus",
+        "failure_tail_rate",
+        "terminate_invalid_sequence",
+    }
+    if set(value) != keys or value["version"] != "recovery_stage_progress_v1":
+        raise ValueError("Explicit stage progression recipe required")
+    result = copy.deepcopy(value)
+    for key in ("remaining_rate", "failure_tail_rate"):
+        if isinstance(value[key], bool) or not math.isfinite(value[key]) or value[key] <= 0:
+            raise ValueError("Positive finite progression rates required")
+    bonus = value["completion_bonus"]
+    if len(bonus) != 3 or any(isinstance(v, bool) or not math.isfinite(v) or v <= 0 for v in bonus):
+        raise ValueError("Three positive phase completion bonuses required")
+    if value["terminate_invalid_sequence"] is not True:
+        raise ValueError("Progression recipe ends irreversibly invalid sequences")
+    return result
+
+
+def course_fractions(stages=()):
+    if not stages:
+        return FRACTIONS
+    if len(stages) != 3:
+        raise ValueError("Three explicit leg-driven sampling stages required")
+    fractions = []
+    for row in stages:
+        if set(row) != {"groups", "fractions"} or tuple(row["groups"]) != GROUPS:
+            raise ValueError("Explicit ordered leg-driven groups required")
+        values = tuple(row["fractions"])
+        if (
+            len(values) != 4
+            or any(not math.isfinite(v) or v <= 0 for v in values)
+            or abs(sum(values) - 1) > 1e-8
+        ):
+            raise ValueError("Positive leg-driven group fractions must sum to one")
+        fractions.append(values)
+    return tuple(fractions)
+
+
 def angle_difference(a, b):
     return torch.atan2(torch.sin(a - b), torch.cos(a - b))
 
@@ -56,14 +101,15 @@ def angle_difference(a, b):
 class Course:
     """Per-env sampling debt. Promotion is global, from complete training windows."""
 
-    def __init__(self, seed):
+    def __init__(self, seed, *, fractions=FRACTIONS):
+        self.fractions = fractions
         self.seed = seed
         self.stage = 0
         self.episodes = 0
         self.counts = {g: dict(student_seconds=0.0, episodes=0, passed=0) for g in GROUPS}
 
     def choose(self):
-        fractions = FRACTIONS[min(self.stage, 2)]
+        fractions = getattr(self, "fractions", FRACTIONS)[min(self.stage, 2)]
         total = sum(r["student_seconds"] for r in self.counts.values())
         index = (
             0
@@ -105,8 +151,16 @@ class Course:
 class Lifecycle:
     """All state used by reward/certification is captured, including substep history."""
 
-    def __init__(self, n, device, geometry, gamma, *, anti_prone=None):
+    def __init__(self, n, device, geometry, gamma, *, anti_prone=None, progression=None):
         self.anti_prone = anti_prone_config(anti_prone)
+        self.progression = progression_config(progression)
+        if self.progression is not None:
+            added = self.anti_prone["max_rate"] if self.anti_prone is not None else 0.0
+            if (
+                self.progression["failure_tail_rate"]
+                < 4 + self.progression["remaining_rate"] + added
+            ):
+                raise ValueError("Failure tail must cover all maximum running costs")
         self.n = n
         self.device = device
         self.max_s = 6.0
@@ -273,6 +327,9 @@ class Lifecycle:
         shortened = (length <= short + 0.01).all(-1) & (
             self.geometry_speed[:, :2].abs().amax(-1) <= 0.05
         )
+        if self.progression is not None:
+            short_angle = geometry.new_tensor(self.geometry["short_swing_rad"])
+            shortened &= angle_difference(geometry[:, 2:], short_angle).abs().amax(-1) <= 0.10
         rotated = (
             (length <= short + 0.015).all(-1)
             & (turn_error <= 0.10)
@@ -294,6 +351,8 @@ class Lifecycle:
         event = gate & (self.dwell >= thresholds - 1e-6)
         old_phase = self.phase.clone()
         failed = terminal | (self.tilt_bad_time >= 0.03 - 1e-6) | (self.fast_time >= 0.02 - 1e-6)
+        if self.progression is not None:
+            failed |= ~self.sequence_valid
         event &= ~failed
         progressed = event & (old_phase < 3)
         self.phase += progressed.long()
@@ -304,9 +363,14 @@ class Lifecycle:
         self.hold = torch.where(self.phase == 3, self.dwell, 0.0)
         initial_length = (self.initial_geometry[:, :2] - short).clamp_min(0.01)
         p0 = ((self.initial_geometry[:, :2] - length) / initial_length).clamp(0, 1).amin(-1)
-        initial_error = (
-            angle_difference(self.initial_geometry[:, 2:], turn).abs().amax(-1).clamp_min(0.1)
-        )
+        turn_start = self.initial_geometry[:, 2:]
+        if self.progression is not None:
+            turn_start = torch.where(
+                (self.initial_phase < 1)[:, None],
+                geometry.new_tensor(self.geometry["short_swing_rad"]),
+                turn_start,
+            )
+        initial_error = angle_difference(turn_start, turn).abs().amax(-1).clamp_min(0.1)
         p1 = (1 - turn_error / initial_error).clamp(0, 1)
         p2 = ((state[:, 3] - self.h0) / (0.34 - self.h0).clamp_min(0.02)).clamp(0, 1)
         p3 = (self.hold / 0.5).clamp(0, 1)
@@ -334,7 +398,12 @@ class Lifecycle:
         terms[:, 5] = target_cost
         cost = (terms * terms.new_tensor(COST_WEIGHTS)).sum(-1)
         potential = 2 * (self.gamma * torch.where(done, 0.0, phi) - self.last_phi)
-        bonus = torch.where(progressed, state.new_tensor([2.0, 2.0, 4.0, 0.0])[old_phase], 0.0)
+        bonuses = (
+            [2.0, 2.0, 4.0, 0.0]
+            if self.progression is None
+            else [*self.progression["completion_bonus"], 0.0]
+        )
+        bonus = torch.where(progressed, state.new_tensor(bonuses)[old_phase], 0.0)
         failure = done & ~succeeded
         prone_density = anti_prone_density(
             self.anti_prone,
@@ -351,15 +420,25 @@ class Lifecycle:
             if self.anti_prone is not None
             else torch.zeros_like(time_s)
         )
+        remaining_density = torch.zeros_like(time_s)
+        base_failure_tail = 4 * (self.max_s - time_s).clamp_min(0) * failure
+        if self.progression is not None:
+            remaining_density = -self.progression["remaining_rate"] * (1 - self.progress) * ~gate
+            # Total tail includes the base/prone running costs, replacing rather
+            # than adding another duplicate failure payment.
+            base_failure_tail = (
+                self.progression["failure_tail_rate"] * (self.max_s - time_s).clamp_min(0) * failure
+            )
+            prone_failure_tail = torch.zeros_like(time_s)
         reward = (
             potential
             + bonus
             - dt_s * 4 * cost
-            + dt_s * prone_density
+            + dt_s * (prone_density + remaining_density)
             - prone_failure_tail
             + 100 * succeeded
             - 20 * failure
-            - 4 * (6 - time_s).clamp_min(0) * failure
+            - base_failure_tail
         )
         self.last_phi.copy_(phi)
         self.last_delta.copy_(delta)
@@ -391,8 +470,11 @@ class Lifecycle:
             )
         }
         density["anti_prone"] = prone_density
+        density["stage_remaining"] = remaining_density
         self.last_result = dict(
             anti_prone_failure_tail=prone_failure_tail,
+            failure_tail=base_failure_tail + prone_failure_tail,
+            phase_bonus=bonus,
             reward=reward,
             entered=entered,
             success=succeeded,
@@ -473,6 +555,10 @@ class Lifecycle:
             initial_phase=int(self.initial_phase[i]),
             final_phase=int(self.phase[i]),
             sequence_valid=bool(self.sequence_valid[i]),
+            progress=float(self.progress[i]),
+            length_m=self.last_geometry[i, :2].tolist(),
+            swing_rad=self.last_geometry[i, 2:].tolist(),
+            phase_age_s=float(self.elapsed[i] - self.stage_start[i]),
             wheel_rms=(self.wheel_square[i] / self.duration[i].clamp_min(0.001)).sqrt().tolist(),
             wheel_peak=self.wheel_peak[i].tolist(),
             tilt_peak_rad=float(self.tilt_peak[i]),
@@ -521,7 +607,7 @@ def review_window(rows, level, history):
             r["student_success"] / r["ended"]
             + r["quality"] / r["ended"]
             + r.get("sequence_valid", 0) / r["ended"]
-            + 0.1 * r.get("phase_progress_sum", 0) / r["ended"]
+            + 0.1 * r.get("continuous_progress_sum", r.get("phase_progress_sum", 0)) / r["ended"]
             - 0.01 * r.get("wheel_rms_sum", 0) / r["ended"]
             for r in full
             if r["ended"] > 0

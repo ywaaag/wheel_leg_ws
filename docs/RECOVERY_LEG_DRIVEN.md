@@ -31,3 +31,19 @@ C0→C3按4/2/1/.5rad/s成本尺度收紧，完整Swing比例30%→70%→85%，�
 失败额外结算`-2×max(6-t,0)`，对所有失败初态一致，避免提前跌倒抹去新增的最大未来成本；成功不扣此项。奖励读回新增`density.anti_prone`与`anti_prone_failure_tail`。不新增隐状态或Critic列，沿用已保存的阶段、阶段起始时刻、几何进度及真实root高度；不变更Actor、decoder、scale、previous、时序、PD或限矩。
 
 这只是可试验的奖励假设，尚未证明能克服hip饱和/顺序不可达问题。prepared配置为零分配，不会自动重启。原attempt3因停滞停止于1400，连同前段6次共耗1406，余8594不退款。配置所列初始Actor仅用于原始配方装配，不代表已决定重置策略；下次实际训练来源、奖励变更后的Critic处理及新run预算分配仍待准备。训练、PhysX、独立验证和部署均NOT_RUN。恢复旧完整点时不可直接继承不同奖励比较域的候选窗口。
+
+## 阶段推进接续配方（2026-11-15）
+
+正式配置`configs/jobs/recovery_leg_progress_remaining8594.json`，新worktree `/home/kellen/wheel_leg_recovery_progress_ws`，从当前main `17e1ac7`建立并承接已验证的Recovery增量。旧worktree/run及u1400只读。用户明确要求复核遗漏并重启，原10000额度已耗1406，新run仅分配8594，墙钟null。共享RTX4080仍经UUID/唯一Recovery worker/空闲显存8GiB/磁盘8GiB门检，不停止Jump或操作Motion远端。
+
+复核发现：收短参考hip本来就需要Tanh mean约±0.974，不能把`abs(mean)>.95`直接当动作包络不足；完整Swing、收短、转腿、站立的主动关节参考均在±1.5rad内。63个CPU闭链插值样本没有关节限位违规，最大closure约5.62e-6m；收腿路径的摆角误差≤0.0166rad，转腿段长度不超过短腿允许边界。该结果不认证自碰撞、接触和动态可行性。u1400在不同初态均收敛至约0.23m腿长、约-0.92rad摆角，原势差奖励在超时终点归零，只有弱时间成本，少动降低成本的局部解仍存在；此为需由新训练验证的因果假设。
+
+新配方同时启用上节anti_prone与`reward.fields.progression=recovery_stage_progress_v1`：每策略步增加`-3×(1-phase_progress) reward/s`，当前阶段门成立时不扣；合法完成收腿/转腿/抬升的事件奖励分别6/6/10。收腿门补短腿摆角±0.1rad，转腿progress以真实收短参考为起点（不能沿用长腿Swing摆角）；顺序一旦违规不可恢复即结束失败回合，不继续采满6秒。失败剩余结算统一为`-9×max(6-t,0)`，替代原基础与anti_prone两项尾款，9覆盖所有最大运行成本，避免提前失败逃成本。成功/质量、1ms轮速和倾角门不放宽。
+
+首级采样时间份额完整Swing/shortened/rotated/lifted=40/35/15/10%，下一组70/10/10/10%，后续85/5/5/5%，保留原按完整窗口三窗确认晋级、名义→DR课程。每回合增加实际phase内连续progress、末态腿长/摆角/phase年龄；窗口导出各最终phase计数和连续进度和，不能再把“未跨阶段”误读成“完全没有收腿”。停滞评分使用连续进度，reward上涨仍不授予候选。
+
+训练探索：腿std保持0.02rad，轮std从2降至0.5rad/s，写入显式sampling contract且由factory核对job。physical Gaussian raw用于log-prob，deterministic mean、三次decoder/固定中心、±100轮目标、±1.5腿范围、Actor31D/真实dq/previous、PD/40与4.8Nm、V4与1/5/10ms及所有年龄延迟不变。部署仍只用mean。旧合同/旧配置默认std2保持。降低探索用于减少无意义轮运动，并不保证实体轮速自动降低。
+
+策略初始化显式回到2100骨干/腿输出+零轮head的原始Actor均值，均值MLP逐tensor相等，仅physical_std缓冲改为新合同；不完整恢复u1400的趴地策略，重建942D Critic和双Adam/课程/RNG，首5 Critic-only计入8594。source Actor、teacher、合同、初始化说明、历次账本、授权与分配均SHA绑定。奖励改变后不混旧候选/窗口；同run完整恢复继续保持双Adam与已完成warmup。
+
+每100更新窗口检查完整Swing成功、各阶段推进、顺序违规、低速/姿态；至少看到收短→转腿真实突破才称动作链改善。前12真实优化工程门只证明链路可运行；动态参考可行性、独立MuJoCo/延迟DR验证、Motion交接、实机与导出仍NOT_RUN。本配方没有额外teacher控制、轨迹跟踪器、虚拟锁轮或输出裁剪；若再停滞，保留失败证据而不无限重复同配方。

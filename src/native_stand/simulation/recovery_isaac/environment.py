@@ -98,6 +98,7 @@ def environment_class(
                     self.leg_driven["geometry"],
                     self.leg_driven["gamma"],
                     anti_prone=self.leg_driven.get("anti_prone"),
+                    progression=self.leg_driven.get("progression"),
                 )
             else:
                 self.life = life_class(n, self.device)
@@ -116,7 +117,12 @@ def environment_class(
             self.physics = PhysicalParameters(self, contract, initials["mechanics"])
             self.init_catalog = initials
             self.initial_states = InitialStates(initials, self.robot.joint_names, self.device)
-            self.courses = [course_class(cfg.seed + i) for i in range(n)]
+            self.courses = [
+                course_class(cfg.seed + i, fractions=self.leg_driven["course_fractions"])
+                if self.leg_driven
+                else course_class(cfg.seed + i)
+                for i in range(n)
+            ]
             if getattr(cfg, "recovery_standalone_course", False):
                 for course in self.courses:
                     course.stage = getattr(cfg, "recovery_standalone_initial_stage", 0)

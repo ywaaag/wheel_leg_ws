@@ -24,7 +24,14 @@ class PhysicalActor(StudentNetwork):
         )
         del self.log_std
         self.contract = copy.deepcopy(contract)
-        self.register_buffer("physical_std", torch.tensor([0.02, 0.02, 2.0, 0.02, 0.02, 2.0]))
+        std = torch.tensor(
+            contract.get("sampling_distribution", {}).get(
+                "fixed_std", [0.02, 0.02, 2.0, 0.02, 0.02, 2.0]
+            )
+        )
+        if std.shape != (6,) or not bool(torch.isfinite(std).all()) or not bool((std > 0).all()):
+            raise ValueError("Six positive finite physical exploration std values required")
+        self.register_buffer("physical_std", std)
         self.register_buffer("center", torch.tensor(contract["center_rad"]))
         self.register_buffer("lower", torch.tensor(contract["leg_lower_rad"]))
         self.register_buffer("upper", torch.tensor(contract["leg_upper_rad"]))
@@ -307,6 +314,20 @@ def build_policy(job, observation_sample, *, device: str = "cpu", source=None):
     contract = _json.loads(contract_path.read_text())
     actor = PhysicalActor(contract, hidden_dims=job.model.actor_hidden_dims)
 
+    expected_std = actor.physical_std.new_tensor(
+        [
+            job.ppo.exploration_leg_rad,
+            job.ppo.exploration_leg_rad,
+            job.ppo.exploration_wheel_rad_s,
+            job.ppo.exploration_leg_rad,
+            job.ppo.exploration_leg_rad,
+            job.ppo.exploration_wheel_rad_s,
+        ]
+    )
+    if contract.get("sampling_distribution") is not None and not torch.equal(
+        expected_std, actor.physical_std
+    ):
+        raise ValueError("Configured exploration differs from the physical sampling contract")
     mode = job.initialization.mode
     payload = getattr(source, "payload", source) or {}
     if mode == "actor_only" and "optimizer" not in payload:

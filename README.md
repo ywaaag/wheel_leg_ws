@@ -252,4 +252,4 @@ PYTHONPATH=src python -m native_stand dashboard --root /path/to/local/runs \
 
 本地看板 `--root /authorized/runs` 在每次页面数据刷新时发现直接子目录的新run。远端 `--remote-root` 可以指定单个run，或由用户明确授权的**runs目录**；点击“刷新远端快照”后自动发现直接子run，不递归扫描磁盘、不扫描端口。最多20个run（按产物文件更新时间选择最近项，不作为训练时间轴）、总传输14MiB；资源只采一次。新run继续复用原SSH连接资料与私密凭据，不加载checkpoint。下次更换平台重新配置连接；远端根目录只在后端参数中授权，网页不能自行扩大范围。页面自动刷新默认关闭。
 
-腿主导低轮速Recovery的新配方、初始化变换、942D Critic、课程和验收边界见[专项说明](docs/RECOVERY_LEG_DRIVEN.md)。`configs/jobs/recovery_leg_driven2100_10000_attempt2.json`使用原六通道物理动作合同，完整起身后接稳0.5秒；不继承旧10秒保持或实机能力认证。
+腿主导低轮速Recovery的新配方、初始化变换、942D Critic、课程和验收边界见[专项说明](docs/RECOVERY_LEG_DRIVEN.md)。`configs/jobs/recovery_leg_progress_remaining8594.json`为当前阶段推进配方，旧配置保留。使用原六通道确定性物理动作合同，完整起身后接稳0.5秒；不继承旧10秒保持或实机能力认证。

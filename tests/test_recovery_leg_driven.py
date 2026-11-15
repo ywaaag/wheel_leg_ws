@@ -340,7 +340,9 @@ def test_reset_cannot_zero_borrowed_execution_caps():
     assert torch.isfinite(history).all()
 
 
-def adapter_fixture(tmp_path, *, source=None):
+def adapter_fixture(
+    tmp_path, *, source=None, config_name="recovery_leg_driven2100_10000_attempt3.json"
+):
     import dataclasses
     from pathlib import Path
     from types import SimpleNamespace as NS
@@ -352,10 +354,7 @@ def adapter_fixture(tmp_path, *, source=None):
     from native_stand.experiments.config import load_job_config
     from native_stand.simulation.driver import Backend
 
-    job = load_job_config(
-        Path(__file__).resolve().parents[1]
-        / "configs/jobs/recovery_leg_driven2100_10000_attempt3.json"
-    )
+    job = load_job_config(Path(__file__).resolve().parents[1] / "configs/jobs" / config_name)
     tmp_path.mkdir(parents=True, exist_ok=True)
     contract = tmp_path / "contract.json"
     runtime = tmp_path / "runtime.json"
@@ -366,6 +365,16 @@ def adapter_fixture(tmp_path, *, source=None):
             center_rad=[0.0] * 4,
             leg_lower_rad=[-1.5] * 4,
             leg_upper_rad=[1.5] * 4,
+            sampling_distribution=dict(
+                fixed_std=[
+                    job.ppo.exploration_leg_rad,
+                    job.ppo.exploration_leg_rad,
+                    job.ppo.exploration_wheel_rad_s,
+                    job.ppo.exploration_leg_rad,
+                    job.ppo.exploration_leg_rad,
+                    job.ppo.exploration_wheel_rad_s,
+                ]
+            ),
         ),
     )
     write_json(runtime, dict(bindings={}))
@@ -629,3 +638,321 @@ def test_prepared_prone_recipe_public_backend_validation(tmp_path):
     )
     with pytest.raises(ValueError, match="positive"):
         validate_job(bad)
+
+
+PROGRESSION = dict(
+    version="recovery_stage_progress_v1",
+    remaining_rate=3.0,
+    completion_bonus=[6.0, 6.0, 10.0],
+    failure_tail_rate=9.0,
+    terminate_invalid_sequence=True,
+)
+
+
+def test_stage_error_penalizes_partial_prone_and_progress_reduces_it():
+    from native_stand.tasks.recovery.leg_driven import progression_config
+
+    a, g = life()
+    b, h = life()
+    a.progression = progression_config(PROGRESSION)
+    b.progression = progression_config(PROGRESSION)
+    g[:, :2] = 0.24
+    h[:, :2] = 0.19
+    # Stay on the legal contraction-angle curve; no artificial premature turn.
+    for x in [g, h]:
+        f = (0.376 - x[:, :2]) / (0.376 - 0.145)
+        x[:, 2:] = -1.276 + f * (-0.65 + 1.276)
+    ra = advance(a, g, t=2.0)
+    rb = advance(b, h, t=2.0)
+    assert not ra["terminated"].any() and not rb["terminated"].any()
+    assert (rb["density"]["stage_remaining"] > ra["density"]["stage_remaining"]).all()
+    assert (ra["density"]["stage_remaining"] < 0).all()
+
+
+def test_new_progress_recipe_terminates_irrecoverable_sequence_not_old_recipe():
+    from native_stand.tasks.recovery.leg_driven import progression_config
+
+    a, g = life(phase=1)
+    b, _ = life(phase=1)
+    a.progression = progression_config(PROGRESSION)
+    g[:, :2] = 0.21
+    ra = advance(a, g, t=1.0)
+    rb = advance(b, g, t=1.0)
+    assert ra["terminated"].all() and not rb["terminated"].any()
+    assert not ra["success"].any()
+    assert torch.allclose(ra["failure_tail"], torch.full((2,), 45.0))
+
+
+def test_turn_progress_starts_at_zero_after_real_shortening_completion():
+    from native_stand.tasks.recovery.leg_driven import progression_config
+
+    a, g = life()
+    a.progression = progression_config(PROGRESSION)
+    g[:, :2] = 0.145
+    g[:, 2:] = -0.65
+    for i in range(10):
+        out = advance(a, g, t=0.01 * (i + 1))
+    assert a.phase.tolist() == [1, 1]
+    assert torch.allclose(a.progress, torch.zeros(2))
+    assert torch.equal(out["phase_bonus"], torch.full((2,), 6.0))
+    assert torch.equal(out["density"]["anti_prone"], torch.zeros(2))
+
+
+def test_new_phase_gate_cannot_reward_short_wrong_angle():
+    from native_stand.tasks.recovery.leg_driven import progression_config
+
+    a, g = life()
+    a.progression = progression_config(PROGRESSION)
+    g[:, :2] = 0.145
+    g[:, 2:] = -0.82
+    for i in range(15):
+        advance(a, g, t=0.01 * (i + 1))
+    assert a.phase.tolist() == [0, 0] and a.sequence_valid.all()
+
+
+def test_progress_tail_bound_rejects_early_failure_reward_escape():
+    from native_stand.tasks.recovery.leg_driven import progression_config
+
+    with pytest.raises(ValueError, match="cover"):
+        Lifecycle(
+            2,
+            "cpu",
+            GEO,
+            0.998,
+            anti_prone=ANTI_PRONE,
+            progression=dict(PROGRESSION, failure_tail_rate=8.0),
+        )
+    with pytest.raises(ValueError):
+        progression_config(dict(PROGRESSION, completion_bonus=[1.0, 2.0]))
+
+
+def test_reduced_physical_wheel_std_preserves_deterministic_targets():
+    from native_stand.learning.ppo.recovery_cubic import PhysicalActor
+
+    contract = dict(
+        center_rad=[-0.13, -0.15, 0.13, -0.15], leg_lower_rad=[-1.5] * 4, leg_upper_rad=[1.5] * 4
+    )
+    first = PhysicalActor(contract, hidden_dims=(8,))
+    changed = copy.deepcopy(contract)
+    changed["sampling_distribution"] = dict(fixed_std=[0.02, 0.02, 0.5, 0.02, 0.02, 0.5])
+    second = PhysicalActor(changed, hidden_dims=(8,))
+    second.mlp.load_state_dict(first.mlp.state_dict())
+    x = torch.randn(20, 31)
+    assert torch.equal(first.physical_mean(x), second.physical_mean(x))
+    assert second.distribution(x).stddev[0, [2, 5]].tolist() == [0.5, 0.5]
+    assert first.distribution(x).stddev[0, [2, 5]].tolist() == [2.0, 2.0]
+
+
+def test_fraction_recipe_preserves_all_groups_and_focuses_bottleneck():
+    from native_stand.tasks.recovery.leg_driven import GROUPS, course_fractions
+
+    recipe = [
+        dict(groups=list(GROUPS), fractions=f)
+        for f in [[0.4, 0.35, 0.15, 0.1], [0.7, 0.1, 0.1, 0.1], [0.85, 0.05, 0.05, 0.05]]
+    ]
+    c = Course(3, fractions=course_fractions(recipe))
+    for _i in range(200):
+        s = c.choose()
+        c.record(s["group"], student_seconds=1.0, teacher_seconds=0.0, passed=False)
+    assert [c.counts[g]["episodes"] for g in GROUPS] == [80, 70, 30, 20]
+    with pytest.raises(ValueError):
+        course_fractions([dict(groups=list(GROUPS), fractions=[1.0, 0.0, 0.0, 0.0])] * 3)
+
+
+def test_new_recipe_actual_worker_factory_and_first12_optimization(tmp_path, monkeypatch):
+    from native_stand.experiments import worker
+    from native_stand.simulation import driver
+    from native_stand.simulation.recovery_adapter import RecoveryAdapter
+
+    c, backend = adapter_fixture(tmp_path, config_name="recovery_leg_progress_remaining8594.json")
+    monkeypatch.setattr(worker, "resolve_backend", lambda job: backend)
+
+    def consume(context, adapter, *, stage, resume_from):
+        assert type(adapter) is RecoveryAdapter
+        adapter.build(context, stage, resume_from)
+        assert adapter.ppo.actor.physical_std[[2, 5]].tolist() == [0.5, 0.5]
+        for i in range(12):
+            metrics = adapter.update_once(context, i)
+            assert metrics["critic_only"] == (i < 5)
+            context.updates_used += 1
+            adapter.after_update(context, i, metrics)
+        state = adapter.capture(context, dict(updates=12))
+        assert state["warmup_updates_done"] == 5
+        assert len(state["optimizer"]["actor"]["state"]) > 0
+        assert "recovery_training_window" in state
+        return state
+
+    monkeypatch.setattr(driver, "run_stage", consume)
+    result = worker._execute_stage(c, "formal", None)
+    assert result["distribution"]["fixed_std"][2] == 0.5
+    import json
+
+    assert json.loads((tmp_path / "engineering_smoke.json").read_text())["engineering_smoke_passed"]
+
+
+def test_progression_legal_sequence_can_still_reach_real_lifecycle_success():
+    from native_stand.tasks.recovery.leg_driven import anti_prone_config, progression_config
+
+    a, g = life()
+    a.progression = progression_config(PROGRESSION)
+    a.anti_prone = anti_prone_config(ANTI_PRONE)
+    t = 0.0
+    for phase in [0, 1, 2, 3]:
+        g[:, :2] = 0.145
+        g[:, 2:] = -0.65 if phase == 0 else 0.0
+        for _i in range(12 if phase < 3 else 51):
+            t += 0.01
+            out = advance(a, g, t=t, height=0.168 if phase < 2 else 0.34)
+    assert out["success"].all() and a.sequence_valid.all()
+    assert (out["reward"] > 0).all()
+    assert torch.equal(out["failure_tail"], torch.zeros(2))
+
+
+def test_revised_backend_rejects_old_noise_and_covers_allocation_config(tmp_path):
+    import dataclasses
+    from pathlib import Path
+
+    from native_stand.artifacts.io import file_sha256, write_json
+    from native_stand.experiments.config import load_job_config
+    from native_stand.simulation.recovery_isaac.backend import validate_job
+
+    j = load_job_config(
+        Path(__file__).resolve().parents[1]
+        / "configs/jobs/recovery_leg_progress_remaining8594.json"
+    )
+    g = tmp_path / "geometry.json"
+    write_json(g, GEO)
+    j = dataclasses.replace(
+        j, assets=dict(recovery_leg_driven_geometry=dict(path=str(g), sha256=file_sha256(g)))
+    )
+    validate_job(j)
+    assert j.limits.formal_updates == 8594 and j.ppo.exploration_wheel_rad_s == 0.5
+    with pytest.raises(ValueError, match="std"):
+        validate_job(
+            dataclasses.replace(j, ppo=dataclasses.replace(j.ppo, exploration_wheel_rad_s=2.0))
+        )
+
+
+def test_phase_observability_records_fractional_improvement(tmp_path):
+    from native_stand.simulation.recovery_adapter import RecoveryAdapter
+
+    c, backend = adapter_fixture(tmp_path, config_name="recovery_leg_progress_remaining8594.json")
+    adapter = RecoveryAdapter(backend)
+    adapter.build(c, "formal", None)
+    io = adapter.env
+    io.env.completed = [
+        dict(
+            group="full_Swing",
+            nominal_anchor=True,
+            command_height_m=0.34,
+            height_dynamic=False,
+            DR_strength=0.0,
+            student_seconds=6.0,
+            teacher_seconds=0.0,
+            steps=600,
+            success=False,
+            physical_quality=False,
+            leg_driven=dict(
+                course_level=0,
+                initial_phase=0,
+                final_phase=0,
+                progress=0.6,
+                wheel_rms=[1.0, 1.0],
+                sequence_valid=True,
+                wheel_peak=[2.0, 2.0],
+                tilt_peak_rad=0.1,
+                quality=False,
+            ),
+        )
+    ]
+    io.env.completed_count = 1
+    adapter.readback.before_update(adapter.ppo, allow_actor=False)
+    c.updates_used = 1
+    adapter.after_update(c, 0, {})
+    row = next(iter(adapter.window.values()))
+    assert row["phase_progress_sum"] == 0 and row["continuous_progress_sum"] == 0.6
+    assert row["phase_reached"] == [1, 0, 0, 0]
+
+
+def test_progress_recipe_public_preflight_enforces_acceptance_and_budget(tmp_path):
+    import dataclasses
+    from pathlib import Path
+
+    from native_stand.artifacts.io import file_sha256, write_json
+    from native_stand.experiments.config import load_job_config
+    from native_stand.learning.ppo.recovery_cubic import PhysicalActor
+    from native_stand.simulation.recovery_isaac.backend import preflight
+
+    j = load_job_config(
+        Path(__file__).resolve().parents[1]
+        / "configs/jobs/recovery_leg_progress_remaining8594.json"
+    )
+
+    def ref(name, value):
+        p = tmp_path / name
+        write_json(p, value)
+        return dict(path=str(p), sha256=file_sha256(p))
+
+    contract = dict(
+        center_rad=[-0.13, -0.15, 0.13, -0.15],
+        leg_lower_rad=[-1.5] * 4,
+        leg_upper_rad=[1.5] * 4,
+        sampling_distribution=dict(fixed_std=[0.02, 0.02, 0.5, 0.02, 0.02, 0.5]),
+    )
+    actor = PhysicalActor(contract)
+    path = tmp_path / "actor.pt"
+    torch.save(dict(actor_only=True, actor=actor.state_dict(), output_contract=contract), path)
+    actor_ref = dict(path=str(path), sha256=file_sha256(path))
+    runtime = ref("runtime.json", dict(bindings={}))
+    state = ref("state.json", dict(status="STOPPED_BOUNDED", updates_used=1406))
+    budget = ref("budget.json", dict(used=dict(formal=1406, smoke=0)))
+    allocation = ref(
+        "allocation.json",
+        dict(
+            prior_updates_used=1406,
+            authorized_total_updates=10000,
+            new_run_updates=8594,
+            prior_attempts=[dict(state=state, budget=budget, used=1406)],
+        ),
+    )
+    accept = ref(
+        "accept.json",
+        dict(
+            CPU_leg_driven_wiring_accepted=False,
+            actor_sha256=actor_ref["sha256"],
+            runtime_contract_sha256=runtime["sha256"],
+        ),
+    )
+    assets = dict(
+        recovery=j.assets["recovery"],
+        recovery_initial_actor=actor_ref,
+        recovery_training_contract=ref("contract.json", contract),
+        recovery_isaac_runtime=runtime,
+        recovery_isaac_acceptance=accept,
+        recovery_leg_driven_geometry=ref("geometry.json", GEO),
+        training_authorization=ref(
+            "authorization.json", dict(new_training_updates=10000, wall_s=None)
+        ),
+        training_allocation=allocation,
+    )
+    j = dataclasses.replace(
+        j,
+        assets=assets,
+        initialization=dataclasses.replace(
+            j.initialization, checkpoint=str(path), sha256=actor_ref["sha256"]
+        ),
+    )
+    with pytest.raises(ValueError, match="CPU consumer"):
+        preflight(j)
+    assets["recovery_isaac_acceptance"] = ref(
+        "accepted.json",
+        dict(
+            CPU_leg_driven_wiring_accepted=True,
+            actor_sha256=actor_ref["sha256"],
+            runtime_contract_sha256=runtime["sha256"],
+        ),
+    )
+    assert preflight(j)["PPO_updates"] == 0
+    invalid = dataclasses.replace(j, limits=dataclasses.replace(j.limits, formal_updates=8595))
+    with pytest.raises(ValueError, match="refund"):
+        preflight(invalid)

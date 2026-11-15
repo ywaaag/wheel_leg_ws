@@ -7,6 +7,10 @@
 
 # 当前任务
 
+## Recovery阶段推进重启（2026-11-15）
+
+用户授权设计配方并重启，独立`recovery/leg-progress-v2` worktree从main `17e1ac7`建立，保留旧Recovery与所有run。原10000已耗1406，余8594；正式配置`configs/jobs/recovery_leg_progress_remaining8594.json`只分配余额，墙钟null。CPU参考路径闭链/限位可行，hip近饱和是参考需要，未扩scale。新增阶段误差成本、6/6/10阶段事件奖励、不可恢复顺序失败结束、9/s保守失败尾款，采样40%完整Swing+35%转腿难点；轮std0.5显式合同，确定性输出不变。从原2100派生零轮head Actor均值重新初始化，新942 Critic/双Adam/首5 warmup，非u1400完整恢复。准备与实际启动证据见数据根`recovery_leg_progress_20261115`；真实能力NOT_RUN。
+
 ## Motion原Student050新PPO长训准备（2026-11-15）
 
 用户明确选用原Student `258aae9d`，授权完成接线/smoke并新授10000次在线更新、训练墙钟不限；GPU由用户稍后开启，本轮不自动长训、不建watcher。旧累计在线9519与104轮BC保留，旧7219余额退役。52次本机smoke实际COMPLETED，全部计入新额度，余9948；正式历史基数9571、累计上限19519，不退款故障或回退消耗。两个初期0更新失败与账本保留。新正式run尚未创建。
@@ -54,17 +58,6 @@
 独立`motion/loaded-center-scale-study`复用统一diagnose与MotionPlayer/C/V4，加入固定Actor、有界case、显式物理目标干预及原目标/实际目标记录，不改冻结训练合同。u2000本机平地MuJoCo对照：原0.20m命令稳态高度约0.22418m；旧raw直接按0.30/0.50rad重解码分别7.35/0.84秒触及姿态/高度边界，尚未到低高度评分，不能当新Student性能。没有合格受载中心候选，未改中心或正式scale。原始结果及蒸馏准备见数据根`motion_loaded_center_scale_20261114/`。
 
 用户授权停止Motion、蒸馏并回传模型。重连30548成功后核实原worker1485不存在、state陈旧RUNNING/2281；公共stop request-only记录，保留原状态后owner.reconcile结算FAILED（worker exited without terminal state）。本阶段已用500+2281=2781、剩7219，保存u2200与账本相差81次不退款；没有正常退出最终保存，不重启。保全回传与SHA核验以数据根`motion_preservation/20261114_height_stop/verification.json`为准。当前尚未启动BC或产生新Student。
-
-## 腿主导低轮速Recovery新任务（2026-11-14）
-
-<<<<<<< HEAD
-用户授权新10000更新、墙钟null。独立worktree `/home/kellen/wheel_leg_recovery_leg_ws` / `recovery/leg-driven-low-wheel` 从main `6df1353`建立；旧Recovery训练已用户停止于3149，新任务不挪旧余额。复用2100骨干/四腿输出，显式零初始化两个轮输出末层，新Critic942/双Adam；关闭旧大轮速动作prior与BC。顺序/全程真实轮速/姿态、1ms统计、分段辅助课程与候选门已实现；首次提交在初始观测处因Lifecycle reset误清执行限矩而FAILED/0更新；修复为仅重置声明的自有状态，失败run与原配方保留。后续attempt2分配仍为10000总额度（前段已耗0），不刷新额度。实际开训以对应run收据为准。当前本机另有Jump owner，未操作；用户已明确允许共享GPU，提交前仍核对显存/磁盘及唯一Recovery worker。主源/电控未改。
-
-
-=======
-独立worktree `/home/kellen/wheel_leg_recovery_leg_ws`，用户授权10000更新、墙钟null、允许与Jump共享GPU。attempt1构造失败0更新；attempt2真实完成6次后因worker未分派RecoveryAdapter而工程停止，完整u6与原账本保留。新版本修正worker正式分派及first12真实transition/优化器检查，完整来源warmup/双Adam/RNG保留，不重做warmup。attempt3配置仅分配9994次，累计仍10000；源未完成回合fresh reset。实际启动及能力以数据根run收据为准。旧Recovery、主源、电控、Motion远端与Jump均不改。
-
-趴地惩罚增量（2026-11-15）：attempt3已按停滞保护正常停止于1400，累计1406、余8594；新配置`recovery_leg_driven2100_anti_prone_prepared.json`只准备奖励，零分配/不重启。现有Lifecycle增加配置化低位未推进成本与失败剩余结算，保留物理合同，详见领域说明；真实训练效果NOT_RUN。
 
 ## Motion少量变高度接续（2026-11-13）
 
@@ -334,4 +327,3 @@ r10/r11的实际故障已定位为rough穿透检测位置错误：lower-leg的�
 - 当前活动 run：[run.json](runs/2026_11_5-21_21__motion442_scale_corrected_resume9546/run.json)、[state.json](runs/2026_11_5-21_21__motion442_scale_corrected_resume9546/state.json)、[budget](runs/2026_11_5-21_21__motion442_scale_corrected_resume9546/budget.json)
 - 前段 run：[spec](configs/experiments/2026_11_5-16_51__motion_smoke12_supported015_dqgain_formal9988/spec.json)、`formal/supervisor_terminal.json`、`formal/terminal_report.json`、`formal/completion_error.json`
 - 重构范围与验证：[迁移报告](docs/MIGRATION_20261105.md)
->>>>>>> 2cfc2f2 (fix recovery adapter dispatch and full-state continuation readback)

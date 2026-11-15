@@ -590,6 +590,8 @@ def _execute_stage(context, stage: str, payload: dict[str, Any] | None):
                 "recovery_legacy_reward",
                 "recovery_leg_driven_geometry",
                 "training_authorization",
+                "training_allocation",
+                "recovery_cubic_preparation",
             )
             register_dependencies(
                 context.refs,
