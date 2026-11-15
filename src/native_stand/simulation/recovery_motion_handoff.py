@@ -58,6 +58,10 @@ def plan(c):
     for ref in [c["recovery"], c["motion"], c["source_run"], c["gate_source"], c["gate_header"]]:
         if file_sha256(ref["path"]) != ref["sha256"]:
             raise ValueError("Handoff dependency SHA changed: " + ref["path"])
+    if any(v.get("spring_compensation", False) for v in c["variants"]):
+        for ref in c["spring_sources"].values():
+            if file_sha256(ref["path"]) != ref["sha256"]:
+                raise ValueError("Firmware spring dependency SHA changed")
     seconds = c["seconds"]
     if (
         not math.isfinite(seconds)
@@ -206,7 +210,14 @@ def run(c, output):
                     assets=assets,
                     runtime=dataclasses.replace(base.runtime, envs=1, device="cpu"),
                 )
-                env = RecoveryMuJoCoCollection(job)
+                spring = None
+                if variant.get("spring_compensation", False):
+                    from .firmware_spring import FirmwareSpring
+
+                    spring = FirmwareSpring(c["spring_sources"], output)
+                    env = RecoveryMuJoCoCollection(job, motor_transform=spring)
+                else:
+                    env = RecoveryMuJoCoCollection(job)
                 state = GateState()
                 g = GateConfig(variant.get("dwell_ms", 200), **c["gate"])
                 owner = "motion" if variant["kind"] == "motion_standing" else "recovery"
@@ -457,6 +468,8 @@ def run(c, output):
                             path=str(folder / "trace.npz"), sha256=file_sha256(folder / "trace.npz")
                         ),
                     )
+                    if spring is not None:
+                        row["spring_compensation"] = spring.report()
                     records.append(row)
                     write_json(output / "episodes.json", records)
                     print(

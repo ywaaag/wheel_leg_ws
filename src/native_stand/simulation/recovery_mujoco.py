@@ -170,12 +170,15 @@ def measured(mj, model, data, refs):
 
 
 class RecoveryMuJoCoCollection:
-    def __init__(self, job, *, execution_factory=None, lifecycle_factory=None):
+    def __init__(
+        self, job, *, execution_factory=None, lifecycle_factory=None, motor_transform=None
+    ):
         import mujoco
 
         from .recovery_isaac.bindings import load_response
 
         self.mj, self.job = mujoco, job
+        self.motor_transform = motor_transform
         self.config = validate_job(job)
         meta = read_json(self.config["model_readback"]["path"])
         if meta["mujoco_version"] != mujoco.__version__:
@@ -320,6 +323,10 @@ class RecoveryMuJoCoCollection:
                 q = self.tensor([d.qpos[self.refs["qpos"]] for d in self.data])
                 v = self.tensor([d.qvel[self.refs["dofs"]] for d in self.data])
                 motor, net = self.execution.step(q, v)
+                if self.motor_transform is not None:
+                    motor = self.motor_transform(
+                        q, v, motor, self.execution.tick - 1, self.execution.bias
+                    )
                 for i, (m, d) in enumerate(zip(self.models, self.data, strict=True)):
                     names = [
                         self.mj.mj_id2name(m, self.mj.mjtObj.mjOBJ_JOINT, j)
