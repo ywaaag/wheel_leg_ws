@@ -1,5 +1,9 @@
 # 当前任务
 
+## 实机Recovery/Motion统一015补偿（2026-11-15）
+
+按用户明确要求，仅集成电控feature/rl-supported015-recovery2100将Recovery也接入原015补偿，和Motion共用同一5ms计算/保持路径，交接不切换/不叠加，最终腿40Nm、轮4.8Nm。原仅Motion补偿模式标记移除，网络仍旧tjb，previous/队列/decoder/交接门不改。主机9/9通过、工具3通过/6外部模型缺失跳过；ARM构建Flash499708B、DTCM82624B。V4仿真未修改/未重跑，未刷机；以下历史报告中的Recovery不补偿指对应旧提交。
+
 ## 旧tjb原生软件链V4诊断（2026-11-15）
 
 只读c94bb9f原生C快照，复用sim2sim/RecoveryMuJoCoCollection/V4与显式factory。28回合125080子步/90.876秒：当前0/7；原生previous/10msPD/电流8192加40/2轮.2为0/7，最长接稳2.684秒；原生60/2轮1且额外Actor年龄0与20ms均0/7，0.94–3.36/0.59–0.86秒倾倒。全部是抬升后倾倒，非闭链故障。完整portable2016通过/31跳过（150.16秒），架构/Ruff通过。原生软件补偿+真实弹簧尚无独立物理模型，完整V4不额外叠加补偿；不是完整原生实机认证。两条电控分支未修改。详见docs/TJB_NATIVE_CONFIGURATION_DIAGNOSIS.md。
