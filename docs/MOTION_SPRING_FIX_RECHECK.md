@@ -2,7 +2,7 @@
 
 只修复电控feature/rl-supported015-recovery2100集成路径；feature/rl-motion31-supported015为只读参考。当前Recovery仍为旧tjb_recover（腿1.5mean、轮100mean），不是2100。
 
-电控原缺陷：recovery_execute在Motion接管后仍直接发送PD腿力矩，遗漏普通015的RLControlCompensateSpring。修复将Motion模式标记随物理目标运输5ms，实际PD采用后按5ms更新/保持补偿，最终腿限矩40Nm；Recovery不启用。主机真实C消费者覆盖采用前不抢先、采用后公式一致、PD保持/更新、限矩及无效几何锁零。
+电控原缺陷：recovery_execute在Motion接管后仍直接发送PD腿力矩，遗漏普通015的RLControlCompensateSpring。修复将Motion模式标记随物理目标运输5ms，实际PD采用后按5ms更新/保持补偿，最终腿限矩40Nm；Recovery当前不启用；这是代码现状，不是已证明实机Recovery不需要补偿，其部署合同仍待确认。主机真实C消费者覆盖采用前不抢先、采用后公式一致、PD保持/更新、限矩及无效几何锁零。
 
 仿真复用正式wheel-leg sim2sim与RecoveryMuJoCoCollection，保持完整V4+NET，不额外加015补偿，不改冻结依赖。V4采集时软件补偿开关尚无确证，不能认证实机弹簧等效；软件修复由C测试验证，以下仅是原V4策略闭环复测。
 

@@ -246,7 +246,13 @@ CPU测试用脚本I/O引擎替身贯穿正式分派，验证预算、异常记�
 
 7个development Swing条件中6个在0.60–0.94秒交接并连续保持12.06–12.40秒，另一个在交接前失败。数据根`recovery_motion_handoff/posture200ms_r2`保留原始证据；r1的窄门未交接证据保持只读。观测时序差异与硬件标定仍须实测，不作为实机认证。
 
-### 015软件弹簧补偿A/B
+### 仿真与实机的弹簧补偿口径
+
+完整V4训练、评估与sim2sim不额外添加软件弹簧补偿。实机015 Motion保留原补偿；本集成电控40e1b8b在Motion目标实际采用后恢复同一补偿。集成Recovery当前没有补偿，但这只是代码现状，不能由V4仿真不加补偿推论实机Recovery不需要；该模型部署合同仍待确认。电控软件也是软件，因此避免统称“软件层面都不需要补偿”。
+
+如果V4采集系统当时包含软件补偿＋真实弹簧，其整体等效响应可解释这种路径差异；当前尚缺采集开关确证，不能宣称完整实机等效已认证。下面原A/B属于历史附加力矩敏感性诊断，不是当前仿真执行建议。
+
+### 015软件弹簧补偿历史A/B
 
 `configs/jobs/tjb_recover_motion015_spring_comparison.json`经正式`wheel-leg sim2sim`比较旧tjb_recover在当前PD40/2/.2、40/4.8Nm下有无015补偿；`configs/jobs/motion015_spring_standing_comparison.json`另比较015 Motion从站立启动。两者仅仿真，不默认改电控固件。
 
