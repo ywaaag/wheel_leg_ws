@@ -60,9 +60,11 @@ def progression_config(value=None):
         "failure_tail_rate",
         "terminate_invalid_sequence",
     }
-    if set(value) != keys or value["version"] != "recovery_stage_progress_v1":
+    if set(value) - {"coordination"} != keys or value["version"] != "recovery_stage_progress_v1":
         raise ValueError("Explicit stage progression recipe required")
     result = copy.deepcopy(value)
+    if value.get("coordination", "sequential_v1") not in ("sequential_v1", "overlap_short_turn_v1"):
+        raise ValueError("Unknown short/turn coordination semantics")
     for key in ("remaining_rate", "failure_tail_rate"):
         if isinstance(value[key], bool) or not math.isfinite(value[key]) or value[key] <= 0:
             raise ValueError("Positive finite progression rates required")
@@ -154,6 +156,9 @@ class Lifecycle:
     def __init__(self, n, device, geometry, gamma, *, anti_prone=None, progression=None):
         self.anti_prone = anti_prone_config(anti_prone)
         self.progression = progression_config(progression)
+        self.overlap = bool(
+            self.progression and self.progression.get("coordination") == "overlap_short_turn_v1"
+        )
         if self.progression is not None:
             added = self.anti_prone["max_rate"] if self.anti_prone is not None else 0.0
             if (
@@ -262,11 +267,15 @@ class Lifecycle:
             premature_turn,
             torch.where(self.phase == 1, premature_extension, mirror_length),
         )
-        # Sequence validity is an episode certificate, not an action projection.
-        self.sequence_valid &= ~(
-            ((self.phase == 0) & (premature_turn > 1))
-            | ((self.phase == 1) & (premature_extension > 1))
-        )
+        # A user-authorized overlapping reconfiguration has no prescribed
+        # contraction-angle corridor or irreversible extension-order failure.
+        if self.overlap:
+            order = mirror_length
+        else:
+            self.sequence_valid &= ~(
+                ((self.phase == 0) & (premature_turn > 1))
+                | ((self.phase == 1) & (premature_extension > 1))
+            )
         acceleration = (vz - self.last_vz) / dt
         self.last_vz.copy_(vz)
         impact = torch.where(
@@ -327,7 +336,11 @@ class Lifecycle:
         shortened = (length <= short + 0.01).all(-1) & (
             self.geometry_speed[:, :2].abs().amax(-1) <= 0.05
         )
-        if self.progression is not None:
+        if self.overlap:
+            # A contraction milestone is diagnostic; it must not demand a stop
+            # or a prescribed intermediate swing angle before turning.
+            shortened = (length <= short + 0.01).all(-1)
+        elif self.progression is not None:
             short_angle = geometry.new_tensor(self.geometry["short_swing_rad"])
             shortened &= angle_difference(geometry[:, 2:], short_angle).abs().amax(-1) <= 0.10
         rotated = (
@@ -348,10 +361,12 @@ class Lifecycle:
         gate &= student & ~terminal & (state[:, 11] <= 0.005)
         self.dwell = torch.where(gate, self.dwell + dt_s, 0.0)
         thresholds = torch.where(self.phase == 3, 0.5, 0.1)
+        if self.overlap:
+            thresholds = torch.where(self.phase == 0, dt_s, thresholds)
         event = gate & (self.dwell >= thresholds - 1e-6)
         old_phase = self.phase.clone()
         failed = terminal | (self.tilt_bad_time >= 0.03 - 1e-6) | (self.fast_time >= 0.02 - 1e-6)
-        if self.progression is not None:
+        if self.progression is not None and not self.overlap:
             failed |= ~self.sequence_valid
         event &= ~failed
         progressed = event & (old_phase < 3)
@@ -364,7 +379,7 @@ class Lifecycle:
         initial_length = (self.initial_geometry[:, :2] - short).clamp_min(0.01)
         p0 = ((self.initial_geometry[:, :2] - length) / initial_length).clamp(0, 1).amin(-1)
         turn_start = self.initial_geometry[:, 2:]
-        if self.progression is not None:
+        if self.progression is not None and not self.overlap:
             turn_start = torch.where(
                 (self.initial_phase < 1)[:, None],
                 geometry.new_tensor(self.geometry["short_swing_rad"]),
@@ -372,6 +387,13 @@ class Lifecycle:
             )
         initial_error = angle_difference(turn_start, turn).abs().amax(-1).clamp_min(0.1)
         p1 = (1 - turn_error / initial_error).clamp(0, 1)
+        if self.overlap:
+            # Rotation can earn progress during contraction. In phase1 both
+            # length and alignment remain necessary: extending or merely lifting
+            # the chassis cannot erase the outstanding reconfiguration cost.
+            p0 = 0.5 * (p0 + p1)
+            short_score = ((short + 0.08 - length) / 0.08).clamp(0, 1).amin(-1)
+            p1 = torch.minimum(p1, short_score)
         p2 = ((state[:, 3] - self.h0) / (0.34 - self.h0).clamp_min(0.02)).clamp(0, 1)
         p3 = (self.hold / 0.5).clamp(0, 1)
         self.progress = torch.where(
@@ -469,6 +491,8 @@ class Lifecycle:
                 )
             )
         }
+        if self.overlap:
+            density["leg_symmetry"] = density.pop("sequence")
         density["anti_prone"] = prone_density
         density["stage_remaining"] = remaining_density
         self.last_result = dict(
@@ -554,7 +578,10 @@ class Lifecycle:
             course_level=int(self.course_level[i]),
             initial_phase=int(self.initial_phase[i]),
             final_phase=int(self.phase[i]),
-            sequence_valid=bool(self.sequence_valid[i]),
+            sequence_valid=None if self.overlap else bool(self.sequence_valid[i]),
+            coordination="overlap_short_turn_v1" if self.overlap else "sequential_v1",
+            reconfiguration_completed=bool(self.initial_phase[i] < 2 and self.phase[i] >= 2),
+            reconfiguration_auxiliary_reset=bool(self.initial_phase[i] >= 2),
             progress=float(self.progress[i]),
             length_m=self.last_geometry[i, :2].tolist(),
             swing_rad=self.last_geometry[i, 2:].tolist(),
@@ -598,7 +625,9 @@ def review_window(rows, level, history):
     passed = sufficient and all(
         r["student_success"] / r["ended"] >= (0.95 if r["objective"] == "Swing" else 0.9)
         and r["quality"] / r["ended"] >= 0.9
-        and r.get("sequence_valid", 0) / r["ended"] >= 0.98
+        and (
+            r.get("sequence_applicable") is False or r.get("sequence_valid", 0) / r["ended"] >= 0.98
+        )
         for r in selected
     )
     full = [r for r in selected if r["objective"] == "Swing"]
@@ -606,7 +635,11 @@ def review_window(rows, level, history):
         (
             r["student_success"] / r["ended"]
             + r["quality"] / r["ended"]
-            + r.get("sequence_valid", 0) / r["ended"]
+            + (
+                0.0
+                if r.get("sequence_applicable") is False
+                else r.get("sequence_valid", 0) / r["ended"]
+            )
             + 0.1 * r.get("continuous_progress_sum", r.get("phase_progress_sum", 0)) / r["ended"]
             - 0.01 * r.get("wheel_rms_sum", 0) / r["ended"]
             for r in full

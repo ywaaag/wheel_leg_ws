@@ -1,0 +1,246 @@
+{
+  "preset": "recovery_cubic_v2",
+  "name": "recovery_overlap_remaining8203",
+  "source_root": "/home/kellen/wheel_leg_recovery_overlap_ws/src",
+  "backend": "isaac_recovery",
+  "initialization": {
+    "mode": "full",
+    "checkpoint": "/home/kellen/wheel_leg_training_data/2026_11_15__recovery_leg_progress_remaining8594/checkpoints/model_update_391.pt",
+    "sha256": "8fb903544dcd85af4a0c71abf9f709fa0473ded6df02ee7a5cd62ed811035182"
+  },
+  "limits": {
+    "smoke_updates": 0,
+    "formal_updates": 8203,
+    "sample_limit": 134397952,
+    "chain_wall_s": null,
+    "evaluation_wall_s": 600
+  },
+  "model": {
+    "critic_input": 942,
+    "critic_privileged_version": "recovery_leg_driven_causal942_v1"
+  },
+  "observation": {
+    "critic_dim": 942
+  },
+  "runtime": {
+    "envs": 128,
+    "steps_per_env": 128,
+    "seed": 111503,
+    "device": "cuda:0",
+    "headless": true
+  },
+  "ppo": {
+    "learning_rate": 1e-05,
+    "critic_learning_rate": 9e-05,
+    "epochs": 4,
+    "minibatches": 4,
+    "critic_warmup_updates": 5,
+    "exploration_wheel_rad_s": 0.5
+  },
+  "control": {
+    "effort_limits_nm": [
+      40.0,
+      40.0,
+      4.8,
+      40.0,
+      40.0,
+      4.8
+    ]
+  },
+  "reward": {
+    "version": "recovery_leg_driven_low_wheel_v1",
+    "dt": 0.01,
+    "weights": [
+      1.0
+    ],
+    "fields": {
+      "source": "tasks.recovery.leg_driven",
+      "anti_prone": {
+        "version": "recovery_anti_prone_v1",
+        "grace_s": 0.8,
+        "ramp_s": 0.8,
+        "max_rate": 2.0,
+        "height_m": 0.26
+      },
+      "progression": {
+        "version": "recovery_stage_progress_v1",
+        "remaining_rate": 3.0,
+        "completion_bonus": [
+          6.0,
+          6.0,
+          10.0
+        ],
+        "failure_tail_rate": 9.0,
+        "terminate_invalid_sequence": true,
+        "coordination": "overlap_short_turn_v1"
+      }
+    }
+  },
+  "storage": {
+    "checkpoint_every_updates": 100,
+    "keep_recent_checkpoints": 2,
+    "metrics_every_updates": 10,
+    "tensorboard": true,
+    "milestones": [
+      1,
+      6,
+      12
+    ],
+    "max_output_bytes": 4294967296,
+    "terminal_reserve_bytes": 536870912
+  },
+  "assets": {
+    "path_mapping": {
+      "path": "/home/kellen/wheel_leg_training_data/runtime_paths.json",
+      "sha256": "38c6f5100170e80e66cd1d9bc826daf397bd0ded0f1a3b248ec15b1ae412ccea"
+    },
+    "recovery_initial_actor": {
+      "path": "/home/kellen/wheel_leg_training_data/recovery_leg_progress_20261115/preparation/initial_actor.pt",
+      "sha256": "f419940e4e8ca72b2ef145de56f6883af1209cb3bdcec873ebf2c37e3dcb7380"
+    },
+    "recovery_training_contract": {
+      "path": "/home/kellen/wheel_leg_training_data/recovery_leg_progress_20261115/preparation/output_contract.json",
+      "sha256": "fcb38c8cb7e09384fef29f56a67baab094c37fb676f9727e5da10613d23b78e5"
+    },
+    "training_authorization": {
+      "path": "/home/kellen/wheel_leg_training_data/recovery_overlap_20261115/preparation/authorization.json",
+      "sha256": "b5c3b07287c81adbb719bd9c590f087845ee56e5b005666e5d977c531ad887ec"
+    },
+    "recovery_leg_driven_geometry": {
+      "path": "/home/kellen/wheel_leg_training_data/recovery_leg_driven_20261114/preparation/geometry.json",
+      "sha256": "f91c3728b9bc6064f38707a5886ef6dd596aac40fc7fc1636305f56db6765a02"
+    },
+    "recovery_isaac_runtime": {
+      "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_11__recovery_preentry48_restart/runtime_contract.json",
+      "sha256": "81d6c19ec5e64189fb5609310f7e2ec0d55fc0cbc76e7594ee4a1a51c819a25b"
+    },
+    "recovery_isaac_acceptance": {
+      "path": "/home/kellen/wheel_leg_training_data/recovery_overlap_20261115/preparation/cpu_acceptance.json",
+      "sha256": "2ead34aa65e255ec80e26c515c0b4d9018b6350012648e43567c26943cda0062"
+    },
+    "physical_gpu_uuid": "GPU-e704e7d4-2965-4712-9759-ba6b9910bd72",
+    "gpu_resource_policy": {
+      "mode": "shared_authorized",
+      "authorization": {
+        "path": "/home/kellen/wheel_leg_training_data/recovery_overlap_20261115/preparation/authorization.json",
+        "sha256": "b5c3b07287c81adbb719bd9c590f087845ee56e5b005666e5d977c531ad887ec"
+      },
+      "minimum_free_MiB": 8192,
+      "minimum_disk_free_bytes": 8589934592,
+      "storage_path": "/home/kellen/wheel_leg_training_data"
+    },
+    "recovery": {
+      "entry_family": "swing",
+      "gate": {
+        "hold_seconds": 0.5,
+        "standing_height_m": [
+          0.32,
+          0.36
+        ],
+        "dual_contact_min": 0.95,
+        "peak_tilt_max_rad": 0.2617993878,
+        "closure_max_m": 0.005,
+        "saturation_fraction_max": 0.05
+      }
+    },
+    "scene": {
+      "initial_state": {
+        "path": "/home/kellen/wheel_leg_training_data/recovery_leg_driven_20261114/preparation/initial_states.json",
+        "sha256": "0fc3ae1b21353dbb329741615a82b3c251e9047c69a2fa0d6c6773e47bdad649"
+      }
+    },
+    "preserve_periodic_Recovery_actor": false,
+    "recovery_cubic_preparation": {
+      "path": "/home/kellen/wheel_leg_training_data/recovery_leg_progress_20261115/preparation/manifest.json",
+      "sha256": "59e1c5a221951101452bd91b2087d69b580a9801e4d75df8792d6198267b55e6"
+    },
+    "training_allocation": {
+      "path": "/home/kellen/wheel_leg_training_data/recovery_overlap_20261115/preparation/allocation.json",
+      "sha256": "aa3a43a776dccbd6df8532555119e4949305a694947668d22799f8486d5beb2a"
+    },
+    "recovery_execution_artifacts": "/home/kellen/wheel_leg_training_data/2026_11_15__recovery_overlap_remaining8203/engine",
+    "recovery_recipe_transition": {
+      "path": "/home/kellen/wheel_leg_training_data/recovery_overlap_20261115/preparation/transition.json",
+      "sha256": "ef850ecfd3de44a0cab8a41592440a2ceca86cdcf4e3746785dfa1804b80e8d6"
+    }
+  },
+  "diagnostics": {
+    "engineering_smoke_in_first_formal_updates": 12,
+    "training_candidate_selection": {
+      "maximum_candidates": 2,
+      "version": "recovery_leg_driven_candidates_v1",
+      "every_updates": 100,
+      "minimum_ended": 256
+    },
+    "recovery_audit_metrics": true
+  },
+  "notifications": {
+    "enabled": false,
+    "target": null
+  },
+  "experiment_variables": {
+    "goal": "low_wheel_speed_overlapping_shortening_and_turn",
+    "user_clarification": "\u53ef\u4ee5\u6536\u817f\u7684\u540c\u65f6\u8f6c\u817f",
+    "authorized_total_updates": 10000,
+    "prior_updates_used": 1797,
+    "remaining_updates": 8203,
+    "full_state_resume": true,
+    "do_not_repeat_warmup": true,
+    "old_semantic_statistics_preserved_at_source": true,
+    "fresh_physical_reset": true,
+    "hardware": false
+  },
+  "curriculum": {
+    "version": "recovery_leg_driven_course_v1",
+    "stage": 0,
+    "stages": [
+      {
+        "groups": [
+          "full_Swing",
+          "shortened",
+          "rotated",
+          "lifted"
+        ],
+        "fractions": [
+          0.4,
+          0.35,
+          0.15,
+          0.1
+        ]
+      },
+      {
+        "groups": [
+          "full_Swing",
+          "shortened",
+          "rotated",
+          "lifted"
+        ],
+        "fractions": [
+          0.7,
+          0.1,
+          0.1,
+          0.1
+        ]
+      },
+      {
+        "groups": [
+          "full_Swing",
+          "shortened",
+          "rotated",
+          "lifted"
+        ],
+        "fractions": [
+          0.85,
+          0.05,
+          0.05,
+          0.05
+        ]
+      }
+    ]
+  },
+  "evaluation": {
+    "seconds": 6,
+    "protocol_version": "recovery_leg_driven_ready_half_second_v1",
+    "conditions": []
+  }
+}

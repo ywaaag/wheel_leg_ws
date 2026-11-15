@@ -25,9 +25,9 @@
 
 # 当前任务
 
-## Recovery阶段推进重启（2026-11-15）
+## Recovery收腿转腿重叠接续（2026-11-15）
 
-用户授权设计配方并重启，独立`recovery/leg-progress-v2` worktree从main `17e1ac7`建立，保留旧Recovery与所有run。原10000已耗1406，余8594；正式配置`configs/jobs/recovery_leg_progress_remaining8594.json`只分配余额，墙钟null。CPU参考路径闭链/限位可行，hip近饱和是参考需要，未扩scale。新增阶段误差成本、6/6/10阶段事件奖励、不可恢复顺序失败结束、9/s保守失败尾款，采样40%完整Swing+35%转腿难点；轮std0.5显式合同，确定性输出不变。从原2100派生零轮head Actor均值重新初始化，新942 Critic/双Adam/首5 warmup，非u1400完整恢复。准备与实际启动证据见数据根`recovery_leg_progress_20261115`；真实能力NOT_RUN。
+用户允许收腿同时转腿。独立`recovery/overlap-short-turn`从当前main `28d240d`建立并合并progress冻结版本；原worktree只读，旧run已公共stop于391且完整保存。累计1797、余8203不退款。新配置`configs/jobs/recovery_leg_overlap_remaining.json`取消人为摆角走廊/过早伸腿硬失败和中间-0.65摆角/停顿要求，保留短腿承重进入及实体轮速/姿态/闭链/接稳门。使用完整u391状态保留Actor/Critic/双Adam/RNG/std/warmup，fresh物理reset，新旧统计域显式SHA迁移，不混候选。准备与启动证据见数据根`recovery_overlap_20261115`；实际启动、消耗及能力以run收据为准。
 
 ## Motion原Student050新PPO长训准备（2026-11-15）
 

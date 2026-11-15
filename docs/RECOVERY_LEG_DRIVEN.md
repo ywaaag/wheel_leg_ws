@@ -47,3 +47,13 @@ C0→C3按4/2/1/.5rad/s成本尺度收紧，完整Swing比例30%→70%→85%，�
 策略初始化显式回到2100骨干/腿输出+零轮head的原始Actor均值，均值MLP逐tensor相等，仅physical_std缓冲改为新合同；不完整恢复u1400的趴地策略，重建942D Critic和双Adam/课程/RNG，首5 Critic-only计入8594。source Actor、teacher、合同、初始化说明、历次账本、授权与分配均SHA绑定。奖励改变后不混旧候选/窗口；同run完整恢复继续保持双Adam与已完成warmup。
 
 每100更新窗口检查完整Swing成功、各阶段推进、顺序违规、低速/姿态；至少看到收短→转腿真实突破才称动作链改善。前12真实优化工程门只证明链路可运行；动态参考可行性、独立MuJoCo/延迟DR验证、Motion交接、实机与导出仍NOT_RUN。本配方没有额外teacher控制、轨迹跟踪器、虚拟锁轮或输出裁剪；若再停滞，保留失败证据而不无限重复同配方。
+
+## 允许收腿与转腿重叠（2026-11-15）
+
+用户澄清“可以收腿的同时转腿”。旧`sequential_v1`的人为违规并不是硬件fault：收腿时摆角超出随腿长插值参考0.30rad，或转腿阶段腿长超过约0.190m，会永久标记顺序失败；progress配方随即终止。其固定-0.65rad中间构型与收腿速度/100ms停留限制可能拒绝其他合理的协同路径。旧27134个shortened回合的“顺序违规”只说明触发该规则，不证明机器人无法起身，也不能直接套到新语义。
+
+新正式配置`configs/jobs/recovery_leg_overlap_remaining.json`显式设置`reward.fields.progression.coordination=overlap_short_turn_v1`：phase0/1不再使用摆角走廊、过早伸腿硬失败或对应顺序成本；改为软左右腿长度对称成本，不投影/裁剪动作。收腿几何里程碑不要求经过-0.65rad、不要求先停下或等100ms才能转腿；short+0.01m达到一个policy tick即可记录里程碑。转腿可从phase0开始，收腿进度与向承重方向的转腿进度各占phase0连续进度一半；phase1仍综合腿长与摆角，单独伸长或抬高不能抹去未完成误差。进入抬升前仍需两腿≤short+0.015m、支撑摆角误差≤0.10rad、摆角速度≤0.5rad/s连续100ms。允许暂时伸回后再收短。成功仍要求真实承重入口和接稳0.5s，不把辅助reset当完整重构。
+
+实体轮速、倾角、角速度、冲击、闭链及环境原有终止、PD/40与4.8Nm、输出范围/decoder/previous/时序均不改；不新增控制器。新episode记录`coordination`、`sequence_valid=null`（人为顺序证书不适用）、`reconfiguration_completed`与辅助reset身份；新窗口`sequence_applicable=false`，不再用原98%顺序门筛候选，但成功率/质量/覆盖门继续有效。旧配方字段缺省时保留原实现。CPU能走通不代表动态安全或能力通过。
+
+独立worktree `/home/kellen/wheel_leg_recovery_overlap_ws`从当前main `28d240d`建立并合并冻结progress源码；未热改旧worktree。由公共stop有界停止旧run于u391，完整源SHA `8fb903544dcd85af4a0c71abf9f709fa0473ded6df02ee7a5cd62ed811035182`；总已耗1797，新run仅分配8203。沿正式CLI/owner/worker/RecoveryAdapter完整加载Actor、942D Critic、双Adam、std0.5、RNG和warmup5，不重新初始化Actor或重做warmup。物理现场fresh reset；新旧奖励比较域通过SHA绑定`recovery_recipe_transition`显式迁移。旧候选/窗口/review history保留在原run，不作为新规则成绩；新run从新统计窗口开始。同run恢复仍严格比较原域。完整来源与余额均在提交/加载边界核验，保留失败证据。

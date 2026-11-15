@@ -51,6 +51,45 @@ class RecoveryAdapter(GenericPPOAdapter):
                 },
             )
         )
+        self.recipe_transition = copy.deepcopy(payload0.get("recovery_recipe_transition"))
+        old_candidates = payload0.get("training_candidates")
+        if old_candidates and old_candidates.get("comparison_sha256") != self.domain:
+            if resume_from is not None or context.job.initialization.mode != "full":
+                raise ValueError(
+                    "Recovery comparison-domain change requires explicit new-run full initialization"
+                )
+            ref = context.job.assets.get("recovery_recipe_transition")
+            if not ref or file_sha256(ref["path"]) != ref["sha256"]:
+                raise ValueError("Recovery recipe transition identity required")
+            from native_stand.artifacts.io import read_json
+
+            transition = read_json(ref["path"])
+            source = transition["source_checkpoint"]
+            if (
+                transition.get("version") != "recovery_full_recipe_transition_v1"
+                or source["path"] != context.job.initialization.checkpoint
+                or source["sha256"] != context.job.initialization.sha256
+                or file_sha256(source["path"]) != source["sha256"]
+                or transition["from_comparison_sha256"] != old_candidates["comparison_sha256"]
+                or transition["to_reward_sha256"] != json_digest(recipe["reward"])
+                or transition["to_curriculum_sha256"] != json_digest(recipe["curriculum"])
+                or transition.get("fresh_physical_reset") is not True
+            ):
+                raise ValueError("Recovery recipe transition does not bind source and target")
+            self.recipe_transition = copy.deepcopy(transition)
+            # PPO Actor/Critic/both Adam/RNG/warmup were fully restored above.
+            # Old statistics remain at their source identity; they must not
+            # become a review window or a candidate under changed semantics.
+            payload0 = dict(payload0)
+            for key in (
+                "training_candidates",
+                "recovery_training_window",
+                "recovery_pending_publication",
+                "leg_driven_review_history",
+                "recovery_episode_cursor",
+            ):
+                payload0.pop(key, None)
+            self.leg_review_history = []
         payload = payload0
         self.legacy_unscoped = copy.deepcopy(
             payload.get("legacy_unscoped_completed_statistics", [])
@@ -193,9 +232,15 @@ class RecoveryAdapter(GenericPPOAdapter):
                 aggregate["wheel_rms_sum"] = aggregate.get("wheel_rms_sum", 0.0) + max(
                     info["wheel_rms"]
                 )
-                aggregate["sequence_valid"] = aggregate.get("sequence_valid", 0) + int(
-                    info["sequence_valid"]
+                aggregate["sequence_applicable"] = (
+                    info.get("coordination") != "overlap_short_turn_v1"
                 )
+                aggregate["sequence_valid"] = aggregate.get("sequence_valid", 0) + int(
+                    info["sequence_valid"] is True
+                )
+                aggregate["reconfiguration_completed"] = aggregate.get(
+                    "reconfiguration_completed", 0
+                ) + int(info.get("reconfiguration_completed", False))
                 aggregate["wheel_peak_max"] = max(
                     aggregate.get("wheel_peak_max", 0.0), max(info["wheel_peak"])
                 )
@@ -252,6 +297,7 @@ class RecoveryAdapter(GenericPPOAdapter):
     def capture(self, context, counters):
         result = super().capture(context, counters)
         result.update(
+            recovery_recipe_transition=copy.deepcopy(self.recipe_transition),
             legacy_unscoped_completed_statistics=copy.deepcopy(self.legacy_unscoped),
             recovery_episode_cursor=self.cursor,
             recovery_training_window=copy.deepcopy(self.window),
@@ -289,7 +335,10 @@ class RecoveryAdapter(GenericPPOAdapter):
                     row["objective"] != "Swing"
                     or row["student_success"] / row["ended"] < 0.95
                     or row["quality"] / row["ended"] < 0.9
-                    or row.get("sequence_valid", 0) / row["ended"] < 0.98
+                    or (
+                        row.get("sequence_applicable") is not False
+                        and row.get("sequence_valid", 0) / row["ended"] < 0.98
+                    )
                 ):
                     continue
                 rank = [row["student_success"] / row["ended"], row["quality"] / row["ended"]]

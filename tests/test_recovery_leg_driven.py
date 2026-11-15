@@ -956,3 +956,220 @@ def test_progress_recipe_public_preflight_enforces_acceptance_and_budget(tmp_pat
     invalid = dataclasses.replace(j, limits=dataclasses.replace(j.limits, formal_updates=8595))
     with pytest.raises(ValueError, match="refund"):
         preflight(invalid)
+
+
+def overlap_life(phase=0):
+    recipe = dict(PROGRESSION, coordination="overlap_short_turn_v1")
+    a = Lifecycle(2, "cpu", GEO, 0.9980019986673331, anti_prone=ANTI_PRONE, progression=recipe)
+    _, g = life(phase=phase)
+    a.reset(torch.arange(2), torch.full((2,), 0.168), torch.zeros(2))
+    a.configure_reset(torch.arange(2), g, torch.full((2,), phase), torch.zeros(2, dtype=torch.long))
+    return a, g
+
+
+def test_overlap_accepts_rotation_during_contraction_outside_old_corridor():
+    a, g = overlap_life()
+    old, _ = life()
+    old.progression = copy.deepcopy(PROGRESSION)
+    g[:, :2] = 0.22
+    g[:, 2:] = -0.1
+    new = advance(a, g, t=0.5)
+    legacy = advance(old, g, t=0.5)
+    assert not new["terminated"].any() and not new["success"].any()
+    assert legacy["terminated"].all()
+    assert a.episode_record(0)["sequence_valid"] is None
+    assert a.episode_record(0)["coordination"] == "overlap_short_turn_v1"
+    assert "sequence" not in new["density"] and "leg_symmetry" in new["density"]
+
+
+def test_overlap_has_no_fixed_intermediate_angle_or_pause_before_turning():
+    a, g = overlap_life()
+    g[:, :2] = 0.145
+    g[:, 2:] = 0.0
+    first = advance(a, g, t=0.01)
+    assert a.phase.tolist() == [1, 1]
+    assert torch.equal(first["phase_bonus"], torch.full((2,), 6.0))
+    assert not first["terminated"].any()
+    for i in range(11):
+        advance(a, g, t=0.02 + i * 0.01)
+    assert a.phase.tolist() == [2, 2]
+    assert a.episode_record(0)["reconfiguration_completed"]
+
+
+def test_overlap_temporary_extension_is_recoverable_and_not_complete():
+    a, g = overlap_life(phase=1)
+    g[:, :2] = 0.22
+    g[:, 2:] = 0.0
+    out = advance(a, g, t=1.0)
+    assert not out["terminated"].any() and a.phase.tolist() == [1, 1]
+    assert (out["density"]["stage_remaining"] < 0).all()
+    g[:, :2] = 0.145
+    for i in range(12):
+        advance(a, g, t=1.01 + i * 0.01)
+    assert a.phase.tolist() == [2, 2]
+
+
+def test_overlap_keeps_physical_failures_and_prevents_height_only_bypass():
+    a, g = overlap_life()
+    out = advance(a, g, t=1.0, height=0.34)
+    assert a.phase.tolist() == [0, 0] and not out["success"].any()
+    assert (out["density"]["stage_remaining"] < 0).all()
+    out = advance(a, g, t=1.01, height=0.34, terminal=True)
+    assert out["terminated"].all() and not out["success"].any()
+    b, h = overlap_life()
+    for i in range(3):
+        out = advance(b, h, t=0.01 * (i + 1), tilt=0.6)
+    assert out["terminated"].all()
+
+
+def test_overlap_success_still_requires_ready_half_second():
+    a, g = overlap_life()
+    g[:, :2] = 0.145
+    g[:, 2:] = 0.0
+    t = 0.0
+    for _i in range(25):
+        t += 0.01
+        out = advance(a, g, t=t, height=0.34)
+    assert a.phase.tolist() == [3, 3] and not out["success"].any()
+    for _i in range(51):
+        t += 0.01
+        out = advance(a, g, t=t, height=0.34)
+    assert out["success"].all() and a.episode_record(0)["sequence_valid"] is None
+
+
+def test_recipe_change_requires_bound_transition_and_preserves_full_learning(tmp_path):
+    import dataclasses
+
+    from native_stand.artifacts.checkpoint import save_full
+    from native_stand.artifacts.io import file_sha256, json_digest, write_json
+    from native_stand.simulation.recovery_adapter import RecoveryAdapter
+
+    c, b = adapter_fixture(tmp_path / "old", config_name="recovery_leg_progress_remaining8594.json")
+    old = RecoveryAdapter(b)
+    old.build(c, "formal", None)
+    for i in range(6):
+        metrics = old.update_once(c, i)
+        c.updates_used += 1
+        old.after_update(c, i, metrics)
+    state = old.capture(c, dict(updates=6))
+    cp = tmp_path / "source.pt"
+    save_full(cp, state)
+    c, b = adapter_fixture(
+        tmp_path / "new", source=cp, config_name="recovery_leg_progress_remaining8594.json"
+    )
+    fields = copy.deepcopy(c.job.reward.fields)
+    fields["progression"]["coordination"] = "overlap_short_turn_v1"
+    c.job = dataclasses.replace(c.job, reward=dataclasses.replace(c.job.reward, fields=fields))
+    with pytest.raises(ValueError, match="transition identity"):
+        RecoveryAdapter(b).build(c, "formal", None)
+    recipe = c.job.as_run_record()
+    transition = dict(
+        version="recovery_full_recipe_transition_v1",
+        source_checkpoint=dict(path=str(cp), sha256=file_sha256(cp)),
+        from_comparison_sha256=state["training_candidates"]["comparison_sha256"],
+        to_reward_sha256=json_digest(recipe["reward"]),
+        to_curriculum_sha256=json_digest(recipe["curriculum"]),
+        fresh_physical_reset=True,
+    )
+    receipt = tmp_path / "transition.json"
+    write_json(receipt, transition)
+    c.job = dataclasses.replace(
+        c.job,
+        assets=dict(
+            c.job.assets,
+            recovery_recipe_transition=dict(path=str(receipt), sha256=file_sha256(receipt)),
+        ),
+    )
+    restored = RecoveryAdapter(b)
+    restored.build(c, "formal", None)
+    assert restored._prior_warmup == 5 and restored._warmup == 0
+    assert torch.equal(torch.get_rng_state(), state["training_rng"]["torch_cpu"])
+    for owner in ["actor", "critic"]:
+        assert all(
+            torch.equal(v, getattr(restored.ppo, owner).state_dict()[k])
+            for k, v in state[owner].items()
+        )
+        expected = state["optimizer"][owner]["state"]
+        actual = restored.ppo.optimizer.state_dict()[owner]["state"]
+        assert set(expected) == set(actual)
+        for key in expected:
+            assert all(
+                torch.equal(v, actual[key][k]) if torch.is_tensor(v) else v == actual[key][k]
+                for k, v in expected[key].items()
+            )
+    assert restored.window == {} and restored.leg_review_history == [] and restored.cursor == 0
+    assert restored.pending is None
+    assert (
+        restored.candidates["comparison_sha256"]
+        != state["training_candidates"]["comparison_sha256"]
+    )
+    metrics = restored.update_once(c, 0)
+    assert metrics["actor_optimizer_steps"] > 0 and not metrics["critic_only"]
+    c.updates_used = 1
+    restored.after_update(c, 0, metrics)
+    assert restored.capture(c, dict(updates=1))["recovery_recipe_transition"] == transition
+
+
+def test_overlap_review_does_not_turn_inapplicable_sequence_into_failures():
+    window = rows()
+    for row in window:
+        row["sequence_applicable"] = False
+        row["sequence_valid"] = 0
+    record, _, _ = review_window(window, 0, [])
+    assert record["passed"]
+    window[0]["student_success"] = 0
+    record, _, _ = review_window(window, 0, [])
+    assert not record["passed"]
+
+
+def test_public_worker_consumes_overlap_recipe_and_inapplicable_sequence(tmp_path, monkeypatch):
+    from native_stand.experiments import worker
+    from native_stand.simulation import driver
+    from native_stand.simulation.recovery_adapter import RecoveryAdapter
+
+    c, b = adapter_fixture(tmp_path, config_name="recovery_leg_overlap_prepared.json")
+    monkeypatch.setattr(worker, "resolve_backend", lambda job: b)
+
+    def consume(context, adapter, *, stage, resume_from):
+        assert type(adapter) is RecoveryAdapter
+        adapter.build(context, stage, resume_from)
+        assert context.job.reward.fields["progression"]["coordination"] == "overlap_short_turn_v1"
+        metrics = adapter.update_once(context, 0)
+        context.updates_used = 1
+        adapter.env.env.completed = [
+            dict(
+                group="full_Swing",
+                nominal_anchor=True,
+                command_height_m=0.34,
+                height_dynamic=False,
+                DR_strength=0.0,
+                student_seconds=1.0,
+                teacher_seconds=0.0,
+                steps=100,
+                success=False,
+                physical_quality=False,
+                leg_driven=dict(
+                    course_level=0,
+                    initial_phase=0,
+                    final_phase=1,
+                    progress=0.5,
+                    wheel_rms=[0.5, 0.5],
+                    sequence_valid=None,
+                    coordination="overlap_short_turn_v1",
+                    reconfiguration_completed=False,
+                    wheel_peak=[1.0, 1.0],
+                    tilt_peak_rad=0.1,
+                    quality=True,
+                ),
+            )
+        ]
+        adapter.env.env.completed_count = 1
+        adapter.after_update(context, 0, metrics)
+        state = adapter.capture(context, dict(updates=1))
+        row = next(iter(state["recovery_training_window"].values()))
+        assert row["sequence_applicable"] is False and row["sequence_valid"] == 0
+        assert row["continuous_progress_sum"] == 1.5
+        return state
+
+    monkeypatch.setattr(driver, "run_stage", consume)
+    assert worker._execute_stage(c, "formal", None)["warmup_updates_done"] == 1

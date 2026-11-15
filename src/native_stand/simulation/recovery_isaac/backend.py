@@ -278,6 +278,24 @@ def preflight(job, *, for_learning=None, resources=False):
             or job.limits.smoke_updates != 0
         ):
             raise ValueError("Recovery allocation cannot refund prior updates")
+    transition_ref = job.assets.get("recovery_recipe_transition")
+    if transition_ref is not None:
+        if file_sha256(transition_ref["path"]) != transition_ref["sha256"]:
+            raise ValueError("Recovery recipe transition identity differs")
+        from native_stand.artifacts.io import json_digest
+
+        transition = read_json(transition_ref["path"])
+        if (
+            transition.get("version") != "recovery_full_recipe_transition_v1"
+            or job.initialization.mode != "full"
+            or transition["source_checkpoint"]["path"] != job.initialization.checkpoint
+            or transition["source_checkpoint"]["sha256"] != job.initialization.sha256
+            or file_sha256(job.initialization.checkpoint) != job.initialization.sha256
+            or transition["to_reward_sha256"] != json_digest(job.as_run_record()["reward"])
+            or transition["to_curriculum_sha256"] != json_digest(job.as_run_record()["curriculum"])
+            or transition.get("fresh_physical_reset") is not True
+        ):
+            raise ValueError("Recovery recipe transition source/target differs")
     acceptance = read_json(job.assets["recovery_isaac_acceptance"]["path"])
     if for_learning and job.reward.version == "recovery_leg_driven_low_wheel_v1":
         auth = read_json(job.assets["training_authorization"]["path"])
