@@ -25,17 +25,23 @@
 
 # 当前任务
 
-## Motion原Student050新PPO长训准备（2026-11-15）
+## Motion原Student050远端PPO长训（2026-11-15已启动）
 
-执行口径已集中到[Motion执行口径](docs/MOTION_EXECUTION_ALIGNMENT.md)：Isaac训练与MuJoCo验证／播放均使用同源完整V4，不额外叠旧弹簧／C补偿；已有015实机保留原软件补偿。辨识分支`c8d9636`确认发送补偿后力矩、反馈记录扣除补偿，V4主要拟合目标到q／dq；原CSV与当时烧录身份／通道布局尚未完整绑定，不宣称全高度／负载／饱和等价。新050部署需自身解码、中心及网络适配。本次仅统一文档，未改配方、冻结代码、补偿或预算，未新开训练／仿真／实机任务。
+执行口径已集中到[Motion执行口径](docs/MOTION_EXECUTION_ALIGNMENT.md)：Isaac训练与MuJoCo验证／播放均使用同源完整V4，不额外叠旧弹簧／C补偿；已有015实机保留原软件补偿。辨识分支`c8d9636`确认发送补偿后力矩、反馈记录扣除补偿，V4主要拟合目标到q／dq；原CSV与当时烧录身份／通道布局尚未完整绑定，不宣称全高度／负载／饱和等价。新050部署需自身解码、中心及网络适配。此前文档统一未改执行配置；本次按已准备配方和用户明确指令拉起长训。
 
-用户明确选用原Student `258aae9d`，授权完成接线/smoke并新授10000次在线更新、训练墙钟不限；GPU由用户稍后开启，本轮不自动长训、不建watcher。旧累计在线9519与104轮BC保留，旧7219余额退役。52次本机smoke实际COMPLETED，全部计入新额度，余9948；正式历史基数9571、累计上限19519，不退款故障或回退消耗。两个初期0更新失败与账本保留。新正式run尚未创建。
+用户明确选用原Student `258aae9d`，授权完成接线/smoke并新授10000次在线更新、训练墙钟不限；GPU已由用户开启，并于本日明确授权启动。旧累计在线9519与104轮BC保留，旧7219余额退役。52次本机smoke实际COMPLETED，全部计入新额度，formal分配9948；正式历史基数9571、累计上限19519，不退款故障或回退消耗。两个初期0更新失败与账本保留。不建watcher、不持续轮询；原准备配置不再重复train。
+
+实际run为远端`/root/gpufree-data/wheel_leg_motion/runs/motion_wide050_cloud_formal9948`。2026-11-15 13:44:44（Asia/Shanghai）有界启动快照：RUNNING／formal，已用6次、1572864样本、failure=null；本轮总消耗52+6=58，剩9942。worker PID812／start_ticks404984722，冻结源码609模块、SHA `b876ea3166af8185e7a42bc97f0f3eb46c4220fc045c63a62f29859210428af6`。本次SSH端口31193；14核／50GiB、4090 UUID `GPU-0401c8e7-4db1-eeb9-a747-79564b3c1366`、CUDA映射0，未操作其他owner。以上为启动快照，不代表持续监控；已存在run须inspect，不能重新提交。
+
+首个真实更新262144条有效／非零奖励样本，Critic16次Adam、Actor0次，属于已声明的50次Critic warmup，包含在formal9948中。完整u1已保存且回传本机，SHA `ba81288ebc1991060ee111bdcf6cac3f1354ffd2690ab95f51ac2e32b7df4c61`；Actor均值权重与原Student一致、探索std按声明重设、warmup_done=1、Critic Adam／RNG／课程／计数和050输出合同核验通过。本机启动收据位于数据根`motion_wide050_ppo_ready_20261115/cloud_start_20261115/`；CLI看板交接复用artifact_root=`/root/gpufree-data/wheel_leg_motion/runs`、上述run和`startup_handshake.json`，见该目录`dashboard_handoff.json`。
+
+启动前首次提交因准备包漏`candidate/configs/model_refs.json`在创建run／worker／预算前失败，0新增更新；已补原SHA清单和受保护u1600的精确RuntimePaths映射，失败收据保留，未改冻结Python源码或训练语义。真实解码及checkpoint均为050／80；旧`MotorLimits.as_dict()`仍静态报告`action_scales=[.15,80]`（`tasks/motion/execution_limits.py:39`），这是限矩诊断元数据残留，不能据此认定当前解码回到015。应在后续新版本按动作合同修正诊断，当前运行源码未热改。
 
 050/80 PPO复用统一CLI/owner/worker/生产Motion adapter/受控PPO，新增内容绑定Actor准入记录（Actor/合同、课程、旧结算、新授权、唯一分配、smoke结算），无新训练循环。原Student的中心表不变，不采用实验Student及新.24中心。Actor-only只导入均值权重，显式重设物理探索std .02rad/2rad/s（raw .04/.025），新881D Critic/双Adam/RNG/课程；50次Critic warmup计费。同run完整恢复保留原Actor准入、warmup、bank游标，不重复初始化。
 
 来源保护改为原Student同050合同，3000条train-only bank覆盖0/.34及±3.6/.34命令；不把bank送入PPO rollout/GAE。合格名义on-policy与bank仍按原每命令归约和.5混合；rough/事件/接触柔顺/新DR和转弯不被旧名义标签拉回。奖励、KL系数、PD、限矩、V4、真实dq、输入尺度和延迟不变。课程复用55%基础、28%转弯、7%H1、10%高度，起始容易档与新确认。固定模型能力不足与工程smoke分别记录。
 
-本机共享4080（UUID e704e7d4…）128env×64实际52次：前50 Actor保持、Critic更新，后2 Actor真实优化，完整u1/u50/u52及最终保存可装配恢复，首轮8192有效/非零奖励样本，真实结束/reset。正式4096env、远端GPU/PhysX/能力与吞吐尚未验证；其他owner未操作。本机执行冻结于v2 worktree，修复/交付版本独立，未热改。远端CPU模式0.5核/2GiB，Actor/新Critic/双Adam/78cohort/3000 bank与2432 SDK文件SHA通过；最终部署与精确命令见数据根`motion_wide050_ppo_ready_20261115/START.txt`、delivery和REPORT。GPU开启后只做一次实际UUID/映射/共享资源/磁盘核验，再按唯一run-id提交，不扫描端口或提前运行formal。
+启动前工程证据：本机共享4080（UUID e704e7d4…）128env×64实际52次，前50 Actor保持、Critic更新，后2 Actor真实优化，完整u1/u50/u52及最终保存可装配恢复，首轮8192有效/非零奖励样本，真实结束/reset；其他owner未操作。本机执行冻结于v2 worktree，修复/交付版本独立，未热改。远端准备时为CPU模式0.5核/2GiB，Actor/新Critic/双Adam/78cohort/3000 bank与2432 SDK文件SHA通过；本次4096env远端PhysX首更已核验，长期吞吐和能力尚未验收。原START/delivery/REPORT保留准备时身份，本次GPU绑定、清单补齐和真实启动结果以`cloud_start_20261115/`收据为准，不扫描端口、不重复提交。
 
 正式配方`configs/jobs/motion_original_student050_ppo10000.json`，源码/当前文档/相关消费者齐全。针对性55 passed，portable2042 passed/31既有skip/10warning，架构220/0、Ruff0.8.4 check及219文件format通过。后续真实状态以run账本为准，未将smoke或CPU就绪当成全矩阵通过。
 
