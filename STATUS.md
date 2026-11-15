@@ -1,5 +1,9 @@
 # 当前任务
 
+## 旧tjb_recover与015弹簧补偿仿真A/B（2026-11-15）
+
+复用正式sim2sim和同一电控C补偿/几何，Recovery7组×4方案及Motion站立2组×2方案完成，最终r2无额外被动弹簧。旧Recovery加/不加均0/7，加补偿更早失败；Motion无补偿2/2保持10秒，有补偿2/2仍支撑但站高降至约.30m，未通过原高度保持。电控固件默认未改。结果、V4未认证真实弹簧边界、旧r1时序错误与修正见docs/SPRING_COMPENSATION_AB.md；数据根spring_ab_final_evidence。相关25项通过、Ruff/架构通过，完整portable两项问题修后针对性通过，未宣称全量重跑通过。
+
 ## 本体感知自动交接试验版（2026-11-13）
 
 用户指定机器人本体感知，电控015集成默认安全→使能先Recovery再自动接Motion。新pose gate不读取groundtruth高度/支撑；纯编码器构型+IMU+新鲜度持续200ms。posture200ms_r2七组中6组0.60–0.94s接管后保持12秒以上，另1组交接前失败，实际157180子步/90.11s。portable2011通过/31skip，架构与Ruff通过。固件hex/bin、操作和限制在独立电控仓firmware/recovery2100_motion015；本体门不证明触地，未实机输出。

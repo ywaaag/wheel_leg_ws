@@ -27,6 +27,6 @@ V4包含拟合NET负载，但合同hardware_identified=false，没有明确认�
 
 最终Recovery28回合：实际35480个0.5ms子步、32.08s。Motion4回合104000个0.5ms子步。两轮均无训练、无硬件。32条trace SHA逐一回验。精确最终报告、协议、逐case结果见数据根recovery_motion_handoff/spring_ab_final_evidence。
 
-初版r1错误地把补偿后的总腿motor也保持5ms，改变了1msV4响应；其证据保留为中间诊断，不作为最终结果。新增回归先复现再修复，只保持附加项；最终r2重跑。CPU相关25项通过，包含实际消费者、异常部分积分计费、补偿保持/轮不变/限矩；Ruff0.8.4和架构检查通过。完整portable中暴露的旧导航路径与fixture初始化问题已原地修正并针对性验证，完整输出另存数据根。
+初版r1错误地把补偿后的总腿motor也保持5ms，改变了1msV4响应；其证据保留为中间诊断，不作为最终结果。新增回归先复现再修复，只保持附加项；最终r2重跑。CPU相关25项通过，包含实际消费者、异常部分积分计费、补偿保持/轮不变/限矩；Ruff0.8.4和架构检查通过。完整portable为2010 passed/31 skipped，另2项因旧导航指向外仓文档、fixture未设置新增motor_transform字段而失败；两处已修正，相关25项重跑全部通过，未再次完整重跑。完整与修复后针对性输出另存数据根。
 
 电控仓feature/rl-supported015-recovery2100的活动代码/固件未增加补偿，当前仍为旧tjb_recover替换试验版。没有用仿真结果默默改实机控制设计。
