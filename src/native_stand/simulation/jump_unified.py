@@ -25,6 +25,11 @@ class UnifiedJump(SharedJump):
         if not library_sha:
             raise ValueError("verified ABI4 library SHA required")
         super().__init__(*args, library_sha=library_sha, **kwargs)
+        from native_stand.tasks.jump.outcome import CONFIG_ID
+
+        if self.config.config_id not in (unified.CONFIG_ID, CONFIG_ID):
+            raise ValueError("Unknown Jump controller config")
+        self.CONFIG_CONTRACT = self.config.config_id
         self.lib.RLJumpUpstreamMotorCommand.argtypes = [C.c_void_p] * 3
 
 

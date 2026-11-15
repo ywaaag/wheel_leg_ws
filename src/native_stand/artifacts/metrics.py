@@ -53,6 +53,8 @@ PERFORMANCE_KEYS = (
     "whole_update_wall_seconds_before_metrics",
     "previous_metrics_write_seconds",
     "stage_mean_wall_seconds",
+    "jump_episode_window",
+    "jump_phase_seconds",
 )
 
 

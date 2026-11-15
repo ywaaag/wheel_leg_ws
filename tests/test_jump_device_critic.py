@@ -23,6 +23,7 @@ def test_batch_device_fields_match_scalar_full_contract_at_ring_wrap_and_reset(b
     e = bridge()
     env = IsaacJump.__new__(IsaacJump)
     env.execution, env.num_envs, env.device = e, 3, "cpu"
+    env.request_after_ms = 1500
     env.measurement = Measurement(False, "cpu")
     rng = np.random.default_rng(91)
     shapes = dict(

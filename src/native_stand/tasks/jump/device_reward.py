@@ -10,7 +10,7 @@ from dataclasses import fields
 import numpy as np
 import torch
 
-from .dense_reward import DenseReward, RewardConfig, TaskSpec
+from .dense_reward import DenseReward, TaskSpec
 from .unified_reward import UnifiedPacket
 
 BEST = ("crouch", "push", "extension", "air_rise", "air_shape", "cushion", "settle")
@@ -24,7 +24,9 @@ GOALS = tuple(f.name for f in fields(TaskSpec) if f.name != "kind")
 class DeviceReward:
     def __init__(self, rows, device):
         self.n, self.device = len(rows), device
-        self.c = RewardConfig()
+        self.c = rows[0].config
+        if any(row.config != self.c for row in rows):
+            raise ValueError("One explicit reward configuration per batch required")
         self.state, self.previous, self.goals, self.best = {}, {}, {}, {}
         for name in MEMORY:
             self.state[name] = torch.empty(self.n, dtype=torch.float64, device=device)
@@ -121,6 +123,17 @@ class DeviceReward:
             )
             b[name] = torch.where(mask, torch.maximum(b[name], score), b[name])
 
+        def event_potential():
+            return torch.where(
+                self.active & ~flag("assisted"),
+                c.w_takeoff * m["has_taken_off"]
+                + c.w_air_rise * b["air_rise"]
+                + c.w_apex * m["apex_paid"]
+                + c.w_landing * m["landing_paid"],
+                0.0,
+            )
+
+        previous_events = event_potential() if c.potential_events else 0.0
         put("elapsed_s", m["elapsed_s"] + dt)
         put("assisted", flag("assisted") | p["external_takeoff_assist"].bool())
         put("jump_control_s", m["jump_control_s"] + torch.where(control, dt, 0.0))
@@ -174,7 +187,7 @@ class DeviceReward:
         takeoff = (
             eligible
             & flag("had_support")
-            & flag("crouch_legal")
+            & (flag("crouch_legal") | (not c.require_crouch))
             & flag("push_seen")
             & control
             & ((phase == 2) | (phase == 3))
@@ -264,7 +277,15 @@ class DeviceReward:
             & (dh < c.stable_height_error_m)
         )
         put("stable_s", torch.where(stable, m["stable_s"] + dt, 0.0))
-        paid = (m["stable_s"] >= c.stable_duration_s - 1e-10) & ~flag("landing_paid")
+        goal = (
+            (not c.goal_gate_landing)
+            | ~self.active
+            | (
+                (rise + 1e-9 >= s["target_rise_m"])
+                & (m["peak_tire_clearance_m"] + 1e-9 >= s["target_clearance_m"])
+            )
+        )
+        paid = goal & (m["stable_s"] >= c.stable_duration_s - 1e-10) & ~flag("landing_paid")
         put("landing_paid", flag("landing_paid") | paid)
         terms["landing_stable"] = paid.double() * c.w_landing
         hand = p["motion_confirmed"].bool() & flag("landing_paid") & ~flag("handover_paid")
@@ -358,13 +379,45 @@ class DeviceReward:
             & flag("handover_paid")
             & ~flag("failure_paid")
         )
+        if c.goal_gate_landing:
+            terms["handover"] = torch.where(success, terms["handover"], 0.0)
         drop = (
             ~self.active & flag("had_airborne_start") & flag("landing_paid") & ~flag("failure_paid")
         )
-        expired = m["elapsed_s"] >= s["horizon_s"] - 1e-10
+        expired = (m["elapsed_s"] >= s["horizon_s"] - 1e-10) | (
+            (c.no_takeoff_deadline_s > 0)
+            & self.active
+            & ~flag("has_taken_off")
+            & (m["elapsed_s"] >= c.no_takeoff_deadline_s - 1e-10)
+        )
         timeout = expired & ~(success | drop | flag("failure_paid")) & ~flag("timeout_paid")
         terms["timeout"] = timeout.double() * -c.timeout_cost
         put("timeout_paid", flag("timeout_paid") | timeout)
+        if c.w_velocity_potential:
+
+            def potential(packet):
+                return torch.where(
+                    (packet["owner"] == 2)
+                    & (packet["phase"] == 2)
+                    & packet["contact"].bool().any(-1),
+                    c.w_velocity_potential
+                    * clip(
+                        packet["COM_velocity_m_s"][:, 2] / torch.sqrt(2 * 9.81 * s["target_rise_m"])
+                    ),
+                    0.0,
+                )
+
+            next_value = torch.where(fault | expired | success | drop, 0.0, potential(p))
+            terms["velocity_potential"] = (-c.discount_rate_s * dt).exp() * next_value - potential(
+                old
+            )
+        if c.potential_events:
+            for name in ("takeoff", "air_rise_progress", "apex", "landing_stable"):
+                terms[name] = torch.where(self.active, 0.0, terms[name])
+            next_events = torch.where(fault | expired | success | drop, 0.0, event_potential())
+            terms["progress_potential"] = (
+                -c.discount_rate_s * dt
+            ).exp() * next_events - previous_events
         # Unified ABI4 additions, in the same summation order as scalar.
         terms["settle_height"] = torch.where(
             own & (phase == 5),
@@ -396,6 +449,12 @@ class DeviceReward:
             self.previous[k] = torch.where(mask, value, old[k])
         return dict(
             total=torch.where(enabled, total, 0.0),
+            shaping=torch.where(
+                enabled,
+                terms.get("velocity_potential", torch.zeros_like(dt))
+                + terms.get("progress_potential", torch.zeros_like(dt)),
+                0.0,
+            ),
             terminated=enabled & (fault | expired | success | drop),
             active_jump_success=success,
             landing_only_success=drop,

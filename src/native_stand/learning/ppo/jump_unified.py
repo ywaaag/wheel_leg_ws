@@ -92,11 +92,24 @@ def build_policy(job, observations, *, device="cpu", source=None, version=VERSIO
             raise ValueError("Jump首次PPO必须是匹配ABI4的Actor-only来源；BC状态不是PPO恢复点")
         handle["ppo"].actor.load_state_dict(payload["actor"], strict=True)
         handle["ppo"].actor.requires_grad_(True)
+        from native_stand.tasks.jump.outcome import enabled
+
+        if enabled(job):
+            from .actor_initialization import physical_std
+
+            with torch.no_grad():
+                handle["ppo"].actor.log_std.copy_(physical_std(job).to(device).log())
+    semantics = dict(
+        reward=job.reward.version,
+        course=job.assets.get("jump_course"),
+        objective=job.assets.get("jump_objective"),
+    )
     capture = handle["capture"]
     restore = handle["restore"]
 
     def capture_state(*args, **kwargs):
         value = capture(*args, **kwargs)
+        value["jump_learning_semantics"] = semantics
         value["critic_schema"] = job.assets["jump_critic_schema"]
         value["source_supervised_updates"] = int(
             (payload or {}).get(
@@ -107,6 +120,10 @@ def build_policy(job, observations, *, device="cpu", source=None, version=VERSIO
         return value
 
     def restore_state(state):
+        if (semantics["objective"] is not None or "jump_learning_semantics" in state) and (
+            state.get("jump_learning_semantics") != semantics
+        ):
+            raise ValueError("Jump learning reward/course/controller semantics differ")
         if (
             state.get("critic_schema") != job.assets["jump_critic_schema"]
             or state.get("raw_action_semantics") != "raw_Normal_direct_linear_no_Tanh"

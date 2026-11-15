@@ -86,9 +86,11 @@ class JumpAdapter(GenericPPOAdapter):
         write_json(context.run_dir / "training_candidates.json", self.candidates)
         context.store.update(writer_pid=os.getpid(), training_candidates=self.candidates)
         self.cursor = 0
+        self.metrics_cursor = 0
         payload = getattr(resume_from, "payload", resume_from) or {}
         if resume_from is not None:
             self.cursor = payload["jump_consumed_episode"]
+            self.metrics_cursor = self.env.serial
             self.pending = payload.get("jump_pending_publication")
             if self.pending is not None:
                 self.after_save(
@@ -101,6 +103,29 @@ class JumpAdapter(GenericPPOAdapter):
                 )
 
     def after_update(self, context, index, metrics):
+        rows = [r for r in self.env.completed if r["id"] > self.metrics_cursor]
+        self.metrics_cursor = self.env.serial
+        metrics["jump_episode_window"] = episode_metrics(rows)
+        if hasattr(self.env, "device_phase_seconds"):
+            metrics["jump_phase_seconds"] = dict(
+                zip(
+                    (
+                        "IDLE",
+                        "CROUCH",
+                        "PUSH",
+                        "FLIGHT",
+                        "LAND",
+                        "SETTLE",
+                        "CONFIRM",
+                        "COOLDOWN",
+                        "FAULT",
+                        "BALANCE",
+                    ),
+                    self.env.device_phase_seconds.sum(0).cpu().tolist(),
+                    strict=True,
+                )
+            )
+            self.env.device_phase_seconds.zero_()
         if self.measurement.enabled:
             # Linux runtime: ru_maxrss is KiB. Report once per update, never
             # read process files or synchronize the physical hot path.
@@ -232,4 +257,26 @@ def consider(index, window, reference):
     result["last_review"] = dict(
         through_update=reference["update"], checkpoint=reference, window=window
     )
+    return result
+
+
+def episode_metrics(rows):
+    """Normal PPO completed episodes only; early failures stay in denominators."""
+    result = {}
+    for kind in ("ground_active_jump", "landing_only"):
+        group = [row for row in rows if row["request"]["kind"] == kind]
+        count = len(group)
+        result[kind] = dict(
+            episodes=count,
+            successes=sum(r["success"] for r in group),
+            faults=sum(r["fault"] for r in group),
+            requested=sum(r.get("C_requests", 0) > 0 for r in group),
+            accepted=sum(r.get("C_accepted_jumps", 0) > 0 for r in group),
+            actual_takeoffs=sum(r.get("actual_takeoff", False) for r in group),
+            push_seen=sum(r.get("push_seen", False) for r in group),
+            apex_seen=sum(r.get("apex_seen", False) for r in group),
+            landing_stable=sum(r.get("landing_stable", False) for r in group),
+            maximum_COM_rise_m=max((r.get("COM_rise_m", 0.0) for r in group), default=0.0),
+            mean_control_s=sum(r["jump_control_s"] for r in group) / count if count else None,
+        )
     return result

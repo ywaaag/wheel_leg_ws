@@ -151,7 +151,9 @@ class BatchCritic:
                         [
                             [
                                 (tick - env.starts[i]) * 0.001,
-                                1.5 if r["kind"] == "ground_active_jump" else 0.0,
+                                env.request_after_ms * 0.001
+                                if r["kind"] == "ground_active_jump"
+                                else 0.0,
                                 float(r["kind"] == "ground_active_jump"),
                             ]
                             for i, r in enumerate(env.requests)

@@ -60,6 +60,8 @@ def test_performance_receipt_reuses_existing_mask_and_allocator_metadata(monkeyp
     from native_stand.simulation.jump_adapter import JumpAdapter
 
     adapter = JumpAdapter.__new__(JumpAdapter)
+    adapter.env = SimpleNamespace(completed=[], serial=0)
+    adapter.metrics_cursor = 0
     adapter.measurement = Measurement(True, "cpu")
     adapter.ppo = SimpleNamespace(
         mask_summary=dict(valid_actor_samples=17, invalid_actor_samples=3)
@@ -80,7 +82,9 @@ def test_performance_receipt_reuses_existing_mask_and_allocator_metadata(monkeyp
         reward_mean=0.25,
         peak_memory_allocated_bytes=1234,
         peak_memory_reserved_bytes=1234,
+        jump_episode_window=result["jump_episode_window"],
     )
+    assert result["jump_episode_window"]["ground_active_jump"]["episodes"] == 0
     host_peak = adapter.measurement.counters.pop("jump_host_peak_rss_bytes")
     assert host_peak > 0
     assert adapter.measurement.counters == dict(
@@ -100,5 +104,6 @@ def test_performance_receipt_reuses_existing_mask_and_allocator_metadata(monkeyp
     saved = json.loads(target.read_text())
     assert saved["peak_memory_allocated_bytes"] == 1234
     assert saved["peak_memory_reserved_bytes"] == 1234
+    assert saved["jump_episode_window"] == result["jump_episode_window"]
     assert saved["performance_counters"]["jump_host_peak_rss_bytes"] == host_peak
     assert saved["performance_counters"]["jump_valid_actor_samples"] == 17

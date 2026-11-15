@@ -334,6 +334,12 @@ def cmd_export(args) -> int:
             raise CommandError("部署来源缺少明确输出合同", EXIT_INVALID)
         spec = spec_for_job(job, contract)
     index = ModelIndex(record.get("model_index", run_dir.parent / "models.json"))
+    jump_controller = None
+    if job.task == "jump":
+        from native_stand.tasks.jump.outcome import controller_record, enabled
+
+        if enabled(job):
+            jump_controller = controller_record()
     result = export_package(
         source,
         spec,
@@ -344,6 +350,7 @@ def cmd_export(args) -> int:
             "timing": job.assets.get("delayed_execution"),
             "hardware_output": "OFF",
             "C_core": "jump_ABI4" if job.task == "jump" else "rl_policy_core_v1",
+            "jump_controller": jump_controller,
         },
         dependencies=job_dependencies(job),
         onnx=args.onnx,

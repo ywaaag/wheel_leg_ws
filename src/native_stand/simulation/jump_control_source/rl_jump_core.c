@@ -85,7 +85,9 @@ int RLJumpReset(RLJumpState *s, uint32_t now, int safe) {
 }
 int RLJumpIdentity(const RLJumpConfig *c) {
   return c && c->abi == RL_JUMP_ABI && c->input_id == RL_JUMP_CONTRACT &&
-         c->output_id == RL_JUMP_OUTPUT && c->config_id == RL_JUMP_CONFIG &&
+         c->output_id == RL_JUMP_OUTPUT &&
+         (c->config_id == RL_JUMP_CONFIG ||
+          (RL_JUMP_DIRECT_V1 && c->config_id == RL_JUMP_OUTCOME_CONFIG)) &&
          c->enabled && c->model_available && c->model_id &&
          c->model_input_id == RL_JUMP_CONTRACT &&
          c->model_output_id == RL_JUMP_OUTPUT
@@ -169,6 +171,7 @@ int RLJumpStep(RLJumpState *s, const RLJumpInput *i, const RLJumpConfig *c) {
   if (s->initialized && (age(i->now,s->last_tick)==0u || age(i->now,s->last_tick)>10u))
     return fail(s,J_STALE_INPUT,i->now);
   s->initialized=1;s->last_tick=i->now;
+  const int outcome=c->config_id==RL_JUMP_OUTCOME_CONFIG;
   const int rising=i->key_down && !s->last_key;s->last_key=!!i->key_down;
   if (s->phase==J_FAULT) return -1;
   if (s->phase==J_BALANCE && !c->enabled) {s->owner=i->upstream_owner;return 0;}
@@ -216,10 +219,12 @@ int RLJumpStep(RLJumpState *s, const RLJumpInput *i, const RLJumpConfig *c) {
     } else s->entry_valid=0;
     if (off) {s->airborne=s->success=0;move(s,J_FLIGHT,i->now);}
     else if (s->status==J_WAIT) {
-      if (age(i->now,s->wait_tick)>500u) s->status=J_REJECT_TIMEOUT;
+      if (!outcome && age(i->now,s->wait_tick)>500u) s->status=J_REJECT_TIMEOUT;
       else if (s->entry_valid && age(i->now,s->entry_tick)>=100u) {
         ++s->epoch;s->status=J_ACCEPTED;s->airborne=s->success=0;
-        s->jump_tick=i->now;move(s,J_CROUCH,i->now);
+        /* Outcome profile lets the Actor choose compression/extension.
+         * No scripted crouch pose and no mandatory .15m depth. */
+        s->jump_tick=i->now;move(s,outcome?J_PUSH:J_CROUCH,i->now);
       }
     }
   } else if (s->phase==J_CROUCH) {
@@ -228,7 +233,7 @@ int RLJumpStep(RLJumpState *s, const RLJumpInput *i, const RLJumpConfig *c) {
     else if (a>800u) return fail(s,J_PHASE_TIMEOUT,i->now);
   } else if (s->phase==J_PUSH) {
     if (off) {s->airborne=1;move(s,J_FLIGHT,i->now);}
-    else if (a>350u) return fail(s,J_NO_TAKEOFF,i->now);
+    else if (a>(outcome?1200u:350u)) return fail(s,J_NO_TAKEOFF,i->now);
   } else if (s->phase==J_FLIGHT) {
     if (known && (s->contact[0] || s->contact[1])) move(s,J_LAND,i->now);
     else if (a>1200u) return fail(s,J_PHASE_TIMEOUT,i->now);

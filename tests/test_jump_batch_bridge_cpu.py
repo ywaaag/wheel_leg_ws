@@ -111,6 +111,8 @@ def test_partial_reset_feedback_only_steps_the_selected_real_C_row(bridge):
     env = IsaacJump.__new__(IsaacJump)
     env.execution = execution
     env.num_envs = 3
+    env.outcome_objective = False
+    env.request_after_ms = 1500
     env.prepared_tick = execution.tick
     env.starts = np.zeros(3)
     env.requests = [dict(kind="landing_only") for _ in range(3)]
