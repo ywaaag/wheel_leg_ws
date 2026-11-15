@@ -45,7 +45,7 @@ class FirmwareSpring:
     def __call__(self, q, dq, motor, tick, bias):
         del dq
         if self.held is None or tick % 5 == 0:
-            final = motor.clone()
+            final = torch.zeros_like(motor)
             for row in range(len(q)):
                 reported = q[row].numpy().copy()
                 reported[[0, 1, 3, 4]] += bias[row].numpy()
@@ -68,19 +68,16 @@ class FirmwareSpring:
                     lengths[side] = result[2].value
                 spread = np.asarray([angles[0] - angles[1], angles[2] - angles[3]], np.float32)
                 before, after = np.zeros(4, np.float32), np.zeros(4, np.float32)
-                if self.lib.RLMotion31MapPolicyLegTorqueToMotorOrder(
-                    motor[row].numpy().copy(), before
-                ):
-                    raise ValueError("Spring torque mapping failed")
                 if self.lib.RLControlCompensateSpring(before, lengths, spread, after):
                     raise ValueError("Firmware spring rejected geometry")
                 # Invert the exact motor-order/sign mapping: lf=-ch4,lb=-ch3,rf=ch1,rb=-ch0.
                 final[row, [0, 1, 3, 4]] = torch.tensor([-after[3], after[2], -after[1], -after[0]])
                 self.delta.append((after - before).tolist())
-                self.saturation += int((abs(after) >= 39.999).sum())
             self.held = final
         result = motor.clone()
-        result[:, [0, 1, 3, 4]] = self.held[:, [0, 1, 3, 4]]
+        summed = motor[:, [0, 1, 3, 4]] + self.held[:, [0, 1, 3, 4]]
+        self.saturation += int((summed.abs() >= 40).sum())
+        result[:, [0, 1, 3, 4]] = summed.clamp(-40, 40)
         return result
 
     def report(self):
