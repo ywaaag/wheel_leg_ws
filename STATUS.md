@@ -27,6 +27,8 @@
 
 ## Motion原Student050新PPO长训准备（2026-11-15）
 
+执行口径已集中到[Motion执行口径](docs/MOTION_EXECUTION_ALIGNMENT.md)：Isaac训练与MuJoCo验证／播放均使用同源完整V4，不额外叠旧弹簧／C补偿；已有015实机保留原软件补偿。辨识分支`c8d9636`确认发送补偿后力矩、反馈记录扣除补偿，V4主要拟合目标到q／dq；原CSV与当时烧录身份／通道布局尚未完整绑定，不宣称全高度／负载／饱和等价。新050部署需自身解码、中心及网络适配。本次仅统一文档，未改配方、冻结代码、补偿或预算，未新开训练／仿真／实机任务。
+
 用户明确选用原Student `258aae9d`，授权完成接线/smoke并新授10000次在线更新、训练墙钟不限；GPU由用户稍后开启，本轮不自动长训、不建watcher。旧累计在线9519与104轮BC保留，旧7219余额退役。52次本机smoke实际COMPLETED，全部计入新额度，余9948；正式历史基数9571、累计上限19519，不退款故障或回退消耗。两个初期0更新失败与账本保留。新正式run尚未创建。
 
 050/80 PPO复用统一CLI/owner/worker/生产Motion adapter/受控PPO，新增内容绑定Actor准入记录（Actor/合同、课程、旧结算、新授权、唯一分配、smoke结算），无新训练循环。原Student的中心表不变，不采用实验Student及新.24中心。Actor-only只导入均值权重，显式重设物理探索std .02rad/2rad/s（raw .04/.025），新881D Critic/双Adam/RNG/课程；50次Critic warmup计费。同run完整恢复保留原Actor准入、warmup、bank游标，不重复初始化。

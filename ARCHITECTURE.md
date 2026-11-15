@@ -60,6 +60,12 @@ wheel-leg / python -m native_stand          cli.py：参数、展示、退出码
 - Critic-only warmup 次数来自配置；完整恢复的 formal 不重复 warmup。
 - 保存策略只清理本run中未选中、未引用的中间 checkpoint。
 
+## Motion跨后端执行口径
+
+训练、sim2sim、播放器和部署负责人先读[Motion执行口径](docs/MOTION_EXECUTION_ALIGNMENT.md)。当前Isaac和MuJoCo使用同源完整V4与NET分路，不额外叠旧弹簧／C补偿；已有015实机保留原补偿。采集与拟合的等效边界、尚未绑定的原CSV／烧录身份及完整电控验证要求在该文档集中维护。
+
+复用`simulation/isaac`、`v4_response.py`、`playback_execution.py`与`control_core.py`现有消费者。共享C编码／解码／PD不等于完整`RLControlExecute`补偿链，Isaac张量执行也不等于每个子步直接调用C固件。本次说明不新增执行模式、接口或生命周期。
+
 ## 历史实现与保护
 
 `command_v6/`、`students/`、`recovery/`、`world_model/` 是冻结的历史实现，按原身份只读复用。新支撑中心Motion通过 `simulation/isaac/motion_backend.py` 使用统一worker、账本和checkpoint；物理环境只读借用r4视图，修正奖励与更新后KL位于 `tasks/motion/scale_corrections.py`、`learning/ppo/supported.py`。不启动旧supervisor。

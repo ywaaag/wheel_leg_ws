@@ -15,6 +15,7 @@
 | 当前任务、负责人、证据 | `STATUS.md` |
 | 模块职责、扩展位置与集成门槛 | `ARCHITECTURE.md` |
 | Motion目标、场景约束、课程解锁与能力证据 | `docs/MOTION_CAPABILITY_MATRIX.md` |
+| Motion的Isaac／MuJoCo／实机执行、V4与弹簧补偿口径 | `docs/MOTION_EXECUTION_ALIGNMENT.md` |
 | 已结项重构范围与冻结证据 | `docs/MIGRATION_20261105.md` |
 
 原始历史报告与数据根证据按需读取；未提交或缺失材料不能成为干净检出的必需入口。迁移已结项，模型能力、提速和新后端按普通领域任务推进。
