@@ -204,4 +204,14 @@ Jump独立启动环境还显式加入其venv的torch/lib，解决动态加载lib
 
 源码/依赖/完整checkpoint已传独立目录
 `/root/gpufree-data/wheel_leg_jump/outcome_migration_20261115`，文件SHA和远端full学习状态load-only通过。
-两环境物理、2048正式PPO及恢复结果以本轮artifacts收据为准，准备完成不代表已开训或能力通过。
+冻结实现`5d1b1ec`已完成远端两环境×3200tick物理/reset检查；Critic20次逐位、inverse16次对照通过，
+internal_tau最大差3.174e-6Nm，原1mm/2mm门不变。2048正式有界2次正常STOPPED_BOUNDED，
+u2完整Actor/Critic/双Adam/std/RNG/课程恢复通过；同run已resume，worker2363实际完成u3/u4，
+耗时35.3711/27.4542秒，Actor/Critic各256优化步，critic_warmup=false。
+核验快照RUNNING/failure=null，累计2427+4=2431/10000、剩7569，原7573额度未刷新。
+u3保存SHA `24321942d3b8318f7ed02b3d666506b04d73dd38c58980866d437e2b2eac3fbc` 已读回核对。
+Motion812同时RUNNING/failure=null，未修改；共享显存快照Jump7550MiB/Motion12024MiB、余4662MiB，
+快照不代表完整峰值或持续利用率。尚无真实takeoff/跳跃成功证据，不称能力accepted。
+CPU portable1976通过/31历史skip，Ruff0.8.4与架构220/0通过；远端针对性23通过/3项按命令范围排除。
+原始收据、核验时间及预算见`artifacts/jump_remote_shared_20261115/long_training_verified.json`，
+完整交付见同目录`DELIVERY.md`；活动源码保持冻结，实时进度以远端state/budget为准。
