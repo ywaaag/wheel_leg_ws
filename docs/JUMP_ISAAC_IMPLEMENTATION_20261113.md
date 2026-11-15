@@ -176,3 +176,9 @@ Motion负责人只读复核另确认：现有Jump回BALANCE后owner仍是Jump，
 真实CUDA420帧C状态/Actor编码逐位，PD容差2e-6，编译reward与scalar最大差8.9e-16。
 32env×4000tick正常零PPO接线PASS，36次Critic逐位、30次inverse对照及partial/fresh reset通过；
 63结束回合请求63/接受61/真实takeoff0/成功0，不是能力认证。收据 `artifacts/jump_outcome_v199/`。
+
+正常PPO首8次已STOPPED_BOUNDED/failure=null：5次Critic预热＋3次Actor更新，均值51.365秒。
+8683结束回合、8009发请求/7797接受、真实takeoff0/成功0。u8 SHA `4639be95cd0a49980983525e948ebca53177bae983ae5e81a0a4e2af78e47876`；
+完整Actor/Critic/双Adam/std/RNG/预测逐位恢复、语义检查及CLI导出包新C profile读回通过。
+预算累计2239/10000，余7761，同run `2026_11_15__jump_outcome7769_v202` 续接长训，每100保存、墙钟null。
+详见本轮DELIVERY及原始state/budget，不把首段接线证据解释为已学会跳跃。
