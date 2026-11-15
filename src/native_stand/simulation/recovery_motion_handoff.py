@@ -285,7 +285,7 @@ def run(c, output):
                                             float(abs((target - previous)[[0, 1, 3, 4]]).max()),
                                             float(abs((target - previous)[[2, 5]]).max()),
                                         ]
-                            mean = motion_mean if owner == "motion" else recovery.mean(x)
+                            mean = motion_mean if owner == "motion" else recovery.actor.mean(x)
                             if owner == "motion":
                                 action = motion_target
                             elif (
