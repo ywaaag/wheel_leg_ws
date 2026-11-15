@@ -83,6 +83,18 @@ def plan(c):
         ):
             raise ValueError("Unique safe nonempty variant/case names required")
     for variant in c["variants"]:
+        if "native_firmware" in variant:
+            profile = variant["native_firmware"]
+            if variant["kind"] != "recovery_only" or variant.get("spring_compensation", False):
+                raise ValueError("Native C diagnosis requires Recovery-only and no extra spring")
+            if profile["gains"] not in ("native", "current") or profile["actor_age_ms"] not in (
+                0,
+                20,
+            ):
+                raise ValueError("Unknown native C diagnostic profile")
+            for ref in c["native_sources"].values():
+                if file_sha256(ref["path"]) != ref["sha256"]:
+                    raise ValueError("Native firmware source SHA changed")
         if variant["kind"] not in ("motion_standing", "recovery_only", "fixed", "gated", "posture"):
             raise ValueError("Unknown handoff variant")
         if variant["kind"] in ("gated", "posture") and (
@@ -211,7 +223,19 @@ def run(c, output):
                     runtime=dataclasses.replace(base.runtime, envs=1, device="cpu"),
                 )
                 spring = None
-                if variant.get("spring_compensation", False):
+                if "native_firmware" in variant:
+                    from .native_recovery_firmware import NativeFirmware, execution_factory
+                    from .recovery_mujoco import execution_factories
+
+                    firmware = NativeFirmware(c["native_sources"], output)
+                    original, _ = execution_factories(cfg["execution_sources"])
+                    env = RecoveryMuJoCoCollection(
+                        job,
+                        execution_factory=execution_factory(
+                            original, firmware, variant["native_firmware"]
+                        ),
+                    )
+                elif variant.get("spring_compensation", False):
                     from .firmware_spring import FirmwareSpring
 
                     spring = FirmwareSpring(c["spring_sources"], output)
@@ -303,7 +327,14 @@ def run(c, output):
                                 c["recovery_spec"].get("output_contract", {}).get("action_version")
                                 == "firmware_absolute_linear150_100_v1"
                             ):
-                                action = mean * torch.tensor([1.5, 1.5, 100.0, 1.5, 1.5, 100.0])
+                                if "native_firmware" in variant:
+                                    action = torch.from_numpy(
+                                        np.stack(
+                                            [firmware.decode(row.copy()) for row in mean.numpy()]
+                                        )
+                                    )
+                                else:
+                                    action = mean * torch.tensor([1.5, 1.5, 100.0, 1.5, 1.5, 100.0])
                             else:
                                 action = recovery.actor.decode_mean(mean)
                         received = mx if owner == "motion" else x

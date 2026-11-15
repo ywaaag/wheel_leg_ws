@@ -1,5 +1,9 @@
 # 当前任务
 
+## 旧tjb原生软件链V4诊断（2026-11-15）
+
+只读c94bb9f原生C快照，复用sim2sim/RecoveryMuJoCoCollection/V4与显式factory。28回合125080子步/90.876秒：当前0/7；原生previous/10msPD/电流8192加40/2轮.2为0/7，最长接稳2.684秒；原生60/2轮1且额外Actor年龄0与20ms均0/7，0.94–3.36/0.59–0.86秒倾倒。全部是抬升后倾倒，非闭链故障。完整portable2016通过/31跳过（150.16秒），架构/Ruff通过。原生软件补偿+真实弹簧尚无独立物理模型，完整V4不额外叠加补偿；不是完整原生实机认证。两条电控分支未修改。详见docs/TJB_NATIVE_CONFIGURATION_DIAGNOSIS.md。
+
 ## Motion接管补偿修复与V4复测（2026-11-15）
 
 电控仅修改feature/rl-supported015-recovery2100，普通feature/rl-motion31-supported015保持只读参考。Motion目标实际运输/PD采用后恢复015补偿，Recovery不启用；真实C主机9/9套通过。正式sim2sim完整V4无额外补偿复测：旧tjb Recovery-only与本体20ms交接均0/7、全部0.49–1.21秒交接前失败；Motion直接站立2/2保持12.984/12.982秒。完整portable2012通过/31跳过（149.33秒），架构与Ruff0.8.4通过。结果及验证边界见docs/MOTION_SPRING_FIX_RECHECK.md。

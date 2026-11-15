@@ -242,3 +242,19 @@ def test_cli_output_matches_real_operation(monkeypatch, capsys, dry, result, exp
         argv.append("--dry-run")
     assert cli.main(argv) == 0
     assert expected in capsys.readouterr().out
+
+
+def test_native_profile_is_sha_bound_and_cannot_stack_spring(protocol):
+    ref = protocol["source_run"]
+    protocol["native_sources"] = {"source": ref}
+    v = protocol["variants"][0]
+    v["native_firmware"] = dict(gains="native", actor_age_ms=0)
+    assert h.plan(protocol)["training_updates"] == 0
+    v["spring_compensation"] = True
+    protocol["spring_sources"] = {"source": ref}
+    with pytest.raises(ValueError, match="no extra spring"):
+        h.plan(protocol)
+    v.pop("spring_compensation")
+    protocol["native_sources"]["source"] = {**ref, "sha256": "0" * 64}
+    with pytest.raises(ValueError, match="Native firmware source SHA"):
+        h.plan(protocol)

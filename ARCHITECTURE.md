@@ -208,3 +208,5 @@ Recovery原XML MuJoCo采集由`simulation/recovery_mujoco.py`实现，通过`exe
 `artifacts/c_actor.py`仅在部署边界生成FP32 ELU/Tanh Actor C源码，复用`simulation.control_core.build(additional_sources=...)`和原`RLPolicyDecode`。生成模型不另建编译launcher或控制实现，golden核对包括完整C网络及一次解码，主机时延与MCU认证分开。
 
 Recovery逐条件保留指标在`tasks/recovery/distillation_metrics.paired_retention`，匹配显式environment/case身份，教师失败不计入必须保留分母；候选选择可配置此指标。部署真实golden由CLI `export --golden`声明，源码/数据SHA在边界核验；显式六通道stack修复当前ONNX导出器对高级索引回填的非法空输入图，不改变decoder物理定义。
+
+原生Recovery软件链诊断通过同一sim2sim handoff协议的native_firmware显式配置进入；simulation/native_recovery_firmware.py加载SHA绑定的原生C编码/解码/PD/电流限幅，factory注入RecoveryMuJoCoCollection，复用冻结V4 motor响应与NET。只支持Recovery-only、不叠加软件补偿，Actor观测年龄0/20ms显式扫描。0ms不是实机无延迟认证，物理弹簧和总线/推理耗时不由源码确定。没有新增训练/播放launcher或脚本。
