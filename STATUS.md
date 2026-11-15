@@ -1,5 +1,9 @@
 # 当前任务
 
+## Motion接管补偿修复与V4复测（2026-11-15）
+
+电控仅修改feature/rl-supported015-recovery2100，普通feature/rl-motion31-supported015保持只读参考。Motion目标实际运输/PD采用后恢复015补偿，Recovery不启用；真实C主机9/9套通过。正式sim2sim完整V4无额外补偿复测：旧tjb Recovery-only与本体20ms交接均0/7、全部0.49–1.21秒交接前失败；Motion直接站立2/2保持12.984/12.982秒。完整portable2012通过/31跳过（149.33秒），架构与Ruff0.8.4通过。结果及验证边界见docs/MOTION_SPRING_FIX_RECHECK.md。
+
 ## 旧tjb_recover与015弹簧补偿仿真A/B（2026-11-15）
 
 复用正式sim2sim和同一电控C补偿/几何，Recovery7组×4方案及Motion站立2组×2方案完成，最终r2无额外被动弹簧。旧Recovery加/不加均0/7，加补偿更早失败；Motion无补偿2/2保持10秒，有补偿2/2仍支撑但站高降至约.30m，未通过原高度保持。电控固件默认未改。结果、V4未认证真实弹簧边界、旧r1时序错误与修正见docs/SPRING_COMPENSATION_AB.md；数据根spring_ab_final_evidence。相关25项通过、Ruff/架构通过，完整portable两项问题修后针对性通过，未宣称全量重跑通过。
