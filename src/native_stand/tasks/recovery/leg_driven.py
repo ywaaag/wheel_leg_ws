@@ -19,6 +19,36 @@ GROUPS = ("full_Swing", "shortened", "rotated", "lifted")
 COST_WEIGHTS = (0.28, 0.12, 0.20, 0.08, 0.05, 0.04, 0.05, 0.10, 0.03, 0.05)
 
 
+def anti_prone_config(value=None):
+    """Validate the optional reward recipe at the external configuration boundary."""
+    if value is None:
+        return None
+    expected = {"version", "grace_s", "ramp_s", "max_rate", "height_m"}
+    if set(value) != expected or value["version"] != "recovery_anti_prone_v1":
+        raise ValueError("Explicit anti-prone reward recipe required")
+    result = dict(value)
+    for key in expected - {"version"}:
+        if isinstance(value[key], bool):
+            raise ValueError("Finite positive anti-prone parameters required")
+        result[key] = float(value[key])
+        if not math.isfinite(result[key]) or result[key] <= 0:
+            raise ValueError("Finite positive anti-prone parameters required")
+    if result["height_m"] >= 0.32:
+        raise ValueError("Anti-prone height must stay below standing entry")
+    return result
+
+
+def anti_prone_density(recipe, *, phase, progress, stage_age, height, gate):
+    """No motion credit: joint twitching and high wheel speed cannot cancel cost."""
+    if recipe is None:
+        return torch.zeros_like(height)
+    ramp = ((stage_age - recipe["grace_s"]) / recipe["ramp_s"]).clamp(0, 1)
+    low = ((recipe["height_m"] - height) / 0.04).clamp(0, 1)
+    active = (phase < 2) & ~gate
+    # Near-target states retain a cost until they actually meet the phase gate.
+    return -recipe["max_rate"] * ramp * low * (1 - 0.5 * progress.clamp(0, 1)) * active
+
+
 def angle_difference(a, b):
     return torch.atan2(torch.sin(a - b), torch.cos(a - b))
 
@@ -75,7 +105,8 @@ class Course:
 class Lifecycle:
     """All state used by reward/certification is captured, including substep history."""
 
-    def __init__(self, n, device, geometry, gamma):
+    def __init__(self, n, device, geometry, gamma, *, anti_prone=None):
+        self.anti_prone = anti_prone_config(anti_prone)
         self.n = n
         self.device = device
         self.max_s = 6.0
@@ -305,10 +336,27 @@ class Lifecycle:
         potential = 2 * (self.gamma * torch.where(done, 0.0, phi) - self.last_phi)
         bonus = torch.where(progressed, state.new_tensor([2.0, 2.0, 4.0, 0.0])[old_phase], 0.0)
         failure = done & ~succeeded
+        prone_density = anti_prone_density(
+            self.anti_prone,
+            phase=self.phase,
+            progress=self.progress,
+            stage_age=(time_s - self.stage_start).clamp_min(0),
+            height=state[:, 3],
+            gate=gate,
+        )
+        # Failure cannot erase the future added running cost. This conservative
+        # tail applies to every failed initial group, not only low prone states.
+        prone_failure_tail = (
+            self.anti_prone["max_rate"] * (self.max_s - time_s).clamp_min(0) * failure
+            if self.anti_prone is not None
+            else torch.zeros_like(time_s)
+        )
         reward = (
             potential
             + bonus
             - dt_s * 4 * cost
+            + dt_s * prone_density
+            - prone_failure_tail
             + 100 * succeeded
             - 20 * failure
             - 4 * (6 - time_s).clamp_min(0) * failure
@@ -342,7 +390,9 @@ class Lifecycle:
                 )
             )
         }
+        density["anti_prone"] = prone_density
         self.last_result = dict(
+            anti_prone_failure_tail=prone_failure_tail,
             reward=reward,
             entered=entered,
             success=succeeded,

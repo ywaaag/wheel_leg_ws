@@ -21,3 +21,13 @@ C0→C3按4/2/1/.5rad/s成本尺度收紧，完整Swing比例30%→70%→85%，�
 本机资源/授权/几何与CPU收据位于`/home/kellen/wheel_leg_training_data/recovery_leg_driven_20261114/preparation`，具体run身份、实际消耗和真实物理检查取对应run/state/budget，不从本说明推断正在训练。用户授权新10000更新、墙钟null；磁盘/共享GPU/停止仍经提交前检，不停止他人任务。
 
 工程接线修正：worker显式将新reward分派到RecoveryAdapter，公共rollout通过观察回调提供真实transition，课程/候选仍由adapter保存。first12检查仅报告真实控制、奖励、结束与优化器/权重变化，不声称梯度分解诊断。完整来源保留warmup完成数，不按新run重新执行五次Critic-only；u6接续额度9994，源回合未完成部分fresh reset。
+
+## 趴地惩罚准备配方（2026-11-15）
+
+`configs/jobs/recovery_leg_driven2100_anti_prone_prepared.json`通过现有`reward.fields.anti_prone`启用`recovery_anti_prone_v1`。旧配置未启用时奖励逐项保持原值。正式调用链为CLI/JobConfig→Recovery backend校验与cfg→环境Lifecycle.observe；不新增训练入口或物理循环。
+
+仅收腿/转腿阶段、未满足当前阶段门、root高度低于0.26m时生效；阶段开始后0.8s宽限，再用0.8s线性增加。低于0.22m时高度因子为1，0.22～0.26m线性退出。惩罚密度为`-2 × ramp × height_factor × (1-0.5×phase_progress)`，单位reward/s。正常阶段门内100ms停留不罚，阶段推进重启宽限，抬升和接稳阶段不罚。关节抖动和轮速提高不提供豁免。高度只是惩罚掩码，抬高至0.26m不能替代现有顺序、成功与质量门。
+
+失败额外结算`-2×max(6-t,0)`，对所有失败初态一致，避免提前跌倒抹去新增的最大未来成本；成功不扣此项。奖励读回新增`density.anti_prone`与`anti_prone_failure_tail`。不新增隐状态或Critic列，沿用已保存的阶段、阶段起始时刻、几何进度及真实root高度；不变更Actor、decoder、scale、previous、时序、PD或限矩。
+
+这只是可试验的奖励假设，尚未证明能克服hip饱和/顺序不可达问题。prepared配置为零分配，不会自动重启。原attempt3因停滞停止于1400，连同前段6次共耗1406，余8594不退款。配置所列初始Actor仅用于原始配方装配，不代表已决定重置策略；下次实际训练来源、奖励变更后的Critic处理及新run预算分配仍待准备。训练、PhysX、独立验证和部署均NOT_RUN。恢复旧完整点时不可直接继承不同奖励比较域的候选窗口。

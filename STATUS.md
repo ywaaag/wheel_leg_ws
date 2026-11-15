@@ -4,6 +4,8 @@
 
 独立worktree `/home/kellen/wheel_leg_recovery_leg_ws`，用户授权10000更新、墙钟null、允许与Jump共享GPU。attempt1构造失败0更新；attempt2真实完成6次后因worker未分派RecoveryAdapter而工程停止，完整u6与原账本保留。新版本修正worker正式分派及first12真实transition/优化器检查，完整来源warmup/双Adam/RNG保留，不重做warmup。attempt3配置仅分配9994次，累计仍10000；源未完成回合fresh reset。实际启动及能力以数据根run收据为准。旧Recovery、主源、电控、Motion远端与Jump均不改。
 
+趴地惩罚增量（2026-11-15）：attempt3已按停滞保护正常停止于1400，累计1406、余8594；新配置`recovery_leg_driven2100_anti_prone_prepared.json`只准备奖励，零分配/不重启。现有Lifecycle增加配置化低位未推进成本与失败剩余结算，保留物理合同，详见领域说明；真实训练效果NOT_RUN。
+
 ## Motion少量变高度接续（2026-11-13）
 
 用户要求当前加入0.20～0.40m站立与平地运动。独立`motion/height-small-dose`分支准备10%变高度、28%转弯、7%地形和55%基础复习；六目标高度0.20/0.24/0.28/0.32/0.36/0.40m，各自站立/±0.25m/s，复用原rate-limited高度优先时序及SplitCourse。不改PPO/奖励/KL/执行合同。新增完整课程接续记录只结转原10000授权的实际剩余，累计上限16738不变，真实停止点与云端结果以数据根`motion_height_small_dose_20261113/`收据为准；旧远端Motion已通过公共stop request-only正常STOPPED_BOUNDED于500，failure=null，完整u500 SHA `1ad4a858baebffa1a0cad2e989c57e054934940372a593be9842f4a7e6801e89`；保存点差额0。本授权剩余9500，历史累计7238、模型进度7097，累计上限16738保持。远端新冻结`candidate_revisions/motion_height_small_dose_v2/src`599模块摘要`c408dc029ae2036dd9233f5d98e3f8d54b88e67a6a6710b6ac21d3521460c81e`，配置`height_small_dose_v2_20261113/cloud_config.json`；78cohort/407高度槽位，最小11槽。完整PPO双Adam CPU装配与dry-run通过；首版预检曾拒绝重复877→881路径，修正并保留拒绝现场，新run `motion_height_small_dose_remaining9500`唯一提交成功，worker1485身份OK，启动快照RUNNING/0更新/failure=null，首个PPO更新尚未确认，未新增watcher。最终相关54 passed（6.62s），portable1988 passed/31既有skip/10warning（131.70s），架构212/0、Ruff0.8.4 CI范围check/format通过。
