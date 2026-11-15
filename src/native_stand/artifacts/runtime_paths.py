@@ -85,3 +85,22 @@ def execution_job(job):
 
     record["supervision"] = identified(supervision)
     return job_from_record(record)
+
+
+def resolve_runs_root(explicit=None):
+    """Resolve persistent output at the write boundary, never at import time.
+
+    Explicit --runs-root wins; otherwise WHEEL_LEG_DATA_ROOT is required.
+    Resolution alone does not create directories or an index.
+    """
+    import os
+
+    value = explicit if explicit is not None else os.environ.get("WHEEL_LEG_DATA_ROOT")
+    if not value or not str(value).strip():
+        raise ValueError(
+            "未设置输出根：请指定 --runs-root 或设置 WHEEL_LEG_DATA_ROOT 为已确认的数据盘"
+        )
+    path = Path(value).expanduser()
+    if not path.is_absolute():
+        raise ValueError("输出根必须为绝对路径（已确认的本地数据根或远端持久盘）")
+    return path.resolve()

@@ -17,11 +17,11 @@ from typing import Any
 
 from native_stand.artifacts.checkpoint import file_sha256
 from native_stand.artifacts.io import read_json, write_json
+from native_stand.artifacts.runtime_paths import resolve_runs_root
 from native_stand.learning.distillation.loop import run_distillation
 
 from .budget import Budget
 from .config import JobConfig
-from .owner import RUNS_ROOT
 from .state import RunStateStore
 
 REQUIRED = (
@@ -87,7 +87,7 @@ def submit_distillation(
     dataset: str | Path,
     teacher: str | Path,
     rounds: int,
-    runs_root: str | Path = RUNS_ROOT,
+    runs_root: str | Path | None = None,
     run_id: str | None = None,
     batch_size: int = 256,
     learning_rate: float = 1e-3,
@@ -101,6 +101,7 @@ def submit_distillation(
     """提交蒸馏run：owner启动worker，训练在worker内进行；返回提交回执。"""
     from native_stand.experiments import owner
 
+    runs_root = resolve_runs_root(runs_root)
     distill_job, _config = build_config(
         job,
         dataset=dataset,

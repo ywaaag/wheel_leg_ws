@@ -2,6 +2,22 @@
 
 统一入口为 `wheel-leg`，源码在 `src/native_stand`。公共重构迁移已按本地tag `refactor-migration-v1`（`1cc65e1`）验收结项；后续开发从main建立独立分支/worktree。main已有Motion／Spin、Recovery v8，以及Jump ABI4 MuJoCo CPU链。领域分支的新Recovery v9与Jump Isaac GPU实现不自动属于main支持范围；它们按普通扩展任务独立验收。CPU工程通过不代表模型能力或所有平台认证。
 
+## 统一资产存储
+
+源码主仓只保存源码、自研C/H、构建、测试、CI、配方和小型契约。模型、数据、部署包、USD/网格、冻结依赖和证据保存在数据根。旧仓是历史来源，不清空、不重写原始spec或checkpoint。
+
+新run输出优先级为 `--runs-root` > `WHEEL_LEG_DATA_ROOT`；两者都没有时真实提交拒绝，dry-run仍只读。环境变量在调用时解析，不受worktree或cwd影响。本机使用现有数据根及其中的`models.json`，不要为每个worktree另建索引；远端显式指定已确认的持久盘，不默认写系统盘。resume继续使用原run记录，不因环境变量改变而搬迁或刷新预算。
+
+```bash
+export WHEEL_LEG_DATA_ROOT=/home/kellen/wheel_leg_training_data
+PYTHONPATH=src /home/kellen/anaconda3/envs/issaclab/bin/python -B -m native_stand train --config CONFIG.json --dry-run
+# 正式提交仍须由唯一owner在原授权范围内执行；不要因迁移自行去掉dry-run。
+```
+
+train和distill共用此规则；监督数据、labels和完整恢复点位于该run。export默认输出`$WHEEL_LEG_DATA_ROOT/exports/<run>/<checkpoint>`，也可显式指定数据盘上的`--output`；sim2sim、部署和导入等显式输出应同样选数据盘，测试使用/tmp。历史run中的原有输出不自动搬迁。
+
+本批逐文件接管、ModelIndex消费者登记、错误SHA/冲突拒绝和派生映射复用`cloud_bundle.adopt_local_dependencies`及RuntimePaths，不新增registry。回执在数据根`history/asset_storage_20261115/`：`receipt.json`、`runtime_paths.json`、`source_history.json`和`cpu_model_load.json`。派生运行配置引用映射文件及其SHA；不修改原配置。硬链接不是独立备份；只有确认不可变文件可使用，可变记录逐文件复制。原路径仍有消费者或身份不明时保留，不执行真实清理。
+
 ## 主仓与本地依赖
 
 Motion后续配方、评分、选模和交互测试先读[Motion能力矩阵](docs/MOTION_CAPABILITY_MATRIX.md)：0.34m基础优先，转弯、地形和0.20～0.40m高度逐级扩展。它描述最终目标，当前准备配方的实现范围单独列明；训练窗口、固定checkpoint验证与实机成绩分别记录，当前后端支持仍以实际实现为准。
@@ -18,8 +34,8 @@ Motion后续配方、评分、选模和交互测试先读[Motion能力矩阵](do
 
 ```bash
 PYTHONPATH=src /home/kellen/anaconda3/envs/issaclab/bin/python -B -m native_stand cloud-plan \
-  --manifest artifacts/cloud_handoff/dependencies_current.json \
-  --dependency-archive artifacts/cloud_handoff/motion_recovery_prepare.tar \
+  --manifest /home/kellen/wheel_leg_training_data/bundle_manifest.json \
+  --dependency-archive /home/kellen/wheel_leg_training_data/archives/motion_recovery_prepare.tar \
   --restore-dependencies /home/kellen/wheel_leg_training_data --dry-run
 ```
 

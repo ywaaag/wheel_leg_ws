@@ -68,6 +68,12 @@
 - 通知需明确授权与目标会话；通知失败不改变训练终态。
 - 旧入口 `command_v6.supervisor` 的多轮提交流程已退役；不要为了兼容重新加回 `--write/--check-submission/--launch` 链。
 
+## 资产与输出
+
+- 源码、C/H、构建/测试/CI、配方和小型契约进Git；checkpoint、数据、USD/网格、部署二进制、冻结依赖和证据进数据根，不使用Git LFS或第二套registry。
+- 新run复用`--runs-root`，未提供则读`WHEEL_LEG_DATA_ROOT`；两者缺失时真实写入拒绝，dry-run/help不创建目录。本机统一`/home/kellen/wheel_leg_training_data`与其`models.json`；远端显式确认持久盘。不要按worktree建立引用权威。
+- resume遵循原run与handoff，模型进度和预算已耗分别保留。搬迁复用RuntimePaths逐文件SHA映射和ModelIndex，原始spec/checkpoint/证据不改写；活动依赖不移动。硬链接仅用于确认不可变文件，不是备份。未完成消费者切换的旧路径不得删除。
+
 ## 训练看板接入
 
 - 经授权正式提交训练后，交付CLI返回的 `dashboard.artifact_root/run/identity_record`，复用run与startup_handshake，不另建登记表。看板只发现已授权产物根；远端runs根必须明确配置，不猜其他owner目录。

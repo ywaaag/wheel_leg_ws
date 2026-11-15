@@ -221,3 +221,9 @@ Motion少量高度配方`configs/jobs/motion_height_small_dose_prepared.json`复
 看板远端源由 `integrations.remote_dashboard.RemoteSource` 管理一次显式OpenSSH读取，固定 `remote_probe.collect` 只读探针由远端系统Python执行，不是训练入口或远端agent。传输校验后在私有临时目录形成派生视图，继续经 `artifacts.dashboard.Catalog` 和领域适配解析；原远端文件不改。连接身份由运行参数提供，密码仅后端内存，known_hosts加显式指纹双校验。HTTP只允许显式刷新与连接元数据修改，不提供shell/任意文件接口；无watcher、自动重连或训练控制。
 
 训练发现复用既有run与startup_handshake作为唯一登记事实，不新增registry：CLI提交结果附带看板产物根和身份记录提示。远端probe仅发现授权runs根的直接子目录（或单个run），汇总后仍交给同一Catalog/领域适配；资源单次读取、总传输有界。显示或采集失败不重提训练、不改预算。
+
+## 存储边界
+
+`artifacts/runtime_paths.py::resolve_runs_root`在写入边界解析显式runs-root或WHEEL_LEG_DATA_ROOT，不在模块导入时绑定源码目录。owner创建run并记录同一根目录的models.json，PPO与监督均复用；resume遵循原run记录。export默认使用数据根，不回写源码run。显式导出/诊断/导入目标由调用者选择已确认数据盘，测试可用/tmp。
+
+`integrations/cloud_bundle.py::adopt_local_dependencies`接收明确保留集合，逐文件核验来源/目标、拒绝冲突，复用已有内容；只对显式不可变文件硬链接，可变文件复制。ModelIndex保护先于派生映射发布，故障重试重新核SHA；该接口不扫描历史、不删除原件。回执不是第二套资产保护索引，删除仍以唯一ModelIndex及实际消费者为准。RuntimePaths读取派生映射，原配置/spec和模型不改写。

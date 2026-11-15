@@ -31,6 +31,7 @@ from native_stand.artifacts.io import (
     write_json_new,
 )
 from native_stand.artifacts.retention import read_inventory, write_inventory
+from native_stand.artifacts.runtime_paths import resolve_runs_root
 
 from .budget import Budget
 from .config import JobConfig
@@ -38,7 +39,7 @@ from .plan import build_plan
 from .state import RunStateStore, write_stop_request
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-RUNS_ROOT = PROJECT_ROOT / "runs"
+
 WORKER_MODULE = "native_stand.experiments.worker"
 
 
@@ -96,14 +97,15 @@ def run_paths(run_dir: str | Path) -> dict[str, Path]:
 def create_run(
     job: JobConfig,
     *,
-    runs_root: str | Path = RUNS_ROOT,
+    runs_root: str | Path | None = None,
     purpose: str | None = None,
     run_id: str | None = None,
 ) -> Path:
     """创建新run目录与run.json；不创建预算、不启动worker。"""
+    runs_root = resolve_runs_root(runs_root)
     identifier = run_id or experiment_run_id(purpose or job.name)
     directory = Path(runs_root) / identifier
-    if Path(runs_root).resolve() == RUNS_ROOT.resolve() or job.assets.get("path_mapping"):
+    if job.assets.get("path_mapping"):
         from native_stand.artifacts.model_refs import ModelIndex, initialize_fixed
         from native_stand.artifacts.runtime_paths import RuntimePaths
 
@@ -157,7 +159,7 @@ def create_run(
 def submit(
     job: JobConfig,
     *,
-    runs_root: str | Path = RUNS_ROOT,
+    runs_root: str | Path | None = None,
     run_id: str | None = None,
     purpose: str | None = None,
     wait_s: float = 30.0,
@@ -170,6 +172,7 @@ def submit(
 
     返回SUBMITTED回执；formal是否已经开始由worker事件决定，不在这里假定。
     """
+    runs_root = resolve_runs_root(runs_root)
     if not 0 <= wait_s <= 600:
         raise ValueError("握手等待必须在0..600秒")
     if max_updates is not None and (type(max_updates) is not int or max_updates <= 0):

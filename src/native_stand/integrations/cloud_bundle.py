@@ -524,3 +524,103 @@ def materialize_dependencies(plan, archive_path, destination, *, source_root):
     )
     write_json(destination / "manifest.json", report)
     return report
+
+
+def adopt_local_dependencies(rows, destination, *, index, mapping_path, receipt_path):
+    """Adopt an explicit verified retention set; never scan or remove sources.
+
+    Reuse targets first. Hardlinks require an explicit immutable declaration;
+    mutable inputs are copied. Publish protection before the derived mapping.
+    Interrupted/repeated operations verify existing bytes rather than overwrite.
+    """
+    import os
+    import shutil
+    import tempfile
+
+    from native_stand.artifacts.io import read_json, write_json
+    from native_stand.artifacts.model_refs import ModelReference
+
+    destination = Path(destination).resolve()
+    mapping = read_json(mapping_path, {"version": "runtime_path_mapping_v1", "files": {}})
+    if mapping.get("version") != "runtime_path_mapping_v1":
+        raise ValueError("Unknown path mapping")
+    results, references = [], []
+    for row in rows:
+        source = Path(row["path"])
+        target = Path(row["target"])
+        sha = row["sha256"]
+        if not source.is_absolute() or not target.is_absolute():
+            raise ValueError("Absolute source and destination required")
+        if target.is_symlink() or not target.resolve().is_relative_to(destination):
+            raise ValueError("Destination escapes data root")
+        before = source.stat()
+        if file_sha256(source) != sha:
+            raise ValueError("Source SHA differs: " + str(source))
+        previous = mapping["files"].get(str(source))
+        if previous and previous != str(target):
+            raise ValueError("Existing source mapping conflicts: " + str(source))
+        target.parent.mkdir(parents=True, exist_ok=True)
+        mode = "existing_verified"
+        allocated = 0
+        if target.exists():
+            if file_sha256(target) != sha:
+                raise ValueError("Destination SHA differs: " + str(target))
+        elif row.get("immutable") and before.st_dev == target.parent.stat().st_dev:
+            os.link(source, target)
+            mode = "immutable_hardlink_not_backup"
+        else:
+            fd, temporary = tempfile.mkstemp(prefix=".adopt-", dir=target.parent)
+            try:
+                with os.fdopen(fd, "wb") as output, source.open("rb") as stream:
+                    shutil.copyfileobj(stream, output, length=1024 * 1024)
+                    output.flush()
+                    os.fsync(output.fileno())
+                if file_sha256(temporary) != sha:
+                    raise ValueError("Copied dependency SHA differs")
+                os.link(temporary, target)
+            finally:
+                Path(temporary).unlink(missing_ok=True)
+            mode = "verified_copy"
+            allocated = target.stat().st_blocks * 512
+        after = source.stat()
+        if (before.st_ino, before.st_size, before.st_mtime_ns) != (
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+        ) or file_sha256(target) != sha:
+            raise ValueError("Source changed during adoption: " + str(source))
+        for consumer in row["consumers"]:
+            references.append(
+                ModelReference(
+                    sha,
+                    str(target),
+                    (consumer["role"],),
+                    run=consumer["consumer"],
+                    kind=row.get("kind", "dependency"),
+                    reason="relocated from " + str(source),
+                )
+            )
+        mapping["files"][str(source)] = str(target)
+        results.append(
+            {
+                **row,
+                "bytes": after.st_size,
+                "storage": mode,
+                "new_allocated_bytes": allocated,
+                "verified": True,
+                "original": "retained",
+            }
+        )
+    index.register_many(references)
+    write_json(mapping_path, mapping)
+    receipt = {
+        "version": "local_dependency_adoption_v1",
+        "dependencies": results,
+        "mapping": str(mapping_path),
+        "model_index": str(index.path),
+        "removed_originals": [],
+        "logical_bytes": sum(r["bytes"] for r in results),
+        "new_allocated_bytes": sum(r["new_allocated_bytes"] for r in results),
+    }
+    write_json(receipt_path, receipt)
+    return receipt

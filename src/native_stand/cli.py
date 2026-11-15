@@ -15,6 +15,7 @@ from typing import Any
 
 from native_stand.artifacts.checkpoint import load_full
 from native_stand.artifacts.io import read_json
+from native_stand.artifacts.runtime_paths import resolve_runs_root
 from native_stand.experiments.config import (
     ConfigError,
     JobConfig,
@@ -22,8 +23,8 @@ from native_stand.experiments.config import (
     load_job_config,
     with_initialization,
 )
-from native_stand.experiments.owner import RUNS_ROOT, submit
 from native_stand.experiments.owner import inspect as inspect_run
+from native_stand.experiments.owner import submit
 
 EXIT_OK = 0
 EXIT_FAILED = 1
@@ -57,7 +58,10 @@ def _run_dir(run_id: str) -> Path:
     path = Path(run_id)
     if path.is_dir():
         return path
-    candidate = RUNS_ROOT / run_id
+    try:
+        candidate = resolve_runs_root() / run_id
+    except ValueError as exc:
+        raise CommandError(str(exc), EXIT_INVALID) from exc
     if candidate.is_dir():
         return candidate
     raise CommandError(f"找不到run: {run_id}", EXIT_INVALID)
@@ -118,7 +122,7 @@ def cmd_train(args) -> int:
         purpose=args.purpose or job.name,
         run_id=args.run_id,
         wait_s=args.wait_seconds,
-        runs_root=args.runs_root or RUNS_ROOT,
+        runs_root=resolve_runs_root(args.runs_root),
         max_updates=getattr(args, "max_updates", None),
     )
     reported = handshake.get("worker_reported") or {}
@@ -366,7 +370,15 @@ def cmd_export(args) -> int:
     if not checkpoint.is_file():
         raise CommandError(f"模型文件不存在: {checkpoint}", EXIT_INVALID)
     record = read_json(run_dir / "run.json", {}) or {}
-    output = Path(args.output) if args.output else run_dir / "exports" / checkpoint.stem
+    output = (
+        Path(args.output)
+        if args.output
+        else (
+            None
+            if args.dry_run
+            else resolve_runs_root() / "exports" / run_dir.name / checkpoint.stem
+        )
+    )
     if args.dry_run:
         _emit(
             args,
@@ -524,7 +536,7 @@ def cmd_distill(args) -> int:
 
         result = submit(
             dataclasses.replace(job, algorithm="distillation"),
-            runs_root=args.runs_root or RUNS_ROOT,
+            runs_root=resolve_runs_root(args.runs_root),
             run_id=args.run_id,
             purpose="distillation",
             distill_rounds=job.supervision.rounds,
@@ -553,7 +565,7 @@ def cmd_distill(args) -> int:
         dataset=args.dataset,
         teacher=args.teacher,
         rounds=args.rounds,
-        runs_root=getattr(args, "runs_root", None) or RUNS_ROOT,
+        runs_root=resolve_runs_root(getattr(args, "runs_root", None)),
         run_id=args.run_id,
         batch_size=args.batch_size,
         learning_rate=getattr(args, "learning_rate", 1e-3),
@@ -765,7 +777,9 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--config", type=Path, required=True)
     train.add_argument("--dry-run", action="store_true", help="只解析与估算，不创建run")
     train.add_argument("--run-id", default=None)
-    train.add_argument("--runs-root", default=None, help="新run输出根目录；不迁移现有任务")
+    train.add_argument(
+        "--runs-root", default=None, help="新run输出根；默认读取WHEEL_LEG_DATA_ROOT；不迁移现有任务"
+    )
     train.add_argument("--purpose", default=None)
     train.add_argument("--wait-seconds", type=float, default=30.0)
     train.add_argument(
@@ -799,7 +813,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--max-rounds", type=int, default=None, help="本次执行在累计监督轮边界停止，不改变总额度"
     )
     distill.add_argument("--run-id", default=None)
-    distill.add_argument("--runs-root", default=None, help="运行根目录（默认runs/）")
+    distill.add_argument(
+        "--runs-root", default=None, help="运行输出根；默认读取WHEEL_LEG_DATA_ROOT"
+    )
     distill.add_argument("--batch-size", type=int, default=256)
     distill.add_argument("--learning-rate", type=float, default=1e-3)
     distill.add_argument("--validation-fraction", type=float, default=0.2)

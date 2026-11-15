@@ -1,3 +1,13 @@
+## 统一数据根接管（2026-11-15）
+
+本轮资产收尾在`integration/asset-storage`完成：新run输出根改为显式`--runs-root`优先、否则`WHEEL_LEG_DATA_ROOT`；缺少时真实写入拒绝，dry-run不创建目录。PPO/BC共用数据根models.json，resume不改原run。部署默认输出到数据根exports，显式诊断/导入/导出路径由owner选数据盘。
+
+数据根`history/asset_storage_20261115/`保存逐文件plan/receipt、派生RuntimePaths映射、保护进程快照、旧Git状态及1490份未提交小型源码/配置/文档实际内容（33035843B）。接管2715项、逻辑2281711832B：复用1895项、不可变硬链接5项、复制815项，新增实际分配45481984B；包含Motion4500、World Model best/对照等8个重点模型CPU加载。另将1795502080B既有依赖包接管至`archives/motion_recovery_prepare.tar`并只移除源码仓该原文件名；同盘硬链接不释放本体空间。旧仓模型原件未移除。所有新目标及源码历史复用唯一ModelIndex登记消费者，不解除原角色。
+
+四份派生Motion/Spin/Recovery/Jump准备配置解析、dispatch、CLI dry-run通过，独立子进程禁止读取旧仓仍通过；不表示活动Recovery当前交接、最新Jump领域实现或新训练授权。旧STATUS两项来源缺失继续UNAVAILABLE，旧142份数据及失效候选不补认证。旧仓2792个>1MiB大型文件与worktree未证明切换的产物保持原位；不能宣称完全脱离旧目录。快照发现Recovery/Jump活动worker，其源码、run、预算和模型未操作。
+
+本轮针对性43 passed；portable2051 passed/31既有skip/10warning（137.98s）；架构220/0，Ruff0.8.4 CI范围check/219文件format通过。未运行真实训练、物理积分、GUI、GPU、远端或真实模型清理。完整回执位于数据根，普通功能不续写迁移报告。
+
 看板自动发现增量：正式train提交结果返回已有产物根/run/启动握手引用；本地刷新和远端显式刷新可发现授权runs目录直接子run，最多20个/14MiB、资源单次采集。无新增registry或watcher，不提交训练；当前运行看板仍使用此前单run授权，扩大远端root须明确配置。
 
 公共看板远端只读接入：运行时显式host/port/user/run-root/已核验指纹，密码仅后端getpass内存；OpenSSH严格known_hosts并额外校验ED25519指纹。页面默认手动采集，可选页面存活期间120秒刷新；无远端agent、watcher或训练控制。真实只读快照确认Motion RUNNING/2079已耗更新、worker1485/start_ticks401486752身份匹配，容器14核quota/50GiB，GPU4090；均为采集时快照，不代表持续核验。读取失败保留旧缓存。Jump/Recovery远端目录未接入。针对性39通过、portable2015通过/31既有skip/10warning，架构217/0、Ruff0.8.4通过；实际IP浏览器资源与曲线验证通过。源码未写死平台地址或端口，下一次更换需显式配置和私密输入。
