@@ -194,6 +194,8 @@ Actor输入保持绝对q/腿previous÷1.5、轮previous÷100、dq×.05、命令 
 
 当前证据没有定位新的静态encoder错误。后续解释继续限定在已有有符号响应与真实执行证据：yaw+.3欠响应，yaw-.3已响应同时漂移；缺5ms held q/dq、采用序号及P/D/C分层时，不根据RMSE推反号，不补造时序根因。完整来源与证据性质在 `encoder_and_v4_contract_identity_20261115_v1.json`；本次无新C编译、物理、GPU、BC、PPO、worker操作或正式合同变更。
 
+后续outcome源码审查确认，SETTLE→BALANCE仍保留Jump owner，奖励是own_completion，不是真Motion交回；Upstream helper也仍追加C弹簧补偿，不能冒充4300原no-C执行器。未来独立专家切换、状态连续与独立准入的必要边界见 [Motion交接审查](JUMP_MOTION_HANDOFF_BOUNDARY_20261115.md)。该设计未实施，也不阻塞当前独立完整Jump训练；读取时outcome文件SHA已不同于先前审阅，具体身份见新收据，不授运行认证。
+
 ## 验证和剩余门槛
 
 - 领域 CPU56项通过（21.59s），其中新增真实 C 边界5项；使用 portable guard 禁止 mj_step、CUDA 初始化及 AppLauncher。
