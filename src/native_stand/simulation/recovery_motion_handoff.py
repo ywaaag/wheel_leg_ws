@@ -289,7 +289,7 @@ def run(c, output):
                             if owner == "motion":
                                 action = motion_target
                             elif (
-                                c["recovery_spec"]["output_contract"]["action_version"]
+                                c["recovery_spec"].get("output_contract", {}).get("action_version")
                                 == "firmware_absolute_linear150_100_v1"
                             ):
                                 action = mean * torch.tensor([1.5, 1.5, 100.0, 1.5, 1.5, 100.0])
