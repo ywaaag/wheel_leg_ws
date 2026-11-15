@@ -285,12 +285,16 @@ def run(c, output):
                                             float(abs((target - previous)[[0, 1, 3, 4]]).max()),
                                             float(abs((target - previous)[[2, 5]]).max()),
                                         ]
-                            mean = motion_mean if owner == "motion" else recovery.actor.mean(x)
-                            action = (
-                                motion_target
-                                if owner == "motion"
-                                else recovery.actor.decode_mean(mean)
-                            )
+                            mean = motion_mean if owner == "motion" else recovery.mean(x)
+                            if owner == "motion":
+                                action = motion_target
+                            elif (
+                                c["recovery_spec"]["output_contract"]["action_version"]
+                                == "firmware_absolute_linear150_100_v1"
+                            ):
+                                action = mean * torch.tensor([1.5, 1.5, 100.0, 1.5, 1.5, 100.0])
+                            else:
+                                action = recovery.actor.decode_mean(mean)
                         received = mx if owner == "motion" else x
                         try:
                             result = env.step(action)
