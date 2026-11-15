@@ -93,7 +93,11 @@ def environment_class(
 
                 course_class = Course
                 self.life = LegLifecycle(
-                    n, self.device, self.leg_driven["geometry"], self.leg_driven["gamma"]
+                    n,
+                    self.device,
+                    self.leg_driven["geometry"],
+                    self.leg_driven["gamma"],
+                    anti_prone=self.leg_driven.get("anti_prone"),
                 )
             else:
                 self.life = life_class(n, self.device)

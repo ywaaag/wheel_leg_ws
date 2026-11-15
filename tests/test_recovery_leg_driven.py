@@ -508,3 +508,124 @@ def test_full_source_retains_remaining_critic_only_updates(tmp_path):
         assert metrics["critic_only"] == (i < 2)
         context.updates_used += 1
         restored.after_update(context, i, metrics)
+
+
+ANTI_PRONE = dict(
+    version="recovery_anti_prone_v1", grace_s=0.8, ramp_s=0.8, max_rate=2.0, height_m=0.26
+)
+
+
+def test_anti_prone_grace_ramp_progress_and_phase_gate():
+    from native_stand.tasks.recovery.leg_driven import anti_prone_density
+
+    def cost(age, *, phase=0, progress=0.0, height=0.17, gate=False):
+        return float(
+            anti_prone_density(
+                ANTI_PRONE,
+                phase=torch.tensor([phase]),
+                progress=torch.tensor([progress]),
+                stage_age=torch.tensor([age]),
+                height=torch.tensor([height]),
+                gate=torch.tensor([gate]),
+            )
+        )
+
+    assert cost(0.8) == 0
+    assert cost(1.2) == pytest.approx(-1.0)
+    assert cost(1.6) == pytest.approx(-2.0)
+    assert cost(3.0, progress=1.0) == pytest.approx(-1.0)
+    assert cost(3.0, gate=True) == 0
+    assert cost(3.0, phase=2) == 0
+    assert cost(3.0, phase=3) == 0
+    assert cost(3.0, height=0.27) == 0
+
+
+def test_real_reward_consumer_prone_cost_and_failure_tail():
+    old, g = life()
+    new, _ = life()
+    from native_stand.tasks.recovery.leg_driven import anti_prone_config
+
+    new.anti_prone = anti_prone_config(ANTI_PRONE)
+    baseline = advance(old, g, t=2.0)
+    modified = advance(new, g, t=2.0)
+    assert torch.equal(old.phase, new.phase)
+    assert torch.equal(old.last_target, new.last_target)
+    assert torch.allclose(modified["reward"] - baseline["reward"], torch.full((2,), -0.02))
+    assert torch.equal(modified["density"]["anti_prone"], torch.full((2,), -2.0))
+    baseline = advance(old, g, t=2.01, terminal=True)
+    modified = advance(new, g, t=2.01, terminal=True)
+    assert torch.allclose(modified["anti_prone_failure_tail"], torch.full((2,), 7.98))
+    assert torch.allclose(
+        modified["reward"] - baseline["reward"], torch.full((2,), -8.0), atol=1e-5
+    )
+
+
+def test_prone_cost_does_not_reward_wheel_motion_and_uses_checkpointed_state():
+    from native_stand.tasks.recovery.leg_driven import anti_prone_config
+
+    first, g = life()
+    first.anti_prone = anti_prone_config(ANTI_PRONE)
+    advance(first, g, t=1.0)
+    second, _ = life()
+    second.anti_prone = anti_prone_config(ANTI_PRONE)
+    second.load_state_dict(first.state_dict())
+    a = advance(first, g, t=1.4)
+    b = advance(second, g, t=1.4, wheel=2.0)
+    assert torch.equal(a["density"]["anti_prone"], b["density"]["anti_prone"])
+    assert (b["reward"] < a["reward"]).all()
+    first.reset(torch.arange(2), torch.full((2,), 0.168), torch.zeros(2))
+    first.configure_reset(
+        torch.arange(2), g, torch.zeros(2, dtype=torch.long), torch.zeros(2, dtype=torch.long)
+    )
+    assert torch.equal(advance(first, g, t=0.1)["density"]["anti_prone"], torch.zeros(2))
+
+
+@pytest.mark.parametrize(
+    "key,value",
+    [
+        ("max_rate", float("nan")),
+        ("ramp_s", 0.0),
+        ("grace_s", -1.0),
+        ("height_m", 0.34),
+        ("max_rate", True),
+    ],
+)
+def test_invalid_prone_recipe_rejected(key, value):
+    from native_stand.tasks.recovery.leg_driven import anti_prone_config
+
+    with pytest.raises(ValueError):
+        anti_prone_config(dict(ANTI_PRONE, **{key: value}))
+
+
+def test_prepared_prone_recipe_public_backend_validation(tmp_path):
+    import dataclasses
+    from pathlib import Path
+
+    from native_stand.artifacts.io import file_sha256, write_json
+    from native_stand.experiments.config import load_job_config
+    from native_stand.simulation.recovery_isaac.backend import validate_job
+
+    path = (
+        Path(__file__).resolve().parents[1]
+        / "configs/jobs/recovery_leg_driven2100_anti_prone_prepared.json"
+    )
+    job = load_job_config(path)
+    geometry = tmp_path / "geometry.json"
+    write_json(geometry, GEO)
+    job = dataclasses.replace(
+        job,
+        assets={
+            "recovery_leg_driven_geometry": dict(path=str(geometry), sha256=file_sha256(geometry))
+        },
+    )
+    validate_job(job)
+    assert job.reward.fields["anti_prone"] == ANTI_PRONE
+    assert job.limits.formal_updates == 0
+    bad = dataclasses.replace(
+        job,
+        reward=dataclasses.replace(
+            job.reward, fields=dict(anti_prone=dict(ANTI_PRONE, ramp_s=0.0))
+        ),
+    )
+    with pytest.raises(ValueError, match="positive"):
+        validate_job(bad)

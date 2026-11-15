@@ -100,6 +100,9 @@ def validate_job(job):
     ):
         expected_reward = job.reward.version
     if leg_driven:
+        from native_stand.tasks.recovery.leg_driven import anti_prone_config
+
+        anti_prone_config(job.reward.fields.get("anti_prone"))
         expected_reward = LEG_REWARD
         if job.model.critic_privileged_version != LEG_CRITIC:
             raise ValueError("Leg-driven task requires its actual causal Critic")
@@ -502,6 +505,7 @@ class IsaacRecovery:
             cfg.recovery_leg_driven = dict(
                 geometry=read_json(job.assets["recovery_leg_driven_geometry"]["path"]),
                 gamma=job.ppo.gamma,
+                anti_prone=job.reward.fields.get("anti_prone"),
             )
             cfg.episode_length_s = 6.0
         cfg.recovery_measurement = self.measurement
