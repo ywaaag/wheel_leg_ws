@@ -1,5 +1,7 @@
 # 当前任务
 
+Jump远端共享迁移（2026-11-15）：本机v202已正常STOPPED_BOUNDED196/failure=null，累计2427/10000，余7573。用户授权远端共享且各约半GPU，独立jump/remote-shared将改2048×64；来源u196完整学习状态不裁剪，显式前2048课程行映射、物理fresh-reset/new cohort，远端6.2的Warp质量矩阵CSR兼容与torch动态库入口正在验收。Motion812保持运行，零修改。当前远端load-only已通过，正式PPO尚未启动；详见artifacts/jump_remote_shared_20261115及原worktree迁移证据。
+
 Jump结果课程（2026-11-15）：独立worktree `wheel_leg_jump_outcome_ws` / `jump/outcome-curriculum`。实现66edb96、配方2e847de。100%主动跳、2/5/10cm结果课程、300ms保持请求、安全接受直接PUSH、不强制下蹲；完整落稳完成42分，过程势函数终态抵消、1ms→10ms折扣对齐。BC60 Actor-only均值继承，fresh Critic/双Adam；4096×64/save100/原Cylinder＋Plane及40/4.8Nm保持。CPU143/portable1972（31历史skip）、Ruff与架构220/0、真实CUDA、32env×4000tick门禁/reset/读回通过。新run `2026_11_15__jump_outcome7769_v202` 有界8次正常STOPPED_BOUNDED/failure=null；u8完整学习状态/双Adam/RNG及CLI导出C profile核验通过。8次均值51.365秒，共8683结束回合、7797接受、真实takeoff0/成功0，不能称能力accepted。原累计2231＋8=2239，余7761；现同run接续长训，运行进度以state/budget为准。精确收据 `artifacts/jump_outcome_v199/DELIVERY.md`。Motion专家切换与带速度跳尚未实现，保持独立Jump全阶段。
 
 Jump闭环补教已完成：统一owner的v4正常COMPLETED/failure=null，60BC轮/3060优化步，复用首轮768000物理步并新增1536000。BC60学生64env独立12s无回合结束/非轮接触，root约.354m、tilt最大.024rad、原1mm/2mm门通过；前向+.2m/s跟踪连续11.61s，零命令漂移/反向和正yaw跟踪仍不足，不宣称基础运动或跳跃accepted。用户明确漂移不作为开训门槛，要求优先Jump长训；从BC60 Actor-only新建PPO，保留已耗1577/剩8423，不混用BC与PPO Adam。CLI export已复用监督InferenceSpec修复，真实包及PPO factory CPU装配逐位一致、全新双Adam；portable1964/31历史skip、架构219/0、CI Ruff通过。精确运行状态以run原始state/预算为准。

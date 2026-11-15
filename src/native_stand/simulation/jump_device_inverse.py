@@ -16,6 +16,20 @@ from native_stand.simulation.jump_isaac_bridge import InverseFeedback
 from native_stand.tasks.jump.geometry import CHANNELS, LEGS
 
 
+def dense_mass(values, nv, *, rows=None, columns=None):
+    """Read legacy dense qM or new symmetric CSR M without changing precision."""
+    if rows is None:
+        if values.ndim != 3 or values.shape[1] < nv or values.shape[2] < nv:
+            raise ValueError("Warp inverse requires a dense qM matrix")
+        return values[:, :nv, :nv].double()
+    if values.ndim != 2 or values.shape[1] != rows.numel() or rows.shape != columns.shape:
+        raise ValueError("Warp inverse symmetric CSR M layout differs")
+    result = torch.zeros(values.shape[0], nv, nv, dtype=torch.float64, device=values.device)
+    result[:, rows, columns] = values.double()
+    result[:, columns, rows] = values.double()
+    return result
+
+
 class DeviceInverse:
     version = "jump_PhysX_Warp_inverse_float32_v1"
 
@@ -27,6 +41,25 @@ class DeviceInverse:
         self.model.opt.jacobian = mujoco.mjtJacobian.mjJAC_DENSE
         self.wm = mw.put_model(self.model)
         self.wd = mw.put_data(self.model, reference.data, nworld=n, nconmax=1, njmax=128)
+        self.mass_rows = self.mass_columns = None
+        if hasattr(self.wd, "qM"):
+            self.mass_values = wp.to_torch(self.wd.qM)
+        else:
+            # MuJoCo 3.12/Warp stores the symmetric lower triangle in CSR M.
+            # Model-owned indices are immutable; upload once at construction.
+            self.mass_values = wp.to_torch(self.wd.M)
+            counts = np.asarray(self.model.M_rownnz)
+            starts = np.asarray(self.model.M_rowadr)
+            if not np.array_equal(starts, np.r_[0, np.cumsum(counts)[:-1]]):
+                raise ValueError("Warp inverse requires contiguous symmetric CSR M")
+            self.mass_rows = torch.as_tensor(
+                np.repeat(np.arange(self.model.nv), counts), device=device
+            )
+            self.mass_columns = torch.as_tensor(
+                np.asarray(self.model.M_colind).copy(), device=device, dtype=torch.int64
+            )
+            if bool(((self.mass_columns < 0) | (self.mass_columns > self.mass_rows)).any()):
+                raise ValueError("Warp inverse requires lower-triangular symmetric CSR M")
         self.qpos = wp.to_torch(self.wd.qpos)
         self.qvel = wp.to_torch(self.wd.qvel)
         self.qacc = torch.zeros(n, self.model.nv, device=device)
@@ -147,9 +180,9 @@ class DeviceInverse:
         self.tangent[:, self.passive] = (
             -torch.linalg.pinv(closure[:, :, self.passive], rtol=1e-9) @ closure[:, :, self.active]
         )
-        mass = wp.to_torch(self.wd.qM)[:, : self.model.nv, : self.model.nv].double()
-        if mass.shape[1:] != (self.model.nv, self.model.nv):
-            raise ValueError(f"Warp inverse requires dense mass matrix: {mass.shape}")
+        mass = dense_mass(
+            self.mass_values, self.model.nv, rows=self.mass_rows, columns=self.mass_columns
+        )
         load = (
             (mass @ self.qacc.double().unsqueeze(-1)).squeeze(-1)
             + wp.to_torch(self.wd.qfrc_bias).double()

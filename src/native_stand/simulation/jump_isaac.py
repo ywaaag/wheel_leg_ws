@@ -949,6 +949,8 @@ class IsaacJump:
         if value["identity"] != self.identity or transition.get("force_new_cohort") is True:
             source_envs = len(value["courses"])
             expansion = transition.get("environment_expansion")
+            contraction = transition.get("environment_contraction")
+            selected_courses = value["courses"]
             count_matches = source_envs == self.num_envs
             if not count_matches:
                 count_matches = (
@@ -963,6 +965,14 @@ class IsaacJump:
                         seed=self.job.runtime.seed,
                     )
                 )
+                if source_envs > self.num_envs > 0:
+                    count_matches = contraction == dict(
+                        source_envs=source_envs,
+                        target_envs=self.num_envs,
+                        retained_rows="first_target_rows_preserve_course_rng_and_counters",
+                        other_rows="retained_in_source_checkpoint_not_simulated",
+                    )
+                    selected_courses = value["courses"][: self.num_envs]
             if (
                 self.job.initialization.mode != "full"
                 or transition.get("source_checkpoint_sha256") != self.job.initialization.sha256
@@ -985,7 +995,7 @@ class IsaacJump:
                 self.output / "physics_transition.json",
                 dict(**transition, target_execution_identity=self.identity, restore="fresh_reset"),
             )
-            for course, prior in zip(self.courses[:source_envs], value["courses"], strict=True):
+            for course, prior in zip(self.courses[:source_envs], selected_courses, strict=True):
                 # Old failed-plant windows cannot certify the corrected plant.
                 # Preserve scheduling RNG and cumulative episode identities,
                 # while starting explicit new-plant evidence at level zero.

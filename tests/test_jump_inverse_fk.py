@@ -117,3 +117,26 @@ def test_device_ancestor_chain_lengths_match_original_geometry_on_cpu(inverse_ar
         ]
     )
     np.testing.assert_allclose(lengths, expected, atol=2e-15, rtol=0)
+
+
+def test_device_mass_legacy_dense_and_symmetric_CSR_preserve_full_double_product():
+    import torch
+
+    from native_stand.simulation.jump_device_inverse import dense_mass
+
+    rows = torch.tensor([0, 1, 1, 2, 2])
+    columns = torch.tensor([0, 0, 1, 0, 2])
+    packed = torch.tensor([[4, -1, 5, 2, 6], [7, 3, 8, -2, 9]], dtype=torch.float32)
+    expected = torch.tensor(
+        [[[4, -1, 2], [-1, 5, 0], [2, 0, 6]], [[7, 3, -2], [3, 8, 0], [-2, 0, 9]]],
+        dtype=torch.float64,
+    )
+    actual = dense_mass(packed, 3, rows=rows, columns=columns)
+    assert torch.equal(actual, expected)
+    legacy = torch.zeros(2, 4, 4)
+    legacy[:, :3, :3] = expected
+    assert torch.equal(dense_mass(legacy, 3), expected)
+    acceleration = torch.tensor([1.123456789, -2.345678912, 3.456789123], dtype=torch.float64)
+    assert torch.equal(actual @ acceleration, expected @ acceleration)
+    with pytest.raises(ValueError, match="CSR"):
+        dense_mass(packed[:, :-1], 3, rows=rows, columns=columns)

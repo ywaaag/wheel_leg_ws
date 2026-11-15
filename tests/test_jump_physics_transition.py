@@ -140,3 +140,38 @@ def test_expanding_envs_requires_explicit_mapping_and_preserves_existing_course_
             assert c.episodes == c.serial == 0
     with pytest.raises(ValueError, match="restore identity"):
         env.load_runtime_state(state)
+
+
+@pytest.mark.parametrize("mapping", ["absent", "wrong_count", "wrong_rows", "explicit"])
+def test_contracting_envs_preserves_selected_course_rng_without_mutating_source(tmp_path, mapping):
+    env, state = transition_env(tmp_path)
+    original = copy.deepcopy(state)
+    env.num_envs = 1
+    env.courses = env.courses[:1]
+    if mapping != "absent":
+        declaration = dict(
+            source_envs=2,
+            target_envs=1,
+            retained_rows="first_target_rows_preserve_course_rng_and_counters",
+            other_rows="retained_in_source_checkpoint_not_simulated",
+        )
+        if mapping == "wrong_count":
+            declaration["target_envs"] = 2
+        if mapping == "wrong_rows":
+            declaration["retained_rows"] = "arbitrary_rows"
+        env.job.assets["jump_physics_transition"]["environment_contraction"] = declaration
+    if mapping != "explicit":
+        with pytest.raises(ValueError, match="full-state Jump physics transition"):
+            env.initialize_from_training_state(state)
+        assert env.reset_calls == 0
+    else:
+        env.initialize_from_training_state(state)
+        c, prior = env.courses[0], state["courses"][0]
+        assert c.rng.bit_generator.state == prior["rng"]
+        assert (c.episodes, c.serial) == (prior["episodes"], prior["serial"])
+        assert c.generation == prior["generation"] + 1
+        assert not c.pending and not any(c.windows.values())
+        assert env.reset_calls == 1 and env.serial == 0 and not env.completed
+        with pytest.raises(ValueError, match="restore identity"):
+            env.load_runtime_state(state)
+    assert state == original

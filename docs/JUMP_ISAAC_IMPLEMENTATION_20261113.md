@@ -182,3 +182,26 @@ Motion负责人只读复核另确认：现有Jump回BALANCE后owner仍是Jump，
 完整Actor/Critic/双Adam/std/RNG/预测逐位恢复、语义检查及CLI导出包新C profile读回通过。
 预算累计2239/10000，余7761，同run `2026_11_15__jump_outcome7769_v202` 续接长训，每100保存、墙钟null。
 详见本轮DELIVERY及原始state/budget，不把首段接线证据解释为已学会跳跃。
+
+## 远端共享迁移（2026-11-15）
+
+用户明确授权共享远端4090、每任务约半张GPU。新配置
+`configs/jobs/jump_outcome_isaac_remote_shared.json` 为2048×64=131072样本/更新，
+64minibatches/4epochs、每100保存，其余动作/奖励/课程不变。共享启动要求10240MiB空闲，
+先验证实际峰值，不修改Motion的owner或配方。
+
+本机v202正常STOPPED_BOUNDED196、failure=null，完整u196 SHA
+`5436a777b691a28b909e835d7afaf48ea6970ef94e7e794d8551208206476285`。
+原累计2231+196=2427/10000，远端仅分配7573。保留Actor/Critic/双Adam/std/RNG和已完成5次warmup，
+物理6.0.1→6.2使用fresh-reset和新证据cohort。显式environment_contraction声明保留前2048行的
+课程RNG及episode计数；其他行完整保留在只读来源checkpoint，不模拟、不退款；拒绝未声明缩容。
+
+新版本兼容远端MuJoCo3.12/Warp的对称CSR质量矩阵M；本机旧版仍读dense qM。
+按实际M_rownnz/M_rowadr/M_colind在GPU重建对称矩阵，float32质量值仍转换float64后乘实测加速度，
+不把CSR直接reshape或误当dense。保持MuJoCo/Warp只提供逆模型，PhysX是唯一物理积分器。
+Jump独立启动环境还显式加入其venv的torch/lib，解决动态加载libtorch_cuda_linalg.so；
+不改共享venv、SDK或Motion启动环境。
+
+源码/依赖/完整checkpoint已传独立目录
+`/root/gpufree-data/wheel_leg_jump/outcome_migration_20261115`，文件SHA和远端full学习状态load-only通过。
+两环境物理、2048正式PPO及恢复结果以本轮artifacts收据为准，准备完成不代表已开训或能力通过。
