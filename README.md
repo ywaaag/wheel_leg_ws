@@ -43,6 +43,10 @@ PYTHONPATH=src /home/kellen/anaconda3/envs/issaclab/bin/python -B -m native_stan
 
 确认manifest与包身份后去掉dry-run只恢复依赖，不建run、预留额度或训练。原始spec/checkpoint不改；派生配置显式加入assets.path_mapping的path/SHA，source_root指向本次检出的src。新领域增量所需但旧包未含的依赖仍需其独立SHA清单，不能冒充已全部脱离旧目录。干净clone使用自己的PYTHONPATH=src，不借旧仓editable install；不要重装共享训练环境。
 
+## 实机版本反馈
+
+[Motion／Recovery实机版本反馈](docs/HARDWARE_FEEDBACK.md)记录vM0、vM1、vM2和vR0的拍摄日期、功能、问题、Git版本及视频／CSV证据状态。记录包含用户实测反馈与尚未确认的原因；仿真、CPU测试和实机成绩分别保留，缺失的烧录身份不按日期猜测。其职责和已有模型／资产机制的关系见[架构说明](ARCHITECTURE.md#实机反馈与版本追溯)。
+
 ## 迁移前历史文档
 
 迁移时保留的192份未跟踪文档及附件已归档到数据根 `history/docs_pre_refactor/`，正文保留原`docs/...`结构。`manifest.json`逐项记录原绝对路径、归档路径、SHA、大小及与旧仓的比较；`difference_review.json`和`review/`保留5份差异，`references.json`保留历史引用位置。归档原文不是当前用法；正式入口仍以本README、ARCHITECTURE和`--help`为准。

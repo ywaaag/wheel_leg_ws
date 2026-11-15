@@ -66,6 +66,12 @@ wheel-leg / python -m native_stand          cli.py：参数、展示、退出码
 
 复用`simulation/isaac`、`v4_response.py`、`playback_execution.py`与`control_core.py`现有消费者。共享C编码／解码／PD不等于完整`RLControlExecute`补偿链，Isaac张量执行也不等于每个子步直接调用C固件。本次说明不新增执行模式、接口或生命周期。
 
+## 实机反馈与版本追溯
+
+[实机版本反馈](docs/HARDWARE_FEEDBACK.md)集中记录用户提供的Motion／Recovery实机观察，字段包括类型、版本／拍摄日期、新增功能、存在问题、电控Git哈希、效果视频、数据效果.csv和备注。拍摄日期与Git日期分开，用户观察、原因假设、仿真成绩和主机测试分别标识；未提供的固件身份、视频或CSV保持UNKNOWN／未提供，不由最新分支反推。
+
+该文档是领域证据入口，不是模型注册表、执行配置或硬件放行开关。原始附件沿用统一数据根与已有资产引用机制；ModelIndex仍负责模型引用，能力矩阵仍负责目标和验收，执行口径仍负责V4／实机合同。正式源码不读取反馈文档来改变策略、评分或控制，新增反馈不创建训练入口或生命周期。
+
 ## 历史实现与保护
 
 `command_v6/`、`students/`、`recovery/`、`world_model/` 是冻结的历史实现，按原身份只读复用。新支撑中心Motion通过 `simulation/isaac/motion_backend.py` 使用统一worker、账本和checkpoint；物理环境只读借用r4视图，修正奖励与更新后KL位于 `tasks/motion/scale_corrections.py`、`learning/ppo/supported.py`。不启动旧supervisor。
