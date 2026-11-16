@@ -232,4 +232,14 @@ def job_dependencies(job):
             raise ValueError("No bound deployment mechanical description for this USD")
         for name, ref in bindings["bindings"].items():
             result.append(dict(path=ref["path"], sha256=ref["sha256"], role=name))
+    if job.assets.get("motion_vm1_contract"):
+        ref = job.assets["motion_vm1_contract"]
+        contract = paths.read(ref["path"])
+        if file_sha256(paths.resolve(ref["path"])) != ref["sha256"]:
+            raise ValueError("vM1 deployment reference contract SHA differs")
+        result.append(dict(**ref, role="motion_vm1_contract"))
+        result.extend(
+            dict(path=r["path"], sha256=r["sha256"], role="motion_vm1_" + r["role"])
+            for r in contract["members"]
+        )
     return [{**ref, "path": paths.resolve(ref["path"])} for ref in result]

@@ -67,6 +67,8 @@ def execute(
         )
         for t in recipe.teachers
     ]
+    for teacher in teachers:
+        teacher.model.actor.to(job.runtime.device)
     dependencies = [dict(path=t.path, sha256=t.sha256) for t in recipe.teachers]
     dependencies += [dict(recipe.dataset), *recipe.rehearsal]
     if recipe.initial_student:
@@ -200,7 +202,7 @@ def execute(
             )
             labels, owner, valid = label(
                 teachers,
-                torch.from_numpy(data["states"]),
+                torch.as_tensor(data["states"], device=job.runtime.device),
                 conditions,
                 ActionLabels(**recipe.student_labels),
                 student_kind=recipe.student["kind"],
@@ -266,9 +268,9 @@ def execute(
                 dict(
                     states=data["states"],
                     episodes=np.array(data["episodes"]),
-                    teacher_actions=labels.numpy(),
-                    valid=valid.numpy(),
-                    teacher_owner=owner.numpy(),
+                    teacher_actions=labels.cpu().numpy(),
+                    valid=valid.cpu().numpy(),
+                    teacher_owner=owner.cpu().numpy(),
                     roles=roles,
                     physical_episode_keys=np.array(episode_keys),
                     sample_ids=np.array(

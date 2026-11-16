@@ -26,8 +26,15 @@ MODES = np.array(
 
 
 def validate(cfg):
-    if cfg["version"] != VERSION or not 1 <= len(cfg["cases"]) <= 64:
+    if (
+        cfg["version"] not in (VERSION, "motion_replication_probe_v2")
+        or not 1 <= len(cfg["cases"]) <= 64
+    ):
         raise ValueError("Expected bounded replication cases")
+    if cfg["version"] == "motion_replication_probe_v2" and not cfg["plant"].get(
+        "motion_vm1_contract"
+    ):
+        raise ValueError("Motion replication v2 requires SHA-bound vM1 MuJoCo plant")
     if not 1 <= cfg["wall_s"] <= 1800 or not 1 <= cfg["max_physics_steps"] <= 2000000:
         raise ValueError("Explicit finite wall/physical limits required")
     if not 1 <= cfg["max_output_bytes"] <= 512 * 2**20:
@@ -114,6 +121,12 @@ def prepare(cfg):
     from native_stand.simulation.playback import plan
 
     base = cfg["plant"]
+    if base.get("motion_vm1_contract"):
+        from .motion_vm1_plant import load_contract
+
+        reference = load_contract(base["motion_vm1_contract"])
+        if base["solver_profile"] != reference["solver_profile"]:
+            raise ValueError("vM1 plant solver override differs from frozen reference")
     prepared = plan(
         base["run"],
         base["checkpoint"],
@@ -159,8 +172,11 @@ def prepare(cfg):
     if "actor_packet_age_ms" in cfg:
         for key in ("actor_packet_nominal_ms", "actor_leg_packet_nominal_ms"):
             timing[key] = cfg["actor_packet_age_ms"]
+    assets = dict(prepared.assets)
+    if base.get("motion_vm1_contract"):
+        assets["motion_vm1_contract"] = base["motion_vm1_contract"]
     prepared = dataclasses.replace(
-        prepared, job=job, output_contract=spec.output_contract, timing=timing
+        prepared, job=job, output_contract=spec.output_contract, timing=timing, assets=assets
     )
     return prepared, model
 
@@ -172,7 +188,7 @@ def from_file(path, *, dry_run=False):
     cfg = validate(read_json(path))
     prepared, model = prepare(cfg)
     receipt = dict(
-        version=VERSION,
+        version=cfg["version"],
         actor=cfg["actor"],
         common_plan=prepared.record(),
         protocol_sha256=file_sha256(path),
@@ -219,6 +235,8 @@ def from_file(path, *, dry_run=False):
                 actual_timing=dict(plant.execution.timing),
                 actual_control=dataclasses.asdict(plant.execution.control),
                 actual_actuator_ctrlrange=plant.model.actuator_ctrlrange.tolist(),
+                actual_actuator_gears=plant.actuator_gears.tolist(),
+                actual_model=plant.model_metadata,
                 modal_basis_model_leg_order=MODES.tolist(),
             )
             if abs(float(plant.model.opt.timestep) - 0.001) > 1e-12:

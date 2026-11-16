@@ -180,6 +180,14 @@ def plan(
     assets["solver_profile"] = solver_profile
     assets["terrain_map"] = terrain_map
     assets["checkpoint_sha256"] = checkpoint_sha256
+    if job.assets.get("motion_vm1_contract"):
+        from .motion_vm1_plant import load_contract
+
+        reference = job.assets["motion_vm1_contract"]
+        contract = load_contract(reference)
+        if solver_profile != contract["solver_profile"]:
+            raise ValueError("vM1 playback solver must match frozen contract")
+        assets["motion_vm1_contract"] = reference
     return PlaybackPlan(run, path, job, assets, output, timing)
 
 

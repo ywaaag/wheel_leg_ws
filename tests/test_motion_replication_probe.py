@@ -126,6 +126,7 @@ def test_external_torque_added_after_NET_without_changing_motor_or_caches():
     player.data=SimpleNamespace(qpos=np.zeros(6),qvel=np.zeros(6),ctrl=np.zeros(6),qfrc_applied=np.ones(6),time=0.)
     player.model=SimpleNamespace(neq=0)
     player.qids=player.vids=np.arange(6)
+    player.actuator_ids=np.arange(6);player.actuator_gears=np.ones(6);player.loop_sites=[]
     player.terrain=None;player.plan=SimpleNamespace(job=SimpleNamespace(task='motion'))
     player.recording=False;player.last_record=None;player.actual_physics_steps=0
     observed=[]
@@ -240,3 +241,24 @@ def test_teacher_envelope_marks_unknown_before_routing_and_physical_conversion(t
     ref['observation_envelope']={**envelope,'upper':[1.]*30}
     with pytest.raises(ValueError,match='envelope'):
         read_source(ref)
+
+
+def test_vm1_model_constructor_keeps_wheel_transmission_and_motor_only_caps(tmp_path):
+    from native_stand.tasks.motion.encoding import CHANNELS
+    from native_stand.simulation.motion_vm1_plant import make_model
+    names=list(CHANNELS)
+    bodies=''.join(f'<body name="b{i}" pos="0 0 .2"><joint name="{n}"/><geom type="sphere" size=".01"/></body>' for i,n in enumerate(names))
+    motors=''.join(f'<motor joint="{n}" gear="{16 if i in (2,5) else 1}"/>' for i,n in enumerate(names))
+    p=tmp_path/'plant.xml';p.write_text('<mujoco><worldbody>'+bodies+'</worldbody><actuator>'+motors+'</actuator></mujoco>')
+    contract=dict(members=[dict(role='mjcf',path=str(p))])
+    mechanics=dict(joint_names=names,armature=dict.fromkeys(names,.012),
+                   damping=dict.fromkeys(names,0.),friction_loss_Nm=dict.fromkeys(names,0.))
+    desc=dict(joints=[dict(name=n,limited=True,limits_rad=[-1.5,1.5]) for n in names])
+    v4=dict(sides={k:dict(body_changes=[],parameters=dict(leg_mass_inertia_scale=1.)) for k in ['L','R']})
+    with patch('native_stand.simulation.motion_vm1_plant.load_contract',return_value=contract):
+        m,refs,meta=make_model({},description=desc,mechanics=mechanics,V4_contract=v4,
+                               motor_caps=[40,40,4.8,40,40,4.8])
+    assert len(refs)==6 and meta['version']=='motion_vm1_mujoco_v1'
+    np.testing.assert_allclose(m.actuator_ctrlrange[[2,5]],[[-.3,.3]]*2)
+    np.testing.assert_allclose(m.actuator_forcerange[[2,5]],[[-.3,.3]]*2)
+    np.testing.assert_array_equal(m.geom_friction[:,1:],0.)

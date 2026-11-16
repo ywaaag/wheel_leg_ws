@@ -276,6 +276,10 @@ PYTHONPATH=src python -m native_stand dashboard --root /path/to/local/runs \
 
 固定Motion同条件复刻诊断使用`wheel-leg diagnose --config PROTOCOL.json [--dry-run]`，协议版本`motion_replication_probe_v1`。它复用现有MuJoCo播放器，显式有限case/墙钟/积分步/输出空间，保留各Actor合同与1ms证据；不改中心、模型或电控。源Actor、公共plant、命令/事件、完整episode角色和评分门槛均须明示，能力结论以逐条件指标为准。
 
+后续正式Motion蒸馏使用`motion_replication_probe_v2`与`motion_vm1_mujoco_v1`参考合同，`plant.motion_vm1_contract`必须显式提供path/SHA。它绑定vM1原MJCF/网格和历史运行时覆盖；Teacher与Student共用MuJoCo参考，1kHz双轮各>2N承重比例严格>60%，目标为复刻Teacher。完整物理定义与传动比见ARCHITECTURE；既有v1冻结证据保留。仅复制原XML柔顺值的`motion_vm1_contact_20261109_v1`是探索对照，不是完整vM1参考。
+
+离线监督使用`runtime.device=cpu`或`cuda:0`，同一`wheel-leg distill → owner/worker → supervision_flow → BC loop`。CUDA保存RNG/设备身份，完整resume沿用原设备；MuJoCo仍是CPU逐回合积分。资源授权与物理GPU UUID在每次正式提交前核验。
+
 承重统计使用每步`mj_contactForce`法向力，包含正距离margin接触的求解器承重；额外保存`positive_gap_normal_force_N`供审计。旧触碰布尔值仍表示距离≤0，不能代替承重力。结果记录读回版本与post-step/forward时点；旧统计结果不覆盖，跨版本比较应重评分或重新同条件验证。
 
 学生状态补教可在dataset来源引用中声明`observation_envelope={version:teacher_observation_box_v1,lower:[...],upper:[...]}`。向量长度必须等于输入维度；范围外及无效transition保留为UNKNOWN，监督循环在Teacher查询前跳过。范围由有资格来源和固定余量给出，不能继承Teacher原回合的成功身份。

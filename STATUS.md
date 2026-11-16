@@ -1,5 +1,9 @@
 ## Motion050多Teacher蒸馏（2026-11-16）
 
+用户指定后续采用vM1 MuJoCo配置，并改双轮支撑门为严格>60%。已沿旧正式调用链确认：原MJCF/21网格、implicitfast、2mm margin以及运行时closure_contact_tight_v1（不是裸XML .008柔顺）。新motion_replication_probe_v2经同一MotionPlayer构造SHA绑定原MJCF，正确处理轮gear；Teacher vM1站立/+.25启停/+1侧推3/3通过，站立漂移.203m/s，与历史约.20一致；C0站立通过，u2200同3项通过。第一6轮Student仅站立通过、低速/侧推未保留，不能当accepted。新物理参考已写AGENTS/ARCHITECTURE，旧局部参数和USD生成模型结果只读，不继续作为正式蒸馏配置。
+
+用户另授权本机CPU/GPU提速。GPU-e704e7d4-2965-4712-9759-ba6b9910bd72已读回空闲；u2200 batch8192×10推理CPU2.253秒、CUDA.01946秒。正式监督复用同BC循环的runtime.device，CUDA RNG/优化设备进入完整恢复点；CPU物理按独立回合并行，不换物理后端。PPO仍0。来源/物理/阶段消耗与新旧协议收据均在数据根motion_multiteacher050_20261116，不改其他任务。
+
 验证版本修正MotionPlayer承重读回：旧实现按contact.dist>0跳过margin接触，可能漏掉有效法向力。新版本只更正统计，保留物理、触碰布尔值与既定门槛，逐步另存正距离承重力；旧轨迹与失败证据不改写。第一BC块经公共owner停在3轮/207优化步后已正式resume，计划6轮总计414优化步，PPO0；精确终态以run账本为准。
 
 负责人：当前会话7e855c08-0408-4c8a-aafd-3b6b29238d96。独立分支motion/multiteacher050-distillation、worktree wheel_leg_motion_multiteacher_ws、基点0baa131。仅CPU、有界MuJoCo和BC；PPO0，不修改电控。Student31→256→128→64→6，保留新u2200原050/80中心。原vM1/C0/u2200/u50逐SHA来源在数据根motion_multiteacher050_20261116/sources.json；旧run/模型/账本只读。

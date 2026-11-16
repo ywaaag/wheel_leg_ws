@@ -42,6 +42,7 @@
 - 默认物理/PD/策略周期 1/5/10 ms；具体 PD、限矩、动作尺度、USD 与地面以冻结 spec 为准。
 - 不暗加滤波、限速、补偿、静态偏置或替代控制器。新增设计必须同时更新训练、评估、播放与部署定义。
 - 区分观测年龄、目标运输、PD后力矩运输与电机响应，不重复叠加同一延迟。
+- Motion后续蒸馏的MuJoCo参考固定为`motion_vm1_mujoco_v1`：绑定vM1原MJCF与网格SHA、历史运行时`closure_contact_tight_v1`、implicitfast及2mm margin。Teacher与Student共用同一物理配置，目标是复刻同条件Teacher；1kHz双轮各>2N承重比例须严格>60%。正式诊断使用`motion_replication_probe_v2`和显式合同引用，不以裸XML、局部参数复制或Isaac表现替代。当前轮4.8Nm与历史2.44695Nm差异须明记；更换参考须用户明确授权并新版本留证，旧配置与结果只读。
 
 ## 实验与预算
 

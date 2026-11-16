@@ -603,7 +603,10 @@ def cmd_diagnose(args) -> int:
             text=f"诊断: 状态 {state.get('status')} 失败 {state.get('failure')}",
         )
         return EXIT_OK
-    if args.config and read_json(args.config).get("version") == "motion_replication_probe_v1":
+    if args.config and read_json(args.config).get("version") in (
+        "motion_replication_probe_v1",
+        "motion_replication_probe_v2",
+    ):
         from native_stand.simulation.motion_replication_probe import from_file
 
         result = from_file(args.config, dry_run=args.dry_run)

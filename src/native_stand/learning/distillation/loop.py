@@ -32,18 +32,22 @@ def _atomic_save_latest(path: Path, state: dict[str, Any]) -> str:
     return file_sha256(path)
 
 
-def _rng_snapshot() -> dict:
+def _rng_snapshot(device=None) -> dict:
     """Python / NumPy / Torch 三路RNG状态；恢复时按同样顺序还原。"""
     import random
 
     import numpy as np
     import torch
 
-    return {
+    result = {
         "python": random.getstate(),
         "numpy": np.random.get_state(),
         "torch": torch.get_rng_state(),
     }
+    if device is not None and str(device).startswith("cuda"):
+        result["cuda_device"] = torch.device(device).index or 0
+        result["cuda"] = torch.cuda.get_rng_state(device)
+    return result
 
 
 def restore_rng(snapshot: dict) -> None:
@@ -55,6 +59,8 @@ def restore_rng(snapshot: dict) -> None:
     random.setstate(snapshot["python"])
     np.random.set_state(snapshot["numpy"])
     torch.set_rng_state(snapshot["torch"])
+    if "cuda" in snapshot:
+        torch.cuda.set_rng_state(snapshot["cuda"], snapshot["cuda_device"])
 
 
 class DistillationError(ValueError):
@@ -256,7 +262,14 @@ def run_distillation(
             seed=job.runtime.seed if seed is None else seed,
         )
         start_round = 0
-    states = torch.as_tensor(data["states"])
+    device = torch.device(job.runtime.device)
+    if device.type not in ("cpu", "cuda"):
+        raise DistillationError("BC requires an explicit CPU or CUDA device")
+    if resume_state is not None and resume_state.get("optimization_device", "cpu") != str(device):
+        raise DistillationError("Full BC continuation requires the saved optimization device")
+    if device.type == "cuda":
+        torch.backends.cuda.matmul.allow_tf32 = False
+    states = torch.as_tensor(data["states"], device=device)
     torch.manual_seed(job.runtime.seed if seed is None else seed)
     if prepared is None:
         teacher, student = build_teacher_student(
@@ -275,9 +288,12 @@ def run_distillation(
         # 恢复顺序：先RNG、再权重与Adam、最后shuffle generator，保证下一轮一致。
         student.load_state_dict(resume_state["student"], strict=True)
         optimizer_state = resume_state["optimizer"]
+    student.to(device)
+    if teacher is not None:
+        teacher.to(device)
     if data["teacher_actions"] is not None:
         # 预计算标签：必须与声明Teacher、动作语义、形状一致。
-        labels = torch.as_tensor(data["teacher_actions"])
+        labels = torch.as_tensor(data["teacher_actions"], device=device)
         if tuple(labels.shape) != (len(data["states"]), job.action.dim):
             raise DistillationError("预计算teacher_actions形状与作业动作维数不一致")
         label_source = "dataset"
@@ -295,7 +311,7 @@ def run_distillation(
 
     def rows(episodes) -> torch.Tensor:
         flat = [position for episode in episodes for position in index_of[episode]]
-        return torch.tensor(flat, dtype=torch.long)
+        return torch.tensor(flat, dtype=torch.long, device=device)
 
     train_index = rows(split.train)
     validation_index = rows(split.validation)
@@ -375,7 +391,7 @@ def run_distillation(
             round=start_round,
             state={k: v.detach().clone() for k, v in student.state_dict().items()},
             optimizer=copy.deepcopy(optimizer.state_dict()),
-            rng=_rng_snapshot(),
+            rng=_rng_snapshot(device),
         )
 
     def _snapshot(round_value: int) -> dict[str, Any]:
@@ -384,6 +400,7 @@ def run_distillation(
         return {
             **execution_metadata,
             "student": weights,
+            "optimization_device": str(device),
             "actor": weights,
             "inference_spec": prepared["student_spec"] if prepared is not None else None,
             "artifact_type": "bc_full",
@@ -394,7 +411,7 @@ def run_distillation(
             "split": split.as_record(),
             "seed": int(job.runtime.seed if seed is None else seed),
             "fractions": {"validation": validation_fraction, "holdout": holdout_fraction},
-            "rng": _rng_snapshot(),
+            "rng": _rng_snapshot(device),
             "shuffle_rng": generator.get_state(),
             "best": {
                 "round": best["round"],
@@ -416,7 +433,7 @@ def run_distillation(
         if stop_requested is not None and stop_requested():
             break  # 只在轮边界停止；未开始的轮次不计费。
         round_index = start_round + offset
-        order = torch.randperm(len(train_index), generator=generator)
+        order = torch.randperm(len(train_index), generator=generator).to(device)
         total = 0.0
         batches = 0
         for start in range(0, len(order), batch_size):
@@ -450,7 +467,7 @@ def run_distillation(
                     key: value.detach().clone() for key, value in student.state_dict().items()
                 },
                 "optimizer": copy.deepcopy(optimizer.state_dict()),
-                "rng": _rng_snapshot(),
+                "rng": _rng_snapshot(device),
                 "shuffle_rng": generator.get_state(),
             }
         if on_round_complete is not None:

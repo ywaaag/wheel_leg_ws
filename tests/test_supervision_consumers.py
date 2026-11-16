@@ -530,6 +530,9 @@ def test_actual_recovery_player_forward_is_not_cubic_decoded_twice(tmp_path):
     plant.robot_body = 0
     plant.qids = np.arange(6)
     plant.vids = np.arange(6)
+    plant.actuator_ids = np.arange(6)
+    plant.actuator_gears = np.ones(6)
+    plant.loop_sites = []
     plant.policy_ticks = 0
     plant.actual_physics_steps = 0
     plant.records = deque()

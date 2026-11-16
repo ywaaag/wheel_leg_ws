@@ -40,15 +40,38 @@ class MotionPlayer:
         self.spawn = "flat"
         self.recording = True
         self.reset_count = -1
-        self.model, self.refs = model_from_description(
-            read_json(refs["description"]["path"]),
+        construction = dict(
             V4_contract=read_json(refs["V4"]["path"]),
             mechanics=self.initials["mechanics"],
-            physical_probe=True,
-            scene=self.scene_config,
-            terrain=self.terrain,
             motor_caps=list(plan.job.control.effort_limits_nm),
         )
+        description = read_json(refs["description"]["path"])
+        vm1 = plan.assets.get("motion_vm1_contract")
+        if vm1:
+            from .motion_vm1_plant import make_model
+
+            if self.terrain is not None:
+                raise ValueError("Historical vM1 plant only binds its flat ground")
+            self.model, self.refs, self.model_metadata = make_model(
+                vm1, description=description, **construction
+            )
+            self.loop_sites = self.model_metadata["loop_sites"]
+        else:
+            self.model, self.refs = model_from_description(
+                description,
+                physical_probe=True,
+                scene=self.scene_config,
+                terrain=self.terrain,
+                **construction,
+            )
+            self.loop_sites = [
+                [
+                    mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, f"loop{i}{suffix}")
+                    for suffix in ("a", "b")
+                ]
+                for i in range(self.model.neq)
+            ]
+            self.model_metadata = dict(version="USD_description_v1")
         from native_stand.students.mujoco_solver import apply as apply_solver
 
         solver_refs = dict(
@@ -64,6 +87,13 @@ class MotionPlayer:
         self.data = mujoco.MjData(self.model)
         self.qids = np.array([self.model.jnt_qposadr[self.refs[n]] for n in CHANNELS])
         self.vids = np.array([self.model.jnt_dofadr[self.refs[n]] for n in CHANNELS])
+        self.actuator_ids = np.array(
+            [
+                np.flatnonzero(self.model.actuator_trnid[:, 0] == self.refs[n]).item()
+                for n in CHANNELS
+            ]
+        )
+        self.actuator_gears = self.model.actuator_gear[self.actuator_ids, 0].copy()
         lower = np.array([self.model.jnt_range[self.refs[n], 0] for n in CHANNELS], np.float32)
         upper = np.array([self.model.jnt_range[self.refs[n], 1] for n in CHANNELS], np.float32)
         lower[WHEELS] = -plan.job.action.wheel_scale_rad_s
@@ -188,7 +218,7 @@ class MotionPlayer:
                 owner="Teacher" if controls.teacher else "Student",
             )
         motor, NET = e.step(d.qpos[self.qids], d.qvel[self.vids])
-        d.ctrl[:] = motor
+        d.ctrl[self.actuator_ids] = motor / self.actuator_gears
         d.qfrc_applied[:] = 0.0
         d.qfrc_applied[self.vids] = NET
         if external_torque_nm is not None:
@@ -213,9 +243,7 @@ class MotionPlayer:
         if not np.isfinite(d.qpos).all() or not np.isfinite(d.qvel).all():
             raise FloatingPointError("播放器物理状态非有限")
         self.mj.mj_forward(m, d)
-        for i in range(self.model.neq):
-            a = self.mj.mj_name2id(m, self.mj.mjtObj.mjOBJ_SITE, f"loop{i}a")
-            b = self.mj.mj_name2id(m, self.mj.mjtObj.mjOBJ_SITE, f"loop{i}b")
+        for a, b in self.loop_sites:
             if np.linalg.norm(d.site_xpos[a] - d.site_xpos[b]) > 0.005:
                 raise ValueError("播放器闭链残差超过5mm；未投影状态")
 
