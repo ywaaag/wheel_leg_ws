@@ -273,3 +273,21 @@ PYTHONPATH=src python -m native_stand dashboard --root /path/to/local/runs \
 不需要另一套登记表。正式 `wheel-leg train` 已写入 `run.json` 和 `startup_handshake.json`，提交JSON现在返回 `dashboard.artifact_root/run/identity_record`，Codex应把该run及其身份交付给用户；看板登记失败不改变训练提交或预算，禁止重复提交训练来修复显示。
 
 本地看板 `--root /authorized/runs` 在每次页面数据刷新时发现直接子目录的新run。远端 `--remote-root` 可以指定单个run，或由用户明确授权的**runs目录**；点击“刷新远端快照”后自动发现直接子run，不递归扫描磁盘、不扫描端口。最多20个run（按产物文件更新时间选择最近项，不作为训练时间轴）、总传输14MiB；资源只采一次。新run继续复用原SSH连接资料与私密凭据，不加载checkpoint。下次更换平台重新配置连接；远端根目录只在后端参数中授权，网页不能自行扩大范围。页面自动刷新默认关闭。
+
+固定Motion同条件复刻诊断使用`wheel-leg diagnose --config PROTOCOL.json [--dry-run]`，协议版本`motion_replication_probe_v1`。它复用现有MuJoCo播放器，显式有限case/墙钟/积分步/输出空间，保留各Actor合同与1ms证据；不改中心、模型或电控。源Actor、公共plant、命令/事件、完整episode角色和评分门槛均须明示，能力结论以逐条件指标为准。
+
+后续正式Motion蒸馏使用`motion_replication_probe_v2`与`motion_vm1_mujoco_v1`参考合同，`plant.motion_vm1_contract`必须显式提供path/SHA。它绑定vM1原MJCF/网格和历史运行时覆盖；Teacher与Student共用MuJoCo参考，1kHz双轮各>2N承重比例严格>60%，目标为复刻Teacher。完整物理定义与传动比见ARCHITECTURE；既有v1冻结证据保留。仅复制原XML柔顺值的`motion_vm1_contact_20261109_v1`是探索对照，不是完整vM1参考。
+
+`wheel-leg export`的policy-core C主机库与对应源码以包内相对身份保存；搬迁后由`artifacts.deployment.control_binding()`解析，不依赖临时构建目录。实际ARM时序/内存与电控验收仍须单独完成。
+
+离线监督使用`runtime.device=cpu`或`cuda:0`，同一`wheel-leg distill → owner/worker → supervision_flow → BC loop`。CUDA保存RNG/设备身份，完整resume沿用原设备；MuJoCo仍是CPU逐回合积分。资源授权与物理GPU UUID在每次正式提交前核验。
+
+当前多Teacher配方使用Teacher的`observation_domain`，版本`motion_observable_teacher_domain_v1`。C0安静、vM1核心、u2200新命令三个角色只读取当前31D并互斥；不会按回合未来用途给相同输入冲突标签。该字段进入监督身份与label_provenance，旧conditions接口保留给原冻结任务。
+
+承重统计使用每步`mj_contactForce`法向力，包含正距离margin接触的求解器承重；额外保存`positive_gap_normal_force_N`供审计。旧触碰布尔值仍表示距离≤0，不能代替承重力。结果记录读回版本与post-step/forward时点；旧统计结果不覆盖，跨版本比较应重评分或重新同条件验证。
+
+学生状态补教可在dataset来源引用中声明`observation_envelope={version:teacher_observation_box_v1,lower:[...],upper:[...]}`。向量长度必须等于输入维度；范围外及无效transition保留为UNKNOWN，监督循环在Teacher查询前跳过。范围由有资格来源和固定余量给出，不能继承Teacher原回合的成功身份。
+
+诊断协议可显式指定`actor_packet_age_ms`为0、20或30；只同时改变Actor物理包与腿包年龄，目标5ms、轮7/11ms和V4保持。缺省使用冻结名义值；结果与每回合initial_state记录实际时序。应力条件分别评分，不能当作全DR或实机人为延迟授权。
+
+历史MuJoCo接触对照可显式选择`motion_vm1_contact_20261109_v1`：implicitfast/Newton、100/50迭代、接触solref .008/1、2mm margin、闭链solref .008/1，恢复vM1来源MJCF及播放摩擦覆盖。只对当前绑定机械模型恢复这些接触/引擎参数，不能称整份旧MJCF等价。Teacher与Student必须使用同一配置。门槛`support_fraction_comparison=gt`表示严格大于指定比例；本轮用户修订为双轮法向力各>2N的1kHz比例>0.60，旧0.90协议保持原身份。

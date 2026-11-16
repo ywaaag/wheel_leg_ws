@@ -603,6 +603,15 @@ def cmd_diagnose(args) -> int:
             text=f"诊断: 状态 {state.get('status')} 失败 {state.get('failure')}",
         )
         return EXIT_OK
+    if args.config and read_json(args.config).get("version") in (
+        "motion_replication_probe_v1",
+        "motion_replication_probe_v2",
+    ):
+        from native_stand.simulation.motion_replication_probe import from_file
+
+        result = from_file(args.config, dry_run=args.dry_run)
+        _emit(args, result, text="Motion有界复刻诊断；逐条件结果与真实1ms证据")
+        return EXIT_OK
     if args.config and read_json(args.config).get("version") == "motion_support_probe_v1":
         from native_stand.simulation.motion_support_probe import from_file
 

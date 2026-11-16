@@ -1,3 +1,17 @@
+## Motion050多Teacher蒸馏（2026-11-16，本轮结项）
+
+本轮执行完成，候选NOT_ACCEPTED，不替换原vM1或现用部署模型。最终源码执行版本e21fe60，分支motion/multiteacher050-final；数据根motion_multiteacher050_20261116的REPORT.md/CONTINUE.md、independent_final_comparison.json、terminal_accounting.json是完整交付入口。没有活动本任务worker；PPO0、Isaac0、远端0、电控改写0、刷板0、外部通知0。
+
+冻结Actor SHA8890532c241d63e5caa17696e6329b8de285fbfbe20ec96b23ddd3a540e8f9e7，31→256→128→64→6、050原u2200中心。两个新seed各56条件，任务均50/56、保真均43/56；vM1核心任务均33/33，保真30/33、31/33；新能力保真13/23、12/23。核心评分窗承重均100%，整回合最低95.2%，严格超过60%。主要差距是-.5m/s跟踪、后向速度推扰恢复时间，以及±3.6m/s、.20m与部分转弯/高度质量。0/30ms Actor物理观测年龄各3个应力均通过，不称全DR。
+
+正式BC三块6/12/12轮、27042优化步；静态整回合Teacher隐藏未来冲突已在第三块修复，仅按当前31D互斥选择Teacher；未知适用域68309行拒绝标签，未继承成功。52个最终块全部终态，实际4549565步；连同旧探索共176块、20956603步，失败消耗全部保留。最终证据不回灌本候选、不调门或换选中点，后续新版本须另设新开发/留出。
+
+固定vM1 MuJoCo参考motion_vm1_mujoco_v1已写入AGENTS/ARCHITECTURE/README，合同SHA9ae012adbeb675aa3c44930f830aa12ef05279486a00be013cfe95f1c173c6c0。原MJCF/网格加历史closure_contact_tight_v1，不是裸XML柔顺；当前轮4.8Nm与历史2.44695Nm差异另列。CPU独立MuJoCo回合并行、CUDA批量Teacher/BC，仍走统一CLI/owner/worker/ModelIndex。
+
+官方export_candidate_v1保留PT/ONNX/全部依赖/共享C源码；数据根另有256 C权重副本、050中心配置头、96+128条真实状态单条golden，最大PT/ONNX误差2.24e-7、C解码1.49e-7、PD6.68e-6，头文件编译解码误差0。板端050适配、ARM时延/内存与补偿后实机验收NOT_RUN；原015不能只换权重运行。完整BC恢复点与部署Actor分开，原Teacher/旧失败/账本只读。
+
+最终portable2067 passed/31 skipped/10 warnings，导出消费者49 passed、路由81 passed、真实CUDA保存恢复数值核验通过；架构224/0、Ruff0.8.4规定范围与dry-run通过。仓库无remote，未推送。主仓原dirty STATUS与未跟踪文档未修改。
+
 ## 实机反馈文档登记（2026-11-15）
 
 按用户提供记录整理Motion vM0（1106/e8658ce）、vM1（1110/4ba73bc）、vM2（1112/786a2c5）及Recovery vR0（1115/烧录哈希未提供），统一入口docs/HARDWARE_FEEDBACK.md，README与ARCHITECTURE已接导航及职责边界。三份Motion提交身份已核对；视频仅飞书占位、CSV未提供。vM1的11月15日震荡／LQR不震荡复测、vR0断电与新满电电池对照、交接未知及两项用户候选办法均保留，欠压未确诊。不更改模型／电控、训练或原始证据。

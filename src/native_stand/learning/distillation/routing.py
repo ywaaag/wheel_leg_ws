@@ -110,9 +110,22 @@ class Teacher:
     priority: int
     conditions: dict
     qualified: bool = True
+    observation_domain: dict | None = None
 
-    def eligible(self, conditions, count, device):
+    def __post_init__(self):
+        if self.observation_domain is not None:
+            from native_stand.tasks.motion.teacher_domain import validate
+
+            validate(self.observation_domain)
+
+    def eligible(self, conditions, count, device, observation=None):
         mask = torch.full((count,), self.qualified, dtype=torch.bool, device=device)
+        if self.observation_domain is not None:
+            from native_stand.tasks.motion.teacher_domain import mask as domain_mask
+
+            if observation is None or observation.shape != (count, 31):
+                raise ValueError("Observable Motion domain requires actual31D input")
+            mask &= domain_mask(observation, self.observation_domain)
         for key, wanted in self.conditions.items():
             if key not in conditions:
                 raise ValueError("Missing Teacher routing condition: " + key)
@@ -132,14 +145,25 @@ class Teacher:
         return mask
 
 
-def label(teachers, observation, conditions, student_codec, *, student_kind=None):
+def label(teachers, observation, conditions, student_codec, *, student_kind=None, row_valid=None):
     """No Teacher writes owner/previous/FIFO; uncovered rows remain unlabelled."""
     if observation.ndim != 2 or not bool(torch.isfinite(observation).all()):
         raise ValueError("Finite Teacher observations required")
     labels = observation.new_full((len(observation), 6), float("nan"))
     owner = torch.full((len(observation),), -1, dtype=torch.long, device=observation.device)
+    admitted = (
+        torch.ones(len(observation), dtype=torch.bool, device=observation.device)
+        if row_valid is None
+        else torch.as_tensor(row_valid, dtype=torch.bool, device=observation.device)
+    )
+    if admitted.shape != (len(observation),):
+        raise ValueError("Teacher admission mask shape differs")
     for index, teacher in sorted(enumerate(teachers), key=lambda row: -row[1].priority):
-        mask = (owner < 0) & teacher.eligible(conditions, len(observation), observation.device)
+        mask = (
+            admitted
+            & (owner < 0)
+            & teacher.eligible(conditions, len(observation), observation.device, observation)
+        )
         if bool(mask.any()):
             physical = teacher.codec.physical(
                 teacher.model.mean(observation[mask]), observation[mask]

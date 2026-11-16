@@ -35,8 +35,8 @@ def export_package(source, spec, output, *, execution, dependencies=(), onnx=Fal
     if index is not None:
         from .model_refs import ModelReference
 
-        for ref in [dict(path=str(source.path), sha256=source.sha256), *dependencies]:
-            index.register(
+        index.register_many(
+            [
                 ModelReference(
                     ref["sha256"],
                     ref["path"],
@@ -44,7 +44,9 @@ def export_package(source, spec, output, *, execution, dependencies=(), onnx=Fal
                     run=str(output),
                     kind="deployment_dependency",
                 )
-            )
+                for ref in [dict(path=str(source.path), sha256=source.sha256), *dependencies]
+            ]
+        )
         for name in ("actor.pt", "manifest.json"):
             file = output / name
             index.register_output(
@@ -129,6 +131,11 @@ def _export_new(source, spec, output, *, execution, dependencies=(), onnx=False)
         else:
             raise ValueError("Unsupported deployment C ABI")
         c_build = build(output / "control.so")
+        if execution["C_core"] == "rl_policy_core_v1":
+            # The package is atomically renamed after this function. Preserve
+            # usable package-relative identities, not the temporary build path.
+            shutil.copytree(c_build["source"], output / "control_source")
+            c_build = dict(c_build, path="control.so", source="control_source")
     record = dict(
         version=VERSION,
         source=dict(path=str(source.path), sha256=source.sha256),
@@ -182,6 +189,19 @@ def verify_package(directory):
     return record
 
 
+def control_binding(directory):
+    """Resolve the packaged shared-C identity after export or relocation."""
+    directory = Path(directory).resolve()
+    record = verify_package(directory)
+    binding = record.get("C_host_build")
+    if record["execution"].get("C_core") != "rl_policy_core_v1" or not binding:
+        raise ValueError("Packaged policy-core C binding required")
+    library, source = ((directory / binding[k]).resolve() for k in ("path", "source"))
+    if not library.is_relative_to(directory) or not source.is_relative_to(directory):
+        raise ValueError("Shared C binding must stay inside its package")
+    return dict(binding, path=str(library), source=str(source))
+
+
 def job_dependencies(job):
     """Versioned C source and execution contracts; do not copy BC training pools."""
     from native_stand.artifacts.runtime_paths import RuntimePaths
@@ -230,4 +250,14 @@ def job_dependencies(job):
             raise ValueError("No bound deployment mechanical description for this USD")
         for name, ref in bindings["bindings"].items():
             result.append(dict(path=ref["path"], sha256=ref["sha256"], role=name))
+    if job.assets.get("motion_vm1_contract"):
+        ref = job.assets["motion_vm1_contract"]
+        contract = paths.read(ref["path"])
+        if file_sha256(paths.resolve(ref["path"])) != ref["sha256"]:
+            raise ValueError("vM1 deployment reference contract SHA differs")
+        result.append(dict(**ref, role="motion_vm1_contract"))
+        result.extend(
+            dict(path=r["path"], sha256=r["sha256"], role="motion_vm1_" + r["role"])
+            for r in contract["members"]
+        )
     return [{**ref, "path": paths.resolve(ref["path"])} for ref in result]

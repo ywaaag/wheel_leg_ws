@@ -40,15 +40,38 @@ class MotionPlayer:
         self.spawn = "flat"
         self.recording = True
         self.reset_count = -1
-        self.model, self.refs = model_from_description(
-            read_json(refs["description"]["path"]),
+        construction = dict(
             V4_contract=read_json(refs["V4"]["path"]),
             mechanics=self.initials["mechanics"],
-            physical_probe=True,
-            scene=self.scene_config,
-            terrain=self.terrain,
             motor_caps=list(plan.job.control.effort_limits_nm),
         )
+        description = read_json(refs["description"]["path"])
+        vm1 = plan.assets.get("motion_vm1_contract")
+        if vm1:
+            from .motion_vm1_plant import make_model
+
+            if self.terrain is not None:
+                raise ValueError("Historical vM1 plant only binds its flat ground")
+            self.model, self.refs, self.model_metadata = make_model(
+                vm1, description=description, **construction
+            )
+            self.loop_sites = self.model_metadata["loop_sites"]
+        else:
+            self.model, self.refs = model_from_description(
+                description,
+                physical_probe=True,
+                scene=self.scene_config,
+                terrain=self.terrain,
+                **construction,
+            )
+            self.loop_sites = [
+                [
+                    mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, f"loop{i}{suffix}")
+                    for suffix in ("a", "b")
+                ]
+                for i in range(self.model.neq)
+            ]
+            self.model_metadata = dict(version="USD_description_v1")
         from native_stand.students.mujoco_solver import apply as apply_solver
 
         solver_refs = dict(
@@ -64,6 +87,13 @@ class MotionPlayer:
         self.data = mujoco.MjData(self.model)
         self.qids = np.array([self.model.jnt_qposadr[self.refs[n]] for n in CHANNELS])
         self.vids = np.array([self.model.jnt_dofadr[self.refs[n]] for n in CHANNELS])
+        self.actuator_ids = np.array(
+            [
+                np.flatnonzero(self.model.actuator_trnid[:, 0] == self.refs[n]).item()
+                for n in CHANNELS
+            ]
+        )
+        self.actuator_gears = self.model.actuator_gear[self.actuator_ids, 0].copy()
         lower = np.array([self.model.jnt_range[self.refs[n], 0] for n in CHANNELS], np.float32)
         upper = np.array([self.model.jnt_range[self.refs[n], 1] for n in CHANNELS], np.float32)
         lower[WHEELS] = -plan.job.action.wheel_scale_rad_s
@@ -94,6 +124,7 @@ class MotionPlayer:
             self.teacher_core = ControlCore(core.binding, read_json(contract_path))
         self.robot_body = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "robot")
         self.policy_ticks = 0
+        self.actual_physics_steps = 0
         self.last_record = None
         self.records = deque(maxlen=10000)
         self.reset()
@@ -117,13 +148,14 @@ class MotionPlayer:
         self.mj.mj_forward(self.model, self.data)
         self.execution.reset(self.data.qpos[self.qids], self.data.qvel[self.vids])
         self.policy_ticks = 0
+        self.actual_physics_steps = 0
         self.last_record = None
         self.reset_count += 1
         self.records.clear()
         if self.teacher_core is not None:
             self.teacher_core.adopted = self.execution.core.adopted
 
-    def step(self, controls):
+    def step(self, controls, *, external_torque_nm=None):
         e = self.execution
         d = self.data
         m = self.model
@@ -186,9 +218,14 @@ class MotionPlayer:
                 owner="Teacher" if controls.teacher else "Student",
             )
         motor, NET = e.step(d.qpos[self.qids], d.qvel[self.vids])
-        d.ctrl[:] = motor
+        d.ctrl[self.actuator_ids] = motor / self.actuator_gears
         d.qfrc_applied[:] = 0.0
         d.qfrc_applied[self.vids] = NET
+        if external_torque_nm is not None:
+            external = np.asarray(external_torque_nm, dtype=float)
+            if external.shape != (6,) or not np.isfinite(external).all():
+                raise ValueError("外扰必须为显式有限六通道关节力矩")
+            d.qfrc_applied[self.vids] += external
         if self.recording and self.last_record is not None and (e.tick - 1) % 10 == 0:
             self.records.append(
                 dict(
@@ -202,33 +239,48 @@ class MotionPlayer:
                 )
             )
         self.mj.mj_step(m, d)
+        self.actual_physics_steps += 1
         if not np.isfinite(d.qpos).all() or not np.isfinite(d.qvel).all():
             raise FloatingPointError("播放器物理状态非有限")
         self.mj.mj_forward(m, d)
-        for i in range(self.model.neq):
-            a = self.mj.mj_name2id(m, self.mj.mjtObj.mjOBJ_SITE, f"loop{i}a")
-            b = self.mj.mj_name2id(m, self.mj.mjtObj.mjOBJ_SITE, f"loop{i}b")
+        for a, b in self.loop_sites:
             if np.linalg.norm(d.site_xpos[a] - d.site_xpos[b]) > 0.005:
                 raise ValueError("播放器闭链残差超过5mm；未投影状态")
 
     def telemetry(self):
-        from scipy.spatial.transform import Rotation
-
         d, m, mj = self.data, self.model, self.mj
         rotation = d.xmat[self.robot_body].reshape(3, 3)
         flu = rotation[:, [2, 0, 1]] * np.array([-1.0, -1.0, 1.0])
         velocity = np.empty(6)
         mj.mj_objectVelocity(m, d, mj.mjtObj.mjOBJ_BODY, self.robot_body, velocity, 0)
-        roll, pitch, _ = Rotation.from_matrix(flu).as_euler("xyz")
+        roll = np.arctan2(flu[2, 1], flu[2, 2])
+        pitch = np.arctan2(-flu[2, 0], np.hypot(flu[0, 0], flu[1, 0]))
+        if not hasattr(self, "contact_wheel_names"):
+            self.contact_wheel_names = {
+                g: name
+                for g, body in enumerate(m.geom_bodyid)
+                if (name := mj.mj_id2name(m, mj.mjtObj.mjOBJ_BODY, body))
+                in ("left_wheel", "right_wheel")
+            }
         contacts = {"left_wheel": False, "right_wheel": False}
-        for contact in d.contact:
+        normal = {"left_wheel": 0.0, "right_wheel": 0.0}
+        positive_gap_normal = {"left_wheel": 0.0, "right_wheel": 0.0}
+        for index, contact in enumerate(d.contact):
             a, b = contact.geom
             for robot, ground in [(a, b), (b, a)]:
-                if m.geom_bodyid[ground] != 0 or contact.dist > 0:
+                if m.geom_bodyid[ground] != 0:
                     continue
-                body = mj.mj_id2name(m, mj.mjtObj.mjOBJ_BODY, m.geom_bodyid[robot])
+                body = self.contact_wheel_names.get(robot)
                 if body in contacts:
-                    contacts[body] = True
+                    contacts[body] |= contact.dist <= 0
+                    force = np.zeros(6)
+                    mj.mj_contactForce(m, d, index, force)
+                    # Margin contacts can carry load at positive distance. The
+                    # solver's force, rather than penetration, measures support.
+                    load = max(0.0, float(force[0]))
+                    normal[body] += load
+                    if contact.dist > 0:
+                        positive_gap_normal[body] += load
         try:
             ground = float(self.ground_height(d.qpos[None, :2])[0])
         except ValueError:
@@ -240,6 +292,7 @@ class MotionPlayer:
             resets=self.reset_count,
             adopted_command=cmd,
             vx=float(velocity[3:] @ flu[:, 0]),
+            vy=float(velocity[3:] @ flu[:, 1]),
             yaw=float(velocity[:3] @ flu[:, 2]),
             height=None if ground is None else float(d.qpos[2] - ground),
             root_z=float(d.qpos[2]),
@@ -248,6 +301,10 @@ class MotionPlayer:
             pitch=float(pitch),
             contact_geometric_right=contacts["left_wheel"],
             contact_geometric_left=contacts["right_wheel"],
+            normal_force_geometric_right_N=normal["left_wheel"],
+            normal_force_geometric_left_N=normal["right_wheel"],
+            positive_gap_normal_force_geometric_right_N=positive_gap_normal["left_wheel"],
+            positive_gap_normal_force_geometric_left_N=positive_gap_normal["right_wheel"],
             q=d.qpos[self.qids].tolist(),
             dq=d.qvel[self.vids].tolist(),
             raw=None if self.last_record is None else self.last_record["raw"].tolist(),

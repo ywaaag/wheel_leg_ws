@@ -64,9 +64,12 @@ def execute(
             t.priority,
             t.conditions or {},
             t.qualified,
+            t.observation_domain,
         )
         for t in recipe.teachers
     ]
+    for teacher in teachers:
+        teacher.model.actor.to(job.runtime.device)
     dependencies = [dict(path=t.path, sha256=t.sha256) for t in recipe.teachers]
     dependencies += [dict(recipe.dataset), *recipe.rehearsal]
     if recipe.initial_student:
@@ -76,12 +79,14 @@ def execute(
     if index:
         from native_stand.artifacts.model_refs import ModelReference
 
+        references = []
         for ref in dependencies:
             if file_sha256(ref["path"]) != ref["sha256"]:
                 raise ValueError("Supervision dependency SHA differs")
-            index.register(
+            references.append(
                 ModelReference(ref["sha256"], ref["path"], ("distillation",), run=str(root))
             )
+        index.register_many(references)
     phases = list(recipe.phases) * recipe.repetitions
     for cursor in range(state["phase_cursor"], len(phases)):
         if stop_requested():
@@ -188,13 +193,6 @@ def execute(
             conditions = {
                 key: np.concatenate([c["conditions"][key] for c in chunks]) for key in names
             }
-            labels, owner, valid = label(
-                teachers,
-                torch.from_numpy(data["states"]),
-                conditions,
-                ActionLabels(**recipe.student_labels),
-                student_kind=recipe.student["kind"],
-            )
             behavior_valid = np.concatenate(
                 [
                     c["behavior_valid"]
@@ -203,7 +201,14 @@ def execute(
                     for c in chunks
                 ]
             )
-            valid &= torch.from_numpy(behavior_valid).bool()
+            labels, owner, valid = label(
+                teachers,
+                torch.as_tensor(data["states"], device=job.runtime.device),
+                conditions,
+                ActionLabels(**recipe.student_labels),
+                student_kind=recipe.student["kind"],
+                row_valid=behavior_valid,
+            )
             from native_stand.artifacts.dataset import create_view
 
             normalized = [
@@ -245,6 +250,7 @@ def execute(
                     input_contract=t.model.spec.input_contract,
                     output_contract=t.model.spec.output_contract,
                     label_transform=recipe.teachers[i].labels,
+                    observation_domain=recipe.teachers[i].observation_domain,
                 )
                 for i, t in enumerate(teachers)
             ]
@@ -264,9 +270,9 @@ def execute(
                 dict(
                     states=data["states"],
                     episodes=np.array(data["episodes"]),
-                    teacher_actions=labels.numpy(),
-                    valid=valid.numpy(),
-                    teacher_owner=owner.numpy(),
+                    teacher_actions=labels.cpu().numpy(),
+                    valid=valid.cpu().numpy(),
+                    teacher_owner=owner.cpu().numpy(),
                     roles=roles,
                     physical_episode_keys=np.array(episode_keys),
                     sample_ids=np.array(
@@ -325,6 +331,7 @@ def execute(
                 initial_student=initial_state,
                 identity=state["identity"],
                 logical_run_id=state["logical_run_id"],
+                loss=recipe.loss,
             )
             # Across phase boundaries retain Adam/RNG while a new aggregate supplies new data/split.
             if resume is None and state.get("latest"):
@@ -403,8 +410,8 @@ def execute(
                 refs.extend(expand_sources(state["aggregate"], paths=paths))
             if state.get("selected"):
                 refs.append(state["selected"])
-            for ref in refs:
-                index.register(
+            index.register_many(
+                [
                     ModelReference(
                         ref["sha256"],
                         ref["path"],
@@ -412,7 +419,9 @@ def execute(
                         run=str(root),
                         kind="supervision_artifact",
                     )
-                )
+                    for ref in refs
+                ]
+            )
         state["phase_cursor"] = cursor + 1
         state["committed"].append(
             dict(phase=cursor, operation=phase.operation, dataset=state["dataset"])

@@ -13,6 +13,19 @@ class TeacherConfig:
     priority: int = 0
     conditions: dict | None = None
     qualified: bool = True
+    observation_domain: dict | None = None
+
+    def __post_init__(self):
+        if self.observation_domain is not None:
+            from native_stand.tasks.motion.teacher_domain import validate
+
+            validate(self.observation_domain)
+            if (
+                self.inference["input_dim"] != 31
+                or self.labels.get("kind") != "motion_contract"
+                or not self.inference["output_contract"]["action_version"].startswith("motion")
+            ):
+                raise ValueError("Observable Motion domain requires Motion31 input")
 
 
 @dataclass(frozen=True)
@@ -50,8 +63,26 @@ class SupervisionConfig:
     holdout_fraction: float = 0.2
     initial_student: dict | None = None
     rehearsal: tuple[dict, ...] = ()
+    loss: dict | None = None
 
     def __post_init__(self):
+        if self.loss is not None:
+            if (
+                set(self.loss) != {"kind", "leg_scale_rad", "wheel_scale_rad_s"}
+                or self.loss["kind"] != "motion_physical_huber"
+            ):
+                raise ValueError("Unknown explicit supervision loss")
+            import math
+
+            if any(
+                not isinstance(self.loss[k], int | float)
+                or not math.isfinite(self.loss[k])
+                or self.loss[k] <= 0
+                for k in ("leg_scale_rad", "wheel_scale_rad_s")
+            ):
+                raise ValueError("Positive physical loss scales required")
+            if self.student_labels.get("kind") != "motion_contract":
+                raise ValueError("Motion physical Huber requires Motion label contract")
         if not self.teachers or len({t.name for t in self.teachers}) != len(self.teachers):
             raise ValueError("Unique explicit Teachers required")
         if self.repetitions < 1 or self.batch_size < 1 or self.learning_rate <= 0:
@@ -159,7 +190,11 @@ def semantic_identity(recipe):
                 and isinstance(value.get("sha256"), str)
                 and len(value["sha256"]) == 64
             )
-            return {k: identity(v) for k, v in value.items() if not (bound and k == "path")}
+            return {
+                k: identity(v)
+                for k, v in value.items()
+                if not (bound and k == "path") and not (k == "observation_domain" and v is None)
+            }
         if isinstance(value, list | tuple):
             return [identity(v) for v in value]
         return value

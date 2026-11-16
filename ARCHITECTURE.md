@@ -239,3 +239,23 @@ Motion少量高度配方`configs/jobs/motion_height_small_dose_prepared.json`复
 `artifacts/runtime_paths.py::resolve_runs_root`在写入边界解析显式runs-root或WHEEL_LEG_DATA_ROOT，不在模块导入时绑定源码目录。owner创建run并记录同一根目录的models.json，PPO与监督均复用；resume遵循原run记录。export默认使用数据根，不回写源码run。显式导出/诊断/导入目标由调用者选择已确认数据盘，测试可用/tmp。
 
 `integrations/cloud_bundle.py::adopt_local_dependencies`接收明确保留集合，逐文件核验来源/目标、拒绝冲突，复用已有内容；只对显式不可变文件硬链接，可变文件复制。ModelIndex保护先于派生映射发布，故障重试重新核SHA；该接口不扫描历史、不删除原件。回执不是第二套资产保护索引，删除仍以唯一ModelIndex及实际消费者为准。RuntimePaths读取派生映射，原配置/spec和模型不改写。
+
+### 固定Motion复刻诊断
+
+后续Motion蒸馏固定使用`motion_vm1_mujoco_v1`。`simulation.motion_vm1_plant`只构造vM1原MJCF机械模型并恢复已核验的历史运行时覆盖；仍由公共`MotionPlayer.step`/`PlaybackExecution`执行唯一物理循环、共享C编码解码/PD、完整V4和运输时序。轮电机保留原传动比，ctrl/forcerange按gear换算，不能把关节Nm直接当电机ctrl。原几何、惯量、关节身份和网格有SHA，不从网络维度猜兼容。
+
+参考必须同时绑定原MJCF（SHA `663e121ef9aed4bfab09ff0d3d98321b7ce77d80b63584235e4da691bd3aebf3`）、全部网格、原来源实现和实际编译读回。原XML为implicitfast/Newton、2mm margin；历史`build_model`随后运行`apply_current_plant`及`closure_contact_tight_v1`，所以最终闭链solref=.002/1、solimp=.9999/.9999/.001/.5/2，轮地solref=.002/1、solimp=.999/.9999/.0001/.5/2，300/100迭代、容差1e-12/1e-8；滑动摩擦.5，扭转/滚动摩擦0。不能只读取原XML的.008柔顺值就称vM1实际配置。当前腿40/轮4.8Nm是既定部署合同，历史轮2.44695Nm另列，不静默复原或提高限矩。
+
+新正式协议`motion_replication_probe_v2`强制显式`plant.motion_vm1_contract={path,sha256}`，输出实际model、gear、solver与时序身份。Teacher与Student同一配置，31D输入/previous语义、各自输出decoder及050原u2200中心不受物理参考选择影响。验收目标是保留MuJoCo中Teacher合格能力，无需超越Teacher；双轮各>2N的1kHz承重比例严格>0.60，跟踪、扰后恢复、HF和漂移逐项报告。Isaac和实机证据分别记录，不以该参考宣称跨引擎或硬件等价。
+
+v1诊断与USD生成模型保留供既有冻结消费者和明确标注的诊断对照；`motion_vm1_contact_20261109_v1`是曾仅复制原XML局部参数的探索配置，未复现完整vM1调用链，不能用于后续正式蒸馏。新配方不得继续选它。数据、模型和全部原始证据仍进统一数据根及同一ModelIndex，无第二套索引。
+
+提速复用同一BC循环的显式runtime.device：CPU MuJoCo按独立物理回合并行；大Teacher批量标注与BC可在已核验的本机CUDA设备上运行。保存额外包含CUDA RNG和optimization_device，同run恢复禁止偷偷换设备，Adam/RNG/rounds仍由原owner/worker结算。单回合策略推理可留CPU，避免小batch设备往返；基准报告实测吞吐。portable测试保持CPU且不调用CUDA或物理积分。
+
+多Teacher标签不能依赖Student看不到的整回合未来场景。`TeacherConfig.observation_domain`显式`motion_observable_teacher_domain_v1`→`tasks.motion.teacher_domain`，只从当前31D的命令、gyro/gravity、真实dq判定互斥角色：0.34m零命令且安静才用C0；其余0.34m直行≤1m/s用vM1；其他已准入的高度/高速/转弯命令用u2200。具体阈值由新配方冻结。推扰后的瞬时速度/dq不能把零命令误切为高速Teacher。相同31D输入必须选同一个完整六通道Teacher，不传未来case标签，不按关节拼动作，不在部署增加路由。原静态conditions保留供语义确实不同的既有消费者；当前多Teacher配方不再以隐藏episode身份路由。
+
+`cli diagnose`显式`motion_replication_probe_v1`→`simulation.motion_replication_probe`→公共`playback.plan`/`learning.inference`/`MotionPlayer.step`。与旧承重中心探查不同，此协议保留每个Actor自身decoder、不做raw重标或中心干预；共同物理执行条件绑定，允许命令时间序列、显式root速度增量、单位四腿模态外扰。外扰在公共step中与NET分路相加，力矩上限不变。逐1ms真实接触力、q/dq、命令/previous/目标/PD/motor/NET/外扰进入数据根，`tasks.motion.replication_metrics`只算离线窗口/带通/恢复指标。诊断没有训练生命周期；状态及完整episode身份交给现有dataset/supervision，多Teacher与BC继续由原owner/worker管理。不同于sim2sim双后端对照，不构造第二套物理积分器或模型索引。
+
+DAgger来源引用可显式携带`observation_envelope`（`teacher_observation_box_v1`、完整输入的有限lower/upper）。`artifacts.dataset.read_source`在采样前合并原transition_valid和范围准入；`supervision_flow`把准入mask传给既有`routing.label`。不合格行保留样本/回合身份，owner=-1、标签NaN，不查询Teacher、不做物理逆变换、不训练。观测box是已声明的保守适用域，不能当作Teacher在所有box内状态成功的证明；来源轨迹与固定余量由配方/证据绑定。该机制不增加Student输入、部署路由或控制器。
+
+监督新增可选`loss=motion_physical_huber`，仍由同一BC循环优化/开发比较；mean差乘Student自身腿/轮包络后按显式rad/rad/s标尺归一化，不重复解码。默认MSE配方不变。公共dataset引用可声明有时间列与eligible列的互不重叠窗口配额，按每个物理episode取原样本、保留角色/原sample_id；静态condition_values仅为有来源的场景标签，不能覆盖实测condition列。采样和损失进入原监督身份，不新建训练或数据生命周期。

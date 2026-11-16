@@ -14,6 +14,7 @@ PROFILES = (
     'wheel_contact_tight_v1',
     'closure_contact_tight_v1',
     'closure_contact_converged_v1',
+    'motion_vm1_contact_20261109_v1',
 )
 DEFAULT_PROFILE = 'closure_contact_tight_v1'
 
@@ -61,8 +62,10 @@ def readback(model, refs):
 def apply(model, refs, version=DEFAULT_PROFILE):
     """Apply to a freshly loaded model. Legacy is a strict no-op.
 
-    Keep MuJoCo's reference safety clamp (time constant >= 2*dt). No friction,
-    cone, collision geometry, limits, inertia, timestep or actuator writes.
+    Keep MuJoCo's reference safety clamp (time constant >= 2*dt). Tight profiles
+    preserve friction, integrator and margin. The explicit historical Motion
+    profile restores its declared contact/integrator values, never geometry,
+    limits, inertia, timestep or actuator values.
     Applying a legacy profile does not undo a previous tight profile: callers
     must use a fresh model for each independent comparison.
     """
@@ -75,6 +78,27 @@ def apply(model, refs, version=DEFAULT_PROFILE):
         # Numeric enum 2 is Newton; preserve the solver rather than change it.
         if int(model.opt.solver) != 2 or int(model.opt.disableflags) & 4096:
             raise ValueError('profiles require Newton and the enabled reference safety clamp')
+        if version == 'motion_vm1_contact_20261109_v1':
+            # Source: vM1 plan.json XML SHA 663e121e...3aebf3, compiled
+            # defaults and the historical playback sliding-friction=.5 override.
+            model.opt.integrator = 3  # implicitfast
+            model.opt.iterations = 100
+            model.opt.tolerance = 1e-8
+            model.opt.ls_iterations = 50
+            model.opt.ls_tolerance = .01
+            model.eq_solref[:] = [.008, 1.]
+            model.eq_solimp[:] = [.95, .99, .002, .5, 2.]
+            ids = surface_ids(model, refs)
+            model.geom_solref[ids] = [.008, 1.]
+            model.geom_solimp[ids] = [.9, .99, .002, .5, 2.]
+            model.geom_margin[ids] = .002
+            model.geom_condim[ids] = 3
+            model.geom_friction[ids] = [.5, .005, .0001]
+            model.geom_friction[int(refs['ground'])] = [.5, .05, .01]
+            return dict(version=version, before=before, effective=readback(model, refs),
+                changes_compliance=True, certification=False,
+                source_xml_sha256='663e121ef9aed4bfab09ff0d3d98321b7ce77d80b63584235e4da691bd3aebf3',
+                scope='historical contact/integrator on current SHA-bound USD-derived mechanics; not original MJCF geometry equivalence')
         model.opt.iterations = 300
         model.opt.tolerance = 1e-12
         model.opt.ls_iterations = 100

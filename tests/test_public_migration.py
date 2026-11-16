@@ -888,6 +888,24 @@ def test_export_actual_onnx_reference_and_C_source_identity(tmp_path):
         verify_package(package)
 
 
+def test_exported_shared_C_binding_survives_atomic_rename_and_relocation(tmp_path):
+    import ctypes
+    from native_stand.artifacts.deployment import export_package,control_binding
+    from native_stand.simulation.control_core import verify_source
+
+    spec,path=model_file(tmp_path)
+    original=tmp_path/'original-package'
+    manifest=export_package(load_actor_source(path),spec,original,
+                             execution={'C_core':'rl_policy_core_v1'})
+    assert manifest['C_host_build']['path']=='control.so'
+    moved=tmp_path/'moved-package';original.rename(moved)
+    binding=control_binding(moved)
+    assert Path(binding['path']).is_relative_to(moved)
+    assert Path(binding['source']).is_relative_to(moved)
+    assert verify_source(binding['source'])['ABI']==1
+    assert ctypes.CDLL(binding['path']).RLPolicyCoreAbi()==1
+
+
 def test_cli_structured_recipe_dry_run_does_not_load_models(tmp_path, monkeypatch, capsys):
     from native_stand.cli import main
 
