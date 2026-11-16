@@ -248,14 +248,20 @@ class MotionPlayer:
                 raise ValueError("播放器闭链残差超过5mm；未投影状态")
 
     def telemetry(self):
-        from scipy.spatial.transform import Rotation
-
         d, m, mj = self.data, self.model, self.mj
         rotation = d.xmat[self.robot_body].reshape(3, 3)
         flu = rotation[:, [2, 0, 1]] * np.array([-1.0, -1.0, 1.0])
         velocity = np.empty(6)
         mj.mj_objectVelocity(m, d, mj.mjtObj.mjOBJ_BODY, self.robot_body, velocity, 0)
-        roll, pitch, _ = Rotation.from_matrix(flu).as_euler("xyz")
+        roll = np.arctan2(flu[2, 1], flu[2, 2])
+        pitch = np.arctan2(-flu[2, 0], np.hypot(flu[0, 0], flu[1, 0]))
+        if not hasattr(self, "contact_wheel_names"):
+            self.contact_wheel_names = {
+                g: name
+                for g, body in enumerate(m.geom_bodyid)
+                if (name := mj.mj_id2name(m, mj.mjtObj.mjOBJ_BODY, body))
+                in ("left_wheel", "right_wheel")
+            }
         contacts = {"left_wheel": False, "right_wheel": False}
         normal = {"left_wheel": 0.0, "right_wheel": 0.0}
         positive_gap_normal = {"left_wheel": 0.0, "right_wheel": 0.0}
@@ -264,7 +270,7 @@ class MotionPlayer:
             for robot, ground in [(a, b), (b, a)]:
                 if m.geom_bodyid[ground] != 0:
                     continue
-                body = mj.mj_id2name(m, mj.mjtObj.mjOBJ_BODY, m.geom_bodyid[robot])
+                body = self.contact_wheel_names.get(robot)
                 if body in contacts:
                     contacts[body] |= contact.dist <= 0
                     force = np.zeros(6)

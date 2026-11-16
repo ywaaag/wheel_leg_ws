@@ -29,6 +29,7 @@ torch = pytest.importorskip("torch")
 
 def _job(tmp_path: Path, **overrides):
     payload = json.loads(json.dumps(BASE))
+    payload.setdefault("runtime", {})["device"] = "cpu"
     payload["limits"].update(smoke_updates=12, formal_updates=no_smoke_overlap(overrides))
     for key, value in overrides.items():
         if key in ("limits", "ppo"):
