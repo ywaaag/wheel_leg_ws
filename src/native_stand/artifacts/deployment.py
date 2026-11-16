@@ -35,8 +35,8 @@ def export_package(source, spec, output, *, execution, dependencies=(), onnx=Fal
     if index is not None:
         from .model_refs import ModelReference
 
-        for ref in [dict(path=str(source.path), sha256=source.sha256), *dependencies]:
-            index.register(
+        index.register_many(
+            [
                 ModelReference(
                     ref["sha256"],
                     ref["path"],
@@ -44,7 +44,9 @@ def export_package(source, spec, output, *, execution, dependencies=(), onnx=Fal
                     run=str(output),
                     kind="deployment_dependency",
                 )
-            )
+                for ref in [dict(path=str(source.path), sha256=source.sha256), *dependencies]
+            ]
+        )
         for name in ("actor.pt", "manifest.json"):
             file = output / name
             index.register_output(

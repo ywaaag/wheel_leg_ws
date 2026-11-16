@@ -76,12 +76,14 @@ def execute(
     if index:
         from native_stand.artifacts.model_refs import ModelReference
 
+        references = []
         for ref in dependencies:
             if file_sha256(ref["path"]) != ref["sha256"]:
                 raise ValueError("Supervision dependency SHA differs")
-            index.register(
+            references.append(
                 ModelReference(ref["sha256"], ref["path"], ("distillation",), run=str(root))
             )
+        index.register_many(references)
     phases = list(recipe.phases) * recipe.repetitions
     for cursor in range(state["phase_cursor"], len(phases)):
         if stop_requested():
@@ -404,8 +406,8 @@ def execute(
                 refs.extend(expand_sources(state["aggregate"], paths=paths))
             if state.get("selected"):
                 refs.append(state["selected"])
-            for ref in refs:
-                index.register(
+            index.register_many(
+                [
                     ModelReference(
                         ref["sha256"],
                         ref["path"],
@@ -413,7 +415,9 @@ def execute(
                         run=str(root),
                         kind="supervision_artifact",
                     )
-                )
+                    for ref in refs
+                ]
+            )
         state["phase_cursor"] = cursor + 1
         state["committed"].append(
             dict(phase=cursor, operation=phase.operation, dataset=state["dataset"])
