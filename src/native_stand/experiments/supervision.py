@@ -50,8 +50,26 @@ class SupervisionConfig:
     holdout_fraction: float = 0.2
     initial_student: dict | None = None
     rehearsal: tuple[dict, ...] = ()
+    loss: dict | None = None
 
     def __post_init__(self):
+        if self.loss is not None:
+            if (
+                set(self.loss) != {"kind", "leg_scale_rad", "wheel_scale_rad_s"}
+                or self.loss["kind"] != "motion_physical_huber"
+            ):
+                raise ValueError("Unknown explicit supervision loss")
+            import math
+
+            if any(
+                not isinstance(self.loss[k], int | float)
+                or not math.isfinite(self.loss[k])
+                or self.loss[k] <= 0
+                for k in ("leg_scale_rad", "wheel_scale_rad_s")
+            ):
+                raise ValueError("Positive physical loss scales required")
+            if self.student_labels.get("kind") != "motion_contract":
+                raise ValueError("Motion physical Huber requires Motion label contract")
         if not self.teachers or len({t.name for t in self.teachers}) != len(self.teachers):
             raise ValueError("Unique explicit Teachers required")
         if self.repetitions < 1 or self.batch_size < 1 or self.learning_rate <= 0:

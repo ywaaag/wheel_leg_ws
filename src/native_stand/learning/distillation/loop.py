@@ -61,6 +61,20 @@ class DistillationError(ValueError):
     """蒸馏输入或状态不合法。"""
 
 
+def supervised_loss(prediction, labels, *, config=None, output_contract=None):
+    """Same-contract mean differences map exactly to physical target errors."""
+    import torch
+
+    if config is None:
+        return torch.nn.functional.mse_loss(prediction, labels)
+    if config["kind"] != "motion_physical_huber" or output_contract is None:
+        raise DistillationError("Explicit Motion physical loss contract required")
+    leg = output_contract["leg_halfwidth_rad"] / config["leg_scale_rad"]
+    wheel = output_contract["wheel_halfwidth_rad_s"] / config["wheel_scale_rad_s"]
+    errors = (prediction - labels) * prediction.new_tensor([leg, leg, wheel, leg, leg, wheel])
+    return torch.nn.functional.smooth_l1_loss(errors, torch.zeros_like(errors))
+
+
 LABEL_KEYS = ("teacher_sha256", "input_version", "action_version", "action_units", "action_dim")
 
 
@@ -286,6 +300,16 @@ def run_distillation(
     train_index = rows(split.train)
     validation_index = rows(split.validation)
 
+    def loss_for(prediction, target):
+        return supervised_loss(
+            prediction,
+            target,
+            config=prepared.get("loss") if prepared is not None else None,
+            output_contract=prepared["student_spec"]["output_contract"]
+            if prepared is not None
+            else None,
+        )
+
     student.train()
     optimizer = torch.optim.Adam(
         [p for p in student.parameters() if p.requires_grad], lr=learning_rate
@@ -332,7 +356,7 @@ def run_distillation(
     if prepared is not None and prepared.get("new_comparison_domain"):
         with torch.no_grad():
             incumbent_loss = float(
-                torch.nn.functional.mse_loss(
+                loss_for(
                     student({"student_actor": states[validation_index]}, stochastic_output=False),
                     labels[validation_index],
                 )
@@ -398,7 +422,7 @@ def run_distillation(
         for start in range(0, len(order), batch_size):
             index = train_index[order[start : start + batch_size]]
             prediction = student({"student_actor": states[index]}, stochastic_output=False)
-            loss = torch.nn.functional.mse_loss(prediction, labels[index])
+            loss = loss_for(prediction, labels[index])
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
             optimizer.step()
@@ -406,7 +430,7 @@ def run_distillation(
             batches += 1
         with torch.no_grad():
             validation = float(
-                torch.nn.functional.mse_loss(
+                loss_for(
                     student({"student_actor": states[validation_index]}, stochastic_output=False),
                     labels[validation_index],
                 )

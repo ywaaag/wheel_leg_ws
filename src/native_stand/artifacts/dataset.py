@@ -119,6 +119,10 @@ def read_source(reference, *, paths=None):
                 for key, column in reference.get("condition_columns", {}).items()
             }
         )
+        for name, value in reference.get("condition_values", {}).items():
+            if name in conditions:
+                raise ValueError("Static routing condition conflicts with measured column")
+            conditions[name] = np.full(len(states), value)
         keys = (
             payload["physical_episode_keys"].copy() if "physical_episode_keys" in payload else None
         )
@@ -128,9 +132,17 @@ def read_source(reference, *, paths=None):
         behavior_valid = (
             payload["transition_valid"].copy() if "transition_valid" in payload else None
         )
+        times = (
+            payload[reference["sampling"]["time_key"]].copy() if reference.get("sampling") else None
+        )
+        eligible = (
+            payload[reference["sampling"]["eligible_key"]].copy()
+            if reference.get("sampling", {}).get("eligible_key")
+            else None
+        )
     if states.ndim != 2 or len(episodes) != len(states) or not np.isfinite(states).all():
         raise ValueError("Invalid dataset rows")
-    return dict(
+    result = dict(
         states=states,
         episodes=episodes,
         conditions=conditions,
@@ -140,6 +152,61 @@ def read_source(reference, *, paths=None):
         control_owner=control_owner,
         behavior_valid=behavior_valid,
     )
+    if times is not None:
+        if result["sample_ids"] is None:
+            result["sample_ids"] = np.array(
+                [
+                    f'{reference.get("collection_id", reference["sha256"])}:{reference["sha256"]}:{i}'
+                    for i in range(len(states))
+                ]
+            )
+        indices = episode_sample_indices(
+            episodes, times, reference["sampling"]["windows"], eligible=eligible
+        )
+        result = {
+            k: (
+                {name: value[indices] for name, value in v.items()}
+                if k == "conditions"
+                else None
+                if v is None
+                else v[indices]
+            )
+            for k, v in result.items()
+        }
+    return result
+
+
+def episode_sample_indices(episodes, times, windows, *, eligible=None):
+    """Fixed disjoint time-window quotas; retain chronological physical identities."""
+    import math
+
+    import numpy as np
+
+    if len(times) != len(episodes) or not np.isfinite(times).all() or not windows:
+        raise ValueError("Explicit finite per-row times and sampling windows required")
+    mask = np.ones(len(times), bool) if eligible is None else np.asarray(eligible, bool)
+    if mask.shape != (len(times),):
+        raise ValueError("Sample eligibility shape differs")
+    end = -math.inf
+    for lo, hi, quota in windows:
+        if (
+            not math.isfinite(lo)
+            or not math.isfinite(hi)
+            or lo < end
+            or lo >= hi
+            or type(quota) is not int
+            or quota < 1
+        ):
+            raise ValueError("Sampling windows must be disjoint, ordered with positive quotas")
+        end = hi
+    selected = []
+    for episode in sorted(set(episodes.tolist())):
+        for lo, hi, quota in windows:
+            rows = np.flatnonzero((episodes == episode) & (times >= lo) & (times < hi) & mask)
+            if len(rows) > quota:
+                rows = rows[np.linspace(0, len(rows) - 1, quota, dtype=int)]
+            selected.extend(rows.tolist())
+    return np.asarray(sorted(selected), dtype=int)
 
 
 def import_episode_index(index_path, output, *, paths=None):

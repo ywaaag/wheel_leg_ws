@@ -96,3 +96,32 @@ def test_dry_run_never_builds_C_creates_player_or_output(tmp_path):
     with patch('native_stand.simulation.motion_replication_probe.prepare',return_value=(SimpleNamespace(record=lambda:{}),None)),patch('native_stand.simulation.control_core.build',side_effect=AssertionError),patch('native_stand.simulation.mujoco_playback.MotionPlayer',side_effect=AssertionError):
         result=from_file(path,dry_run=True)
     assert not result['starts_engine'] and not result['writes'] and not (tmp_path/'absent').exists()
+
+
+def test_physical_huber_contract_and_gradient_are_not_raw_MSE():
+    import torch
+    from native_stand.learning.distillation.loop import supervised_loss
+    prediction=torch.tensor([[.1,.1,.125,.1,.1,.125]],requires_grad=True)
+    labels=torch.zeros(1,6)
+    loss=supervised_loss(prediction,labels,config=dict(kind='motion_physical_huber',leg_scale_rad=.05,wheel_scale_rad_s=10),output_contract=dict(leg_halfwidth_rad=.5,wheel_halfwidth_rad_s=80))
+    torch.testing.assert_close(loss,torch.tensor(.5))
+    loss.backward()
+    assert torch.isfinite(prediction.grad).all() and (prediction.grad>0).all()
+    assert supervised_loss(prediction.detach(),labels)<loss.detach()
+
+
+def test_dataset_window_quotas_keep_complete_episode_role_and_sample_identity(tmp_path):
+    from native_stand.artifacts.dataset import read_source
+    from native_stand.artifacts.io import file_sha256,write_npz
+    file=tmp_path/'data.npz'
+    n=200
+    write_npz(file,dict(states=np.zeros((n,31),np.float32),episodes=np.repeat([4,5],100),time=np.tile(np.arange(100)*.01,2),physical_episode_keys=np.repeat(['epA','epB'],100),roles=np.repeat(['train','development'],100),sample_ids=np.array([f's{i}' for i in range(n)]),condition_scenario=np.repeat(['quiet','push'],100)))
+    ref=dict(path=str(file),sha256=file_sha256(file),sampling=dict(time_key='time',windows=[[0,.5,10],[.5,1.,20]]))
+    result=read_source(ref)
+    assert len(result['states'])==60
+    assert sum(result['roles']=='train')==sum(result['roles']=='development')==30
+    assert len(set(result['sample_ids']))==60
+    assert set(result['physical_episode_keys'])=={'epA','epB'}
+    ref['sampling']['windows']=[[0,.6,10],[.5,1.,20]]
+    with pytest.raises(ValueError,match='disjoint'):
+        read_source(ref)

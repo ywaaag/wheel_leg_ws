@@ -325,6 +325,7 @@ def execute(
                 initial_student=initial_state,
                 identity=state["identity"],
                 logical_run_id=state["logical_run_id"],
+                loss=recipe.loss,
             )
             # Across phase boundaries retain Adam/RNG while a new aggregate supplies new data/split.
             if resume is None and state.get("latest"):
