@@ -1,3 +1,15 @@
+## Motion050最佳学生反复蒸馏（2026-11-16，本轮结项）
+
+固定vM1 MuJoCo、050原u2200中心和31D，小模型31→256→128→64→6。用户授权CPU/GPU不限额，正式CLI复用既有owner/worker/BC/ModelIndex，新增仅六个configs/jobs配方；src与前交付逐文件一致。新阶段6块48轮/158752监督步，连旧78轮/185794步；新实际22933117物理步，连旧43889720，失败不退款。所有6训练run与260诊断块终态，无本任务活动worker。
+
+从原最佳8890532c…e8f9e7逐轮采自身真实状态/DAgger并复习原Teacher锚，按固定新开发6112701核心优先保留最佳。两块无改善后没有重复同样BC，先检查已存在完整latest8：第六块round8开发56/56任务与保真，通过同一排名选中；原离线最佳loss round7保留原身份。冻结后新seed6113901/6113902均56/56任务、56/56保真（核心33/33、新能力23/23），0/30ms年龄应力各3/3。有限同条件MuJoCo复刻accepted，不代表全DR/Isaac/实机；Teacher不合格的急停/自转等仍缺口。
+
+全部112个名义回合评分窗双轮各>2N承重最低76.2571%、整回合最低84.4100%，严格>60%；核心评分窗100%，整回合最低95.2875%。60秒站立学生漂移约-.208m/s，Teacher约-.203，绝对.15目标只报告。完整证据数据根motion_multiteacher050_iterative_20261116/REPORT.md、independent_final_comparison.json、terminal_accounting.json；旧final55份SHA复核不变，不回灌。
+
+冻结完整BC e6b452e2b936e0688063cb17249a3c31b78b8904af03b9efe4ce86ba7e0bed15（motion050_iterative_06_bc8/supervision/phase_001_fit/distillation_latest.pt，Adam/RNG保留）；正式导出Actor c21d66a2cd9af0b6d7452bc8dc4c32c3f13cc83d50173cfb14bfdab79546c87d（export_candidate_v1/actor.pt），权重完全相同。完整源未裁剪。C权重/050原中心配置头/共享C/96+128真实状态单条golden完成，PT/ONNX最大误差3.28e-7、C解码1.49e-7、PD7.63e-6，头编译解码误差0。
+
+portable2067 passed/31 skipped/10 warnings，消费者32通过；架构224/0、Ruff0.8.4规定范围与dry-run通过。PPO0、Isaac0、远端0、电控改写0、刷板0、外部通知0；实机最新信息/015补偿一次的适配边界保持，ARM时延/内存与实机NOT_RUN。当前分支motion/multiteacher050-iterative，无remote/推送；主main原dirty与其他owner任务保持。
+
 ## Motion050多Teacher蒸馏（2026-11-16，本轮结项）
 
 本轮执行完成，候选NOT_ACCEPTED，不替换原vM1或现用部署模型。最终源码执行版本e21fe60，分支motion/multiteacher050-final；数据根motion_multiteacher050_20261116的REPORT.md/CONTINUE.md、independent_final_comparison.json、terminal_accounting.json是完整交付入口。没有活动本任务worker；PPO0、Isaac0、远端0、电控改写0、刷板0、外部通知0。
