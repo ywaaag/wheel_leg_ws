@@ -120,20 +120,28 @@ def build_policy(job, observations, *, device="cpu", source=None, version=VERSIO
         )
     capture = handle["capture"]
     restore = handle["restore"]
+    source_supervised_updates = int(
+        (payload or {}).get(
+            "source_supervised_updates",
+            (payload or {}).get(
+                "supervised_updates",
+                job.assets.get("source_supervised_updates", 0)
+                if (payload or {}).get("actor_only")
+                else 0,
+            ),
+        )
+    )
 
     def capture_state(*args, **kwargs):
         value = capture(*args, **kwargs)
         value["jump_learning_semantics"] = semantics
         value["critic_schema"] = job.assets["jump_critic_schema"]
-        value["source_supervised_updates"] = int(
-            (payload or {}).get(
-                "source_supervised_updates", (payload or {}).get("supervised_updates", 0)
-            )
-        )
+        value["source_supervised_updates"] = source_supervised_updates
         value["output_contract"] = handle["contract"]
         return value
 
     def restore_state(state):
+        nonlocal source_supervised_updates
         if (semantics["objective"] is not None or "jump_learning_semantics" in state) and (
             state.get("jump_learning_semantics") != semantics
         ):
@@ -149,6 +157,7 @@ def build_policy(job, observations, *, device="cpu", source=None, version=VERSIO
         ):
             raise ValueError("Jump fixed physical exploration differs from saved distribution")
         restore(state)
+        source_supervised_updates = int(state.get("source_supervised_updates", 0))
 
     handle.update(capture=capture_state, restore=restore_state)
     return handle

@@ -82,9 +82,11 @@ wheel-leg cloud-plan --config CONFIG.json --manifest MANIFEST.json --dry-run
 | 播放 | 一个GUI/headless循环，公共推理factory与模型执行合同；暂停不推进tick，Recovery physical输出不重复cubic解码 |
 | sim2sim | recorded或live显式协议→顺序打开后端→统一轨迹→既有诊断；live核对实际条件/子步/终止/覆盖，复用采集factory及播放器。未提供诊断读回的后端拒绝，不自动加入PPO或课程 |
 | export | 原子发布完整部署目录：Actor、可选ONNX、推理架构、合同、执行参数、共享C身份、golden、来源与依赖。可搬迁读回；完整续训checkpoint另行保留 |
-| Jump | ABI4、37D线性raw；MuJoCo CPU Critic6370D，独立Isaac分支Critic5591D。当前v3已做本机6.0.1 CPU/GPU及远端6.2 CPU工程验收；累计415/10000、余9585，远端GPU仍待验、能力未认证，见`docs/JUMP_DIAGNOSIS_20261113.md` |
+| Jump | ABI4、37D线性raw；旧MuJoCo CPU Critic6370D、旧Isaac5591D，新首次离地课程Isaac5593D。原远端u1363正常停止，累计3790/10000、余6210。新配方为零额度工程准备，未开训；设计、奖励与验证边界见[Jump首次离地配方](docs/JUMP_FIRST_TAKEOFF_RECIPE.md) |
 
 PPO更新、监督round、实际监督优化步和物理子步分别记账。compare只读已有开发数据，不额外采样。训练候选使用正常PPO窗口，不需要独立评估。历史evaluate入口和证据保留，不构成训练或选模依赖。
+
+Jump新主配方为 `configs/jobs/jump_first_takeoff_isaac_prepared.json`，另备 `jump_first_takeoff_isaac_lr3e5_prepared.json` 作学习率对照。2048×64、固定物理探索、每100更新保存，课程从真实离地推进到落稳和完整2/5/10cm；训练仍暂停。用 `wheel-leg train --config configs/jobs/jump_first_takeoff_isaac_prepared.json --dry-run --json` 检查计划，不能因dry-run通过就去掉零额度或当作目标平台物理验收。
 
 最新完整恢复点、各目标候选、selected/pin及真实来源依赖取并集保护。项目级ModelIndex为唯一权威，多消费者分别登记；本轮不清理真实文件。BC latest与selected用途不同。数据域变化时重新计算incumbent开发损失基线，旧best作为历史保留。
 

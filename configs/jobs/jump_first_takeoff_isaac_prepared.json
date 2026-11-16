@@ -286,7 +286,13 @@
       "DR_id": "nominal",
       "config": {
         "active_horizon_s": 6.0,
-        "require_landing_rehearsal": false
+        "require_landing_rehearsal": false,
+        "window_episodes": 32,
+        "pass_fraction": 0.8,
+        "maximum_fault_fraction": 0.05,
+        "promote_windows": 2,
+        "demote_windows": 2,
+        "demote_below_fraction": 0.4
       },
       "levels": [
         {
@@ -337,7 +343,7 @@
     "source_supervised_updates": 3060,
     "jump_isaac": {
       "gpu_uuid": "GPU-e704e7d4-2965-4712-9759-ba6b9910bd72",
-      "execution_root": "/home/kellen/wheel_leg_training_data/jump_outcome_execution",
+      "execution_root": "/home/kellen/wheel_leg_training_data/jump_first_takeoff_execution",
       "resource_policy": {
         "mode": "shared_authorized",
         "shared_training_task": "jump",
@@ -353,7 +359,11 @@
     "jump_task_budget_lineage": {
       "task_limit": 10000,
       "this_allocation": 0,
-      "status": "prepared_only; settle running source before allocating any remainder"
+      "status": "prepared_only; source settled; no remainder allocated and no automatic resume",
+      "task_updates_used": 3790,
+      "source_run_status": "STOPPED_BOUNDED",
+      "source_run_updates": 1363,
+      "task_updates_remaining": 6210
     }
   },
   "diagnostics": {

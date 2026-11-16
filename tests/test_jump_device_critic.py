@@ -19,7 +19,12 @@ from native_stand.tasks.jump.unified_reward import UnifiedPacket, UnifiedReward
 FROZEN_TEST_SCOPE = "HOST"
 
 
-def test_batch_device_fields_match_scalar_full_contract_at_ring_wrap_and_reset(bridge):  # noqa: F811
+@pytest.mark.parametrize("skill", [False, True])
+def test_batch_device_fields_match_scalar_full_contract_at_ring_wrap_and_reset(bridge, skill):  # noqa: F811
+    from native_stand.tasks.jump import skill_course
+    from native_stand.tasks.jump.device_reward import DeviceReward
+    from native_stand.tasks.jump.isaac_contract import CRITIC
+
     e = bridge()
     env = IsaacJump.__new__(IsaacJump)
     env.execution, env.num_envs, env.device = e, 3, "cpu"
@@ -48,7 +53,7 @@ def test_batch_device_fields_match_scalar_full_contract_at_ring_wrap_and_reset(b
     env._material_bounds = rng.normal(size=(3, 2, 3)).astype(np.float32)
     env.starts = [0, 3, 21]
     env.requests = [
-        dict(kind=k, seconds=5.0 + i)
+        dict(kind="ground_active_jump" if skill else k, seconds=5.0 + i)
         for i, k in enumerate(("landing_only", "ground_active_jump", "landing_only"))
     ]
     initial = UnifiedPacket(
@@ -73,9 +78,20 @@ def test_batch_device_fields_match_scalar_full_contract_at_ring_wrap_and_reset(b
         force_valid=True,
     )
     env.rewards = [
-        UnifiedReward.start(TaskSpec(r["kind"], r["seconds"], 10), initial) for r in env.requests
+        UnifiedReward.start(
+            (skill_course.SkillTaskSpec if skill else TaskSpec)(
+                r["kind"], r["seconds"], 10, **(dict(objective=i) if skill else {})
+            ),
+            initial,
+            skill_course.reward_config() if skill else None,
+        )
+        for i, r in enumerate(env.requests)
     ]
-    env.critics = [RowCritic(38) for _ in range(3)]
+    if skill:
+        env.device_reward = DeviceReward(env.rewards, "cpu")
+    env.critics = [
+        RowCritic(38, version=skill_course.CRITIC if skill else CRITIC) for _ in range(3)
+    ]
     packer = None
     for tick in range(171):
         advance(e)
@@ -92,7 +108,7 @@ def test_batch_device_fields_match_scalar_full_contract_at_ring_wrap_and_reset(b
         )
         actual = packer.pack(env, actor)
         np.testing.assert_array_equal(actual.numpy(), expected)
-        assert actual.shape == (3, 5591)
+        assert actual.shape == (3, 5593 if skill else 5591)
         # Every row view must die with the temporary terminal snapshot.
         # Otherwise asynchronous terminal rows pin full-batch CPU allocations.
         storage = next(v for v in vars(snapshot.v4).values() if torch.is_tensor(v))

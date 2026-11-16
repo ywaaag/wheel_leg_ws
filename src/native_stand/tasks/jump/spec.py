@@ -25,8 +25,8 @@ def build_task(job):
     if job.action.version == TRAINING:
         import math
 
-        from .unified import contract as unified_contract
         from . import skill_course
+        from .unified import contract as unified_contract
 
         skill_course.validate(job)
         critic_version = skill_course.CRITIC if skill_course.enabled(job) else CRITIC

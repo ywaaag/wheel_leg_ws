@@ -77,6 +77,7 @@ class RewardConfig:
     w_velocity_potential: float = 0.0
     potential_events: bool = False
     discount_rate_s: float = 0.2
+    complete_partial_reward_scale: float = 1.0
 
     def __post_init__(self):
         if any(not math.isfinite(x) or x < 0 for x in asdict(self).values()):
@@ -85,6 +86,8 @@ class RewardConfig:
             raise ValueError("reward geometry must respect the existing C guards")
         if min(self.crouch_span_m, self.airborne_dwell_s, self.stable_duration_s) <= 0:
             raise ValueError("positive progress span and dwell required")
+        if not 0 < self.complete_partial_reward_scale <= 1:
+            raise ValueError("bounded positive completion-stage partial reward scale required")
         if (
             min(
                 self.stable_tilt_rad,
@@ -293,10 +296,17 @@ class DenseReward:
         active_control = p.owner == 2 and Phase.CROUCH <= p.phase <= Phase.SETTLE
         self.jump_control_s += p.dt_s if active_control else 0.0
         both, any_contact = all(p.contact), any(p.contact)
-        vz = p.COM_velocity_m_s[2]
-        air = not any_contact and min(p.tire_clearance_m) > getattr(
-            s, "takeoff_clearance_m", 0.002
+        skill = hasattr(s, "objective")
+        mechanical_fault = (
+            min(p.leg_length_m) <= 0.126
+            or max(p.leg_length_m) >= 0.373
+            or min(p.spring_length_m) < 0.155 - 1e-5
+            or max(p.spring_length_m) > 0.215 + 1e-5
         )
+        fault = p.fault or p.phase == Phase.FAULT or mechanical_fault
+        valid_event = not skill or not (fault or self.failure_paid)
+        vz = p.COM_velocity_m_s[2]
+        air = not any_contact and min(p.tire_clearance_m) > getattr(s, "takeoff_clearance_m", 0.002)
         terms = {
             name: 0.0
             for name in (
@@ -335,7 +345,7 @@ class DenseReward:
         if active_control and p.phase == Phase.PUSH:
             if not self.push_seen:
                 self.best["extension"] = self.extension_score(previous)
-            self.push_seen = True
+            self.push_seen |= not skill or (any_contact and valid_event)
             if any_contact and not self.has_taken_off:
                 target_vz = math.sqrt(2 * 9.81 * s.target_rise_m)
                 self.progress(terms, "push", max(vz, 0.0) / target_vz, c.w_push)
@@ -357,6 +367,7 @@ class DenseReward:
         )
         if (
             eligible
+            and valid_event
             and active_control
             and p.phase in (Phase.PUSH, Phase.FLIGHT)
             and self.off_s >= c.airborne_dwell_s - 1e-10
@@ -369,7 +380,13 @@ class DenseReward:
             self.peak_COM_m = p.COM_height_m
             terms["takeoff"] = c.w_takeoff
         flight_proven = self.has_taken_off or self.had_airborne_start
-        if self.has_taken_off and self.active_eligible and air and not self.has_landed:
+        if (
+            self.has_taken_off
+            and self.active_eligible
+            and valid_event
+            and air
+            and not self.has_landed
+        ):
             self.peak_COM_m = max(self.peak_COM_m, p.COM_height_m)
             self.peak_tire_clearance_m = max(self.peak_tire_clearance_m, min(p.tire_clearance_m))
             if not self.has_landed:
@@ -382,7 +399,7 @@ class DenseReward:
             if previous.COM_velocity_m_s[2] > 0 >= vz and not self.apex_paid:
                 self.apex_paid = True
                 terms["apex"] = c.w_apex * unit(self.rise_m / s.target_rise_m)
-        if flight_proven and any_contact and not self.has_landed:
+        if valid_event and flight_proven and any_contact and not self.has_landed:
             self.has_landed = True
             self.touchdown_down_v_m_s = max(-previous.COM_velocity_m_s[2], 0.2)
             self.best["cushion"] = self.best["settle"] = 0.0
@@ -418,7 +435,8 @@ class DenseReward:
             )
             self.progress(terms, "settle", score, c.w_settle)
         stable = (
-            self.has_landed
+            valid_event
+            and self.has_landed
             and both
             and max(abs(x) for x in p.tilt_rad) < c.stable_tilt_rad
             and np.linalg.norm(p.omega_rad_s) < c.stable_omega_rad_s
@@ -427,18 +445,26 @@ class DenseReward:
             and abs(p.root_height_m - s.entry_height_m) < c.stable_height_error_m
         )
         self.stable_s = self.stable_s + p.dt_s if stable else 0.0
-        goal = (
-            not c.goal_gate_landing
-            or s.kind != "ground_active_jump"
-            or (
-                self.rise_m + 1e-9 >= s.target_rise_m
-                and self.peak_tire_clearance_m + 1e-9 >= s.target_clearance_m
-            )
+        physical_goal = (
+            self.rise_m + 1e-9 >= s.target_rise_m
+            and self.peak_tire_clearance_m + 1e-9 >= s.target_clearance_m
         )
-        if goal and self.stable_s >= c.stable_duration_s - 1e-10 and not self.landing_paid:
+        goal = not c.goal_gate_landing or s.kind != "ground_active_jump" or physical_goal
+        skill_landing = not skill or (valid_event and self.active_eligible and self.apex_paid)
+        if (
+            goal
+            and skill_landing
+            and self.stable_s >= c.stable_duration_s - 1e-10
+            and not self.landing_paid
+        ):
             self.landing_paid = True
             terms["landing_stable"] = c.w_landing
-        if p.motion_confirmed and self.landing_paid and not self.handover_paid:
+        if (
+            p.motion_confirmed
+            and self.landing_paid
+            and (not skill or (skill_landing and physical_goal))
+            and not self.handover_paid
+        ):
             self.handover_paid = True
             terms["handover"] = c.w_handover
 
@@ -500,13 +526,6 @@ class DenseReward:
                     * min(np.mean((np.asarray(p.actual_dq_rad_s)[list(LEGS)] / 5) ** 2), 4.0)
                     * dt
                 )
-        mechanical_fault = (
-            min(p.leg_length_m) <= 0.126
-            or max(p.leg_length_m) >= 0.373
-            or min(p.spring_length_m) < 0.155 - 1e-5
-            or max(p.spring_length_m) > 0.215 + 1e-5
-        )
-        fault = p.fault or p.phase == Phase.FAULT or mechanical_fault
         if fault and not self.failure_paid:
             terms["failure"] = -c.failure_cost
             self.failure_paid = True
@@ -520,9 +539,15 @@ class DenseReward:
             and self.handover_paid
             and not self.failure_paid
         )
-        if c.goal_gate_landing and not full_success:
+        if (c.goal_gate_landing or skill) and not full_success:
             terms["handover"] = 0.0
+        if skill and not valid_event:
+            for name in ("takeoff", "air_rise_progress", "apex", "landing_stable", "handover"):
+                terms[name] = 0.0
         objective = getattr(s, "objective", 2)
+        if skill and objective == 2:
+            for name in ("takeoff", "air_rise_progress", "apex", "landing_stable"):
+                terms[name] *= c.complete_partial_reward_scale
         course_success = (
             self.active_eligible
             and not self.failure_paid
@@ -564,7 +589,9 @@ class DenseReward:
 
             # gamma(dt)*Phi(next)-Phi(previous), with terminal Phi=0.
             # Oscillating/holding a partial pose cannot accumulate progress pay.
-            next_value = 0.0 if (fault or expired or course_success or drop_success) else potential(p)
+            next_value = (
+                0.0 if (fault or expired or course_success or drop_success) else potential(p)
+            )
             terms["velocity_potential"] = math.exp(
                 -c.discount_rate_s * p.dt_s
             ) * next_value - potential(previous)

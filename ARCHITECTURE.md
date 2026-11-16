@@ -240,11 +240,15 @@ Motion少量高度配方`configs/jobs/motion_height_small_dose_prepared.json`复
 
 `integrations/cloud_bundle.py::adopt_local_dependencies`接收明确保留集合，逐文件核验来源/目标、拒绝冲突，复用已有内容；只对显式不可变文件硬链接，可变文件复制。ModelIndex保护先于派生映射发布，故障重试重新核SHA；该接口不扫描历史、不删除原件。回执不是第二套资产保护索引，删除仍以唯一ModelIndex及实际消费者为准。RuntimePaths读取派生映射，原配置/spec和模型不改写。
 
+`assets.value_files`可将具名JSON值写成 `{name: {path, sha256}}`，由 `experiments.config.load_job_config` 经 `artifacts.runtime_paths.asset_values` 在配置边界验SHA、读取一次并展开为具名asset；拒绝覆盖inline值和不完整引用。SHA引用路径相对所属配置／JSON解析，再应用显式RuntimePaths；普通字符串与USD prim路径不充当文件引用。已解析值及原path/SHA同时进入run记录和原有依赖闭包；worker／resume用 `job_from_record` 还原冻结值，不重读后来被修改的JSON。此接口不递归执行include、创建registry或改写原文档。
+
 ## Jump PhysX物理边界
 
-`simulation/jump_isaac_scene.py`拥有分块运动学平地与物理读回不变量；复用现有scene、ground actor及ContactSensor，不修改源USD。`jump_isaac.py`在已有host读回上验证，无额外设备同步；物理合同参与恢复身份。跨物理版本仅经配置声明的full初始化迁移，新物理证据与旧物理窗口分开，Actor-only不冒充完整学习恢复。正式训练仍经CLI→owner/worker→公共driver/JumpAdapter。
+`simulation/jump_isaac_scene.py`拥有显式地面／轮碰撞合同与物理读回不变量；当前Jump配方明确选择原Cylinder＋native Plane，旧地面／凸包版本保留服务冻结消费者，不修改源USD。`jump_isaac.py`在已有host读回上验证，无额外设备同步；物理合同参与恢复身份。跨物理版本仅经配置声明的full初始化迁移，新物理证据与旧物理窗口分开，Actor-only不冒充完整学习恢复。正式训练仍经CLI→owner/worker→公共driver/JumpAdapter。
 
 Jump共享C控制器的controller revision及实际源码SHA由`jump_control_source/manifest.json`绑定，CPU/Isaac/部署复用同一源码。新鲜支撑估计与滞回未确认的接触分类分别判定；真不可用估计仍故障，未确认分类仍阻止相关FSM事件。ABI4布局不变，物理/控制行为版本进入完整恢复身份，不能混用旧C库。
+
+首次离地配方由 `tasks.jump.skill_course` 声明takeoff／landing／complete目标，复用AdaptiveCourse和scalar/device奖励；实际reset请求携带目标，5593D/228字段Critic收录目标与净空，旧5591D与6370D消费者保持独立。`course_success`推进技能档，`success`仍用于完整Jump候选；三类候选分池。正常技能成功发生在策略步中途也保留为PPO有效样本，终态观测先冻结再reset。固定物理Normal通过原PPO factory冻结log_std；完整恢复检查分布、双Adam、课程和Critic身份，新配方用BC60 Actor-only及fresh Critic/Adam，不假装旧PPO完整恢复。具体奖励、防刷分、折扣排序与验收边界见[Jump首次离地配方](docs/JUMP_FIRST_TAKEOFF_RECIPE.md)。
 
 
 Jump闭环补教复用`simulation.collection`与`experiments.supervision_flow`，`simulation.jump_teaching`仅声明监督专用命令/有效域和真实C补偿条件，不创建worker或训练循环。TeacherConfig显式observation_adapter/action_adapter将Jump37共享物理列映射Motion31、Motion无旧C补偿目标映射到Jump既有补偿执行器，转换进入标签来源与恢复identity。学生仍原raw37 direct部署输出，不新增运行时Teacher或补偿控制器。`assets.distillation_device`显式选择BC数学device，缺省CPU保持旧消费者；物理仍job.runtime.device。

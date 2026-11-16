@@ -70,11 +70,15 @@ def validate_job(job):
         collection_commands(job)
     if job.assets.get("jump_compute") not in (None, "cuda_firmware_warp_inverse_v1"):
         raise ValueError("Explicit supported Jump compute contract required")
-    from native_stand.tasks.jump.outcome import REWARD, enabled
     from native_stand.tasks.jump import skill_course
+    from native_stand.tasks.jump.outcome import REWARD, enabled
 
     expected_reward = (
-        skill_course.REWARD if skill_course.enabled(job) else REWARD if enabled(job) else REWARD_VERSION
+        skill_course.REWARD
+        if skill_course.enabled(job)
+        else REWARD
+        if enabled(job)
+        else REWARD_VERSION
     )
     if job.reward.version != expected_reward:
         raise ValueError("Explicit current Jump reward version required")
@@ -848,6 +852,7 @@ class IsaacJump:
         owners = terminal_next["jump_C_owner"].clone()
         term_actor = terminal_next["student_actor"].clone()
         term_critic = terminal_next["student_critic"].clone()
+        transition_valid = valid_steps == 10
         for i in np.flatnonzero(done):
             result = outcomes[i]
             r = self.requests[i]
@@ -857,6 +862,11 @@ class IsaacJump:
                 if r["kind"] == "ground_active_jump"
                 else result["landing_only_success"]
             )
+            # A skill objective can complete on any physical substep. Its
+            # finite terminal transition has no future bootstrap and remains
+            # a valid on-policy sample for the action that caused the event.
+            if "objective" in r and result["course_success"]:
+                transition_valid[i] = True
             if self.teaching_commands is None:
                 self.courses[i].record(
                     r,
@@ -926,7 +936,7 @@ class IsaacJump:
             extras=dict(
                 actual_physics_steps=[10] * self.num_envs,
                 episode_physics_steps=valid_steps.tolist(),
-                transition_valid=torch.tensor(valid_steps == 10, device=self.device),
+                transition_valid=torch.tensor(transition_valid, device=self.device),
                 control_owner=torch.where(start["recovery_actor_valid"][:, 0], 0, 2),
                 actual_C_owner=owners[:, 0],
                 collection_conditions={},

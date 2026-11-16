@@ -142,6 +142,16 @@ class DeviceReward:
         put("jump_control_s", m["jump_control_s"] + torch.where(control, dt, 0.0))
         both = p["contact"].bool().all(-1)
         contact = p["contact"].bool().any(-1)
+        mechanical = (
+            (p["leg_length_m"].amin(-1) <= 0.126)
+            | (p["leg_length_m"].amax(-1) >= 0.373)
+            | (p["spring_length_m"].amin(-1) < 0.155 - 1e-5)
+            | (p["spring_length_m"].amax(-1) > 0.215 + 1e-5)
+        )
+        fault = p["fault"].bool() | (phase == 8) | mechanical
+        valid_event = torch.ones_like(contact)
+        if "objective" in s:
+            valid_event = ~(fault | flag("failure_paid"))
         vz = p["COM_velocity_m_s"][:, 2]
         air = ~contact & (p["tire_clearance_m"].amin(-1) > s.get("takeoff_clearance_m", 0.002))
         put("had_support", flag("had_support") | both)
@@ -167,7 +177,10 @@ class DeviceReward:
         b["extension"] = torch.where(
             push & ~flag("push_seen"), extension(old["leg_length_m"]), b["extension"]
         )
-        put("push_seen", flag("push_seen") | push)
+        put(
+            "push_seen",
+            flag("push_seen") | (push & contact & valid_event if "objective" in s else push),
+        )
         progress(
             "push",
             vz.clamp_min(0) / torch.sqrt(2 * 9.81 * s["target_rise_m"]),
@@ -189,6 +202,7 @@ class DeviceReward:
         eligible = self.active & ~flag("assisted")
         takeoff = (
             eligible
+            & valid_event
             & flag("had_support")
             & (flag("crouch_legal") | (not c.require_crouch))
             & flag("push_seen")
@@ -204,7 +218,7 @@ class DeviceReward:
         put("peak_COM_m", torch.where(takeoff, p["COM_height_m"], m["peak_COM_m"]))
         terms["takeoff"] = takeoff.double() * c.w_takeoff
         flight = flag("has_taken_off") | flag("had_airborne_start")
-        rising = flag("has_taken_off") & eligible & air & ~flag("has_landed")
+        rising = flag("has_taken_off") & eligible & valid_event & air & ~flag("has_landed")
         put(
             "peak_COM_m",
             torch.where(rising, torch.maximum(m["peak_COM_m"], p["COM_height_m"]), m["peak_COM_m"]),
@@ -228,7 +242,7 @@ class DeviceReward:
         apex = rising & (old["COM_velocity_m_s"][:, 2] > 0) & (vz <= 0) & ~flag("apex_paid")
         put("apex_paid", flag("apex_paid") | apex)
         terms["apex"] = apex.double() * c.w_apex * clip(rise / s["target_rise_m"])
-        landing = flight & contact & ~flag("has_landed")
+        landing = valid_event & flight & contact & ~flag("has_landed")
         put("has_landed", flag("has_landed") | landing)
         put(
             "touchdown_down_v_m_s",
@@ -271,7 +285,8 @@ class DeviceReward:
         ) / 5
         progress("settle", score, c.w_settle, settling)
         stable = (
-            flag("has_landed")
+            valid_event
+            & flag("has_landed")
             & both
             & (tilt < c.stable_tilt_rad)
             & (omega < c.stable_omega_rad_s)
@@ -280,18 +295,24 @@ class DeviceReward:
             & (dh < c.stable_height_error_m)
         )
         put("stable_s", torch.where(stable, m["stable_s"] + dt, 0.0))
-        goal = (
-            (not c.goal_gate_landing)
-            | ~self.active
-            | (
-                (rise + 1e-9 >= s["target_rise_m"])
-                & (m["peak_tire_clearance_m"] + 1e-9 >= s["target_clearance_m"])
-            )
+        physical_goal = (rise + 1e-9 >= s["target_rise_m"]) & (
+            m["peak_tire_clearance_m"] + 1e-9 >= s["target_clearance_m"]
         )
-        paid = goal & (m["stable_s"] >= c.stable_duration_s - 1e-10) & ~flag("landing_paid")
+        goal = (not c.goal_gate_landing) | ~self.active | physical_goal
+        skill_landing = torch.ones_like(contact)
+        if "objective" in s:
+            skill_landing = valid_event & eligible & flag("apex_paid")
+        paid = (
+            goal
+            & skill_landing
+            & (m["stable_s"] >= c.stable_duration_s - 1e-10)
+            & ~flag("landing_paid")
+        )
         put("landing_paid", flag("landing_paid") | paid)
         terms["landing_stable"] = paid.double() * c.w_landing
         hand = p["motion_confirmed"].bool() & flag("landing_paid") & ~flag("handover_paid")
+        if "objective" in s:
+            hand &= skill_landing & physical_goal
         put("handover_paid", flag("handover_paid") | hand)
         terms["handover"] = hand.double() * c.w_handover
         terms["time"] = torch.where(control, -c.w_time * dt, 0.0)
@@ -363,13 +384,6 @@ class DeviceReward:
             * dt,
             0.0,
         )
-        mechanical = (
-            (p["leg_length_m"].amin(-1) <= 0.126)
-            | (p["leg_length_m"].amax(-1) >= 0.373)
-            | (p["spring_length_m"].amin(-1) < 0.155 - 1e-5)
-            | (p["spring_length_m"].amax(-1) > 0.215 + 1e-5)
-        )
-        fault = p["fault"].bool() | (phase == 8) | mechanical
         terms["failure"] = torch.where(fault & ~flag("failure_paid"), -c.failure_cost, 0.0)
         put("failure_paid", flag("failure_paid") | fault)
         success = (
@@ -382,18 +396,28 @@ class DeviceReward:
             & flag("handover_paid")
             & ~flag("failure_paid")
         )
-        if c.goal_gate_landing:
+        if c.goal_gate_landing or "objective" in s:
             terms["handover"] = torch.where(success, terms["handover"], 0.0)
+        if "objective" in s:
+            for name in ("takeoff", "air_rise_progress", "apex", "landing_stable", "handover"):
+                terms[name] = torch.where(valid_event, terms[name], 0.0)
+            partial_scale = torch.where(s["objective"] == 2, c.complete_partial_reward_scale, 1.0)
+            for name in ("takeoff", "air_rise_progress", "apex", "landing_stable"):
+                terms[name] *= partial_scale
         course_success = success
         if "objective" in s:
-            course_success = eligible & ~flag("failure_paid") & torch.where(
-                s["objective"] == 0,
-                flag("has_taken_off"),
-                torch.where(
-                    s["objective"] == 1,
-                    flag("has_taken_off") & flag("apex_paid") & flag("landing_paid"),
-                    success,
-                ),
+            course_success = (
+                eligible
+                & ~flag("failure_paid")
+                & torch.where(
+                    s["objective"] == 0,
+                    flag("has_taken_off"),
+                    torch.where(
+                        s["objective"] == 1,
+                        flag("has_taken_off") & flag("apex_paid") & flag("landing_paid"),
+                        success,
+                    ),
+                )
             )
         drop = (
             ~self.active & flag("had_airborne_start") & flag("landing_paid") & ~flag("failure_paid")
@@ -428,7 +452,9 @@ class DeviceReward:
         if c.potential_events:
             for name in ("takeoff", "air_rise_progress", "apex", "landing_stable"):
                 terms[name] = torch.where(self.active, 0.0, terms[name])
-            next_events = torch.where(fault | expired | course_success | drop, 0.0, event_potential())
+            next_events = torch.where(
+                fault | expired | course_success | drop, 0.0, event_potential()
+            )
             terms["progress_potential"] = (
                 -c.discount_rate_s * dt
             ).exp() * next_events - previous_events

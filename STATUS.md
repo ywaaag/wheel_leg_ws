@@ -1,6 +1,10 @@
-## Jump 用户暂停（2026-11-16）
+## Jump 新首次离地配方（2026-11-16，训练暂停）
 
-用户明确要求暂停工作、暂停训练并保存现场；只能在用户重新开启Jump项目后继续，不自动resume。远端原run经冻结统一CLI request-only停止，已核验STOPPED_BOUNDED/failure=null、1363次，worker2363退出；累计3790/10000、剩6210。完整u1363 SHA01d3e9c6…90d83f已备份本机并核验字段齐全。新开发worktree `/home/kellen/wheel_leg_jump_first_takeoff_ws` / `jump/first-takeoff-course` 从main31aaeb9建立，已合并原远端Jump冻结实现，基线提交b34d974（portable2140通过/31历史skip，架构/Ruff通过）。新课程/奖励/固定探索/5593D Critic已保存在WIP cbdaedf，未开训、分配0次；当前新代码未做完整联合回归，不得当作可运行长训版本。设计与待办见 `docs/JUMP_FIRST_TAKEOFF_COURSE_WIP.md`。现场备份与最终停训收据位于 `/home/kellen/wheel_leg_training_data/jump_first_takeoff_design_20261116/`，以该目录 `pause_terminal_verified.json` 为准；不得沿用旧STATUS中的RUNNING导航判断当前状态。
+用户已重新开启配方设计，本轮完成工程准备，不启动训练。独立worktree `/home/kellen/wheel_leg_jump_first_takeoff_ws` / `jump/first-takeoff-course` 接续WIP cbdaedf；从main31aaeb9建立并合并原Jump实现的基线为b34d974。新课程按真实主动离地→起跳落稳→完整2/5/10cm推进；不强制下蹲、无被动下落复习。新增5593D/228字段Critic，固定物理std腿0.06rad／轮1rad/s；主Actor LR6e-5及3e-5对照，2048×64、save100、BC60 Actor-only＋fresh Critic/双Adam。全部复用统一CLI、owner/worker、公共driver与JumpAdapter。
+
+修复新目标的三处接线／奖励问题：低跳落稳不能拿完整完成42分；故障当帧不计正事件；策略步中途正常课程成功仍进入PPO有效样本。完整档部分事件缩放0.25，故障／超时40分；按真实折扣检查6秒拖延仍为负回报。`course_success`与完整Jump候选分离。CPU联合231 passed（47.30s）；补充fullgraph捕获1 passed，公共资产最终39 passed；最终portable2192 passed／31历史skip／10warning（156.79s），架构235文件／0例外，Ruff0.8.4 check及240文件format通过，两份正式CLI dry-run均零额度／不创建引擎。初次portable仅因新文档尚未登记Git失败，登记后导航单项及全套重跑通过；原失败收据保留。物理/GPU/正式PPO尚未重验。
+
+原远端run经统一CLI正常STOPPED_BOUNDED/failure=null于u1363，worker2363已退出；累计3790/10000、剩6210。本轮不退款、不刷新、不分配剩额，两份prepared配置额度均0。完整u1363 SHA01d3e9c6…90d83f已备份本机，原终态以数据根 `jump_first_takeoff_design_20261116/pause_terminal_verified.json` 为准；不据下方历史RUNNING条目重启。新设计、正式调用链与未验证边界见[Jump首次离地配方](docs/JUMP_FIRST_TAKEOFF_RECIPE.md)。本轮不操作远端、主仓或Motion／Recovery冻结任务。
 
 ## 实机反馈文档登记（2026-11-15）
 

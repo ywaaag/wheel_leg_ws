@@ -1,9 +1,9 @@
 """Reachable Jump objectives with physical event rewards and explicit goals."""
 
-from dataclasses import dataclass, replace
 import math
+from dataclasses import dataclass, replace
 
-from .adaptive_course import Level
+from .adaptive_course import AdaptiveCourse, Level
 from .dense_reward import RewardConfig, TaskSpec
 
 PROFILE = "jump_first_takeoff_course_v1"
@@ -60,8 +60,9 @@ def reward_config():
         w_apex=2.0,
         w_landing=10.0,
         w_handover=42.0,
-        failure_cost=24.0,
-        timeout_cost=24.0,
+        complete_partial_reward_scale=0.25,
+        failure_cost=40.0,
+        timeout_cost=40.0,
         w_time=1.0,
         stable_vxy_m_s=0.5,
         w_drift=0.05,
@@ -72,7 +73,18 @@ def validate(job):
     if not enabled(job):
         return
     course = job.assets["jump_course"]
+    validated_course = AdaptiveCourse(seed=0, **course)
     levels = [SkillLevel(**row) for row in course["levels"]]
+    for row in levels:
+        SkillTaskSpec(
+            "ground_active_jump",
+            course.get("config", {}).get("active_horizon_s", 16.0),
+            1.0,
+            target_rise_m=row.rise_m,
+            target_clearance_m=row.clearance_m,
+            air_leg_m=row.air_leg_m,
+            objective=row.objective,
+        )
     if (
         len(levels) < 3
         or [row.objective for row in levels[:2]] != [TAKEOFF, LANDING]
@@ -81,6 +93,14 @@ def validate(job):
         or course.get("config", {}).get("require_landing_rehearsal", True)
     ):
         raise ValueError("Jump skill course must progress takeoff -> landing -> complete")
+    c = reward_config()
+    partial = c.w_takeoff + c.w_air_rise + c.w_apex
+    complete_partial = (partial + c.w_landing) * c.complete_partial_reward_scale
+    terminal = min(c.failure_cost, c.timeout_cost) * math.exp(
+        -c.discount_rate_s * validated_course.config.active_horizon_s
+    )
+    if terminal <= max(partial, complete_partial):
+        raise ValueError("Discounted terminal cost must exceed all incomplete skill credit")
     if job.assets.get("jump_exploration") != EXPLORATION:
         raise ValueError("New Jump skill course requires explicit fixed physical exploration")
     if job.ppo.entropy_coef != 0:
@@ -92,5 +112,8 @@ def validate(job):
         raise ValueError("Finite positive physical exploration std required")
     if job.reward.version != REWARD or job.model.critic_privileged_version != CRITIC:
         raise ValueError("Jump skill reward and causal Critic must have distinct identities")
-    if job.backend != "isaac" or (job.model.critic_input, job.observation.critic_dim) != (5593, 5593):
+    if job.backend != "isaac" or (job.model.critic_input, job.observation.critic_dim) != (
+        5593,
+        5593,
+    ):
         raise ValueError("Jump skill Critic requires its explicit Isaac5593 layout")
