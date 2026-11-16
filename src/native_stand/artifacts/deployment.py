@@ -131,6 +131,11 @@ def _export_new(source, spec, output, *, execution, dependencies=(), onnx=False)
         else:
             raise ValueError("Unsupported deployment C ABI")
         c_build = build(output / "control.so")
+        if execution["C_core"] == "rl_policy_core_v1":
+            # The package is atomically renamed after this function. Preserve
+            # usable package-relative identities, not the temporary build path.
+            shutil.copytree(c_build["source"], output / "control_source")
+            c_build = dict(c_build, path="control.so", source="control_source")
     record = dict(
         version=VERSION,
         source=dict(path=str(source.path), sha256=source.sha256),
@@ -182,6 +187,19 @@ def verify_package(directory):
         actual = model.mean(torch.from_numpy(data["inputs"])).numpy()
         np.testing.assert_allclose(actual, data["outputs"], atol=1e-6, rtol=1e-6)
     return record
+
+
+def control_binding(directory):
+    """Resolve the packaged shared-C identity after export or relocation."""
+    directory = Path(directory).resolve()
+    record = verify_package(directory)
+    binding = record.get("C_host_build")
+    if record["execution"].get("C_core") != "rl_policy_core_v1" or not binding:
+        raise ValueError("Packaged policy-core C binding required")
+    library, source = ((directory / binding[k]).resolve() for k in ("path", "source"))
+    if not library.is_relative_to(directory) or not source.is_relative_to(directory):
+        raise ValueError("Shared C binding must stay inside its package")
+    return dict(binding, path=str(library), source=str(source))
 
 
 def job_dependencies(job):

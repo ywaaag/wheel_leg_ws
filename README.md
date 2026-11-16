@@ -278,6 +278,8 @@ PYTHONPATH=src python -m native_stand dashboard --root /path/to/local/runs \
 
 后续正式Motion蒸馏使用`motion_replication_probe_v2`与`motion_vm1_mujoco_v1`参考合同，`plant.motion_vm1_contract`必须显式提供path/SHA。它绑定vM1原MJCF/网格和历史运行时覆盖；Teacher与Student共用MuJoCo参考，1kHz双轮各>2N承重比例严格>60%，目标为复刻Teacher。完整物理定义与传动比见ARCHITECTURE；既有v1冻结证据保留。仅复制原XML柔顺值的`motion_vm1_contact_20261109_v1`是探索对照，不是完整vM1参考。
 
+`wheel-leg export`的policy-core C主机库与对应源码以包内相对身份保存；搬迁后由`artifacts.deployment.control_binding()`解析，不依赖临时构建目录。实际ARM时序/内存与电控验收仍须单独完成。
+
 离线监督使用`runtime.device=cpu`或`cuda:0`，同一`wheel-leg distill → owner/worker → supervision_flow → BC loop`。CUDA保存RNG/设备身份，完整resume沿用原设备；MuJoCo仍是CPU逐回合积分。资源授权与物理GPU UUID在每次正式提交前核验。
 
 当前多Teacher配方使用Teacher的`observation_domain`，版本`motion_observable_teacher_domain_v1`。C0安静、vM1核心、u2200新命令三个角色只读取当前31D并互斥；不会按回合未来用途给相同输入冲突标签。该字段进入监督身份与label_provenance，旧conditions接口保留给原冻结任务。
