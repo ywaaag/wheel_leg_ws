@@ -110,6 +110,16 @@ class Teacher:
     priority: int
     conditions: dict
     qualified: bool = True
+    observation_adapter: str | None = None
+    action_adapter: str | None = None
+
+    def required_conditions(self):
+        keys = set(self.conditions)
+        if self.action_adapter is not None:
+            from native_stand.learning.distillation.jump_labels import executor_condition_names
+
+            keys.update(executor_condition_names(self.action_adapter))
+        return keys
 
     def eligible(self, conditions, count, device):
         mask = torch.full((count,), self.qualified, dtype=torch.bool, device=device)
@@ -140,10 +150,27 @@ def label(teachers, observation, conditions, student_codec, *, student_kind=None
     owner = torch.full((len(observation),), -1, dtype=torch.long, device=observation.device)
     for index, teacher in sorted(enumerate(teachers), key=lambda row: -row[1].priority):
         mask = (owner < 0) & teacher.eligible(conditions, len(observation), observation.device)
+        if teacher.observation_adapter is not None:
+            from native_stand.learning.distillation.jump_labels import motion_teacher_eligible
+
+            mask &= motion_teacher_eligible(observation, teacher.observation_adapter)
         if bool(mask.any()):
+            teacher_observation = observation[mask]
+            if teacher.observation_adapter is not None:
+                from native_stand.learning.distillation.jump_labels import (
+                    motion_teacher_observation,
+                )
+
+                teacher_observation = motion_teacher_observation(
+                    teacher_observation, teacher.observation_adapter
+                )
             physical = teacher.codec.physical(
-                teacher.model.mean(observation[mask]), observation[mask]
+                teacher.model.mean(teacher_observation), teacher_observation
             )
+            if teacher.action_adapter is not None:
+                from native_stand.learning.distillation.jump_labels import match_jump_executor
+
+                physical = match_jump_executor(physical, conditions, mask, teacher.action_adapter)
             converted = student_codec.labels(physical, observation[mask])
             if student_kind == "tanh" and bool((converted.abs() > 1).any()):
                 raise ValueError("Teacher target outside Student Tanh image; no clipping")

@@ -22,6 +22,15 @@ def unit(value):
     return min(max(float(value), 0.0), 1.0)
 
 
+def policy_substep_reward(total, shaping, *, index, dt_s, discount_rate_s):
+    """Aggregate potential shaping at the same discount as the policy step.
+
+    Sum gamma_ms**j * (gamma_ms*Phi[j+1]-Phi[j]) telescopes to
+    gamma_policy*Phi[end]-Phi[start]. Other physical costs remain unchanged.
+    """
+    return total + (math.exp(-discount_rate_s * dt_s * index) - 1.0) * shaping
+
+
 @dataclass(frozen=True)
 class RewardConfig:
     crouch_leg_m: float = 0.145
@@ -62,6 +71,12 @@ class RewardConfig:
     w_settle_leg_speed: float = 0.1
     failure_cost: float = 20.0
     timeout_cost: float = 8.0
+    require_crouch: bool = True
+    goal_gate_landing: bool = False
+    no_takeoff_deadline_s: float = 0.0
+    w_velocity_potential: float = 0.0
+    potential_events: bool = False
+    discount_rate_s: float = 0.2
 
     def __post_init__(self):
         if any(not math.isfinite(x) or x < 0 for x in asdict(self).values()):
@@ -132,6 +147,7 @@ class Packet:
     external_takeoff_assist: bool = False
 
     def __post_init__(self):
+        finite = [self.COM_height_m, self.root_height_m]
         sizes = dict(
             COM_velocity_m_s=3,
             tilt_rad=2,
@@ -149,17 +165,22 @@ class Packet:
         )
         for name, size in sizes.items():
             value = tuple(getattr(self, name))
-            if len(value) != size or not np.isfinite(value).all():
+            if len(value) != size:
                 raise ValueError("finite explicitly aligned packet field " + name)
             if name != "contact":
                 value = tuple(float(x) for x in value)
             object.__setattr__(self, name, value)
+            finite.extend(value)
         if self.phase not in self.valid_phases:
             raise ValueError("未知C阶段")
         if self.owner not in range(5) or not 0 <= self.dt_s <= 0.02:
             raise ValueError("known owner and actual interval <=20ms required")
-        if not np.isfinite([self.COM_height_m, self.root_height_m]).all():
-            raise ValueError("finite measured heights required")
+        if not np.isfinite(finite).all():
+            if not np.isfinite([self.COM_height_m, self.root_height_m]).all():
+                raise ValueError("finite measured heights required")
+            for name in sizes:
+                if not np.isfinite(getattr(self, name)).all():
+                    raise ValueError("finite explicitly aligned packet field " + name)
         if any(type(x) not in (bool, np.bool_) for x in self.contact):
             raise ValueError("contact truth must be explicit booleans")
         object.__setattr__(self, "contact", tuple(bool(x) for x in self.contact))
@@ -249,8 +270,20 @@ class DenseReward:
     def active_eligible(self):
         return self.spec.kind == "ground_active_jump" and not self.assisted
 
+    def event_potential(self):
+        c = self.config
+        if not self.active_eligible:
+            return 0.0
+        return (
+            c.w_takeoff * self.has_taken_off
+            + c.w_air_rise * self.best["air_rise"]
+            + c.w_apex * self.apex_paid
+            + c.w_landing * self.landing_paid
+        )
+
     def step(self, p):
         c, s, previous = self.config, self.spec, self.previous
+        previous_events = self.event_potential() if c.potential_events else 0.0
         if p.dt_s == 0 and not p.fault:
             raise ValueError("zero interval is only legal for a pre-integration fault")
         if p.dt_s > 0 and not p.force_valid and not p.fault:
@@ -315,7 +348,10 @@ class DenseReward:
         else:
             self.off_s = 0.0
         eligible = (
-            self.active_eligible and self.had_support and self.crouch_legal and self.push_seen
+            self.active_eligible
+            and self.had_support
+            and (not c.require_crouch or self.crouch_legal)
+            and self.push_seen
         )
         if (
             eligible
@@ -389,7 +425,15 @@ class DenseReward:
             and abs(p.root_height_m - s.entry_height_m) < c.stable_height_error_m
         )
         self.stable_s = self.stable_s + p.dt_s if stable else 0.0
-        if self.stable_s >= c.stable_duration_s - 1e-10 and not self.landing_paid:
+        goal = (
+            not c.goal_gate_landing
+            or s.kind != "ground_active_jump"
+            or (
+                self.rise_m + 1e-9 >= s.target_rise_m
+                and self.peak_tire_clearance_m + 1e-9 >= s.target_clearance_m
+            )
+        )
+        if goal and self.stable_s >= c.stable_duration_s - 1e-10 and not self.landing_paid:
             self.landing_paid = True
             terms["landing_stable"] = c.w_landing
         if p.motion_confirmed and self.landing_paid and not self.handover_paid:
@@ -474,13 +518,20 @@ class DenseReward:
             and self.handover_paid
             and not self.failure_paid
         )
+        if c.goal_gate_landing and not full_success:
+            terms["handover"] = 0.0
         drop_success = (
             s.kind == "landing_only"
             and self.had_airborne_start
             and self.landing_paid
             and not self.failure_paid
         )
-        expired = self.elapsed_s >= s.horizon_s - 1e-10
+        expired = self.elapsed_s >= s.horizon_s - 1e-10 or (
+            c.no_takeoff_deadline_s > 0
+            and s.kind == "ground_active_jump"
+            and not self.has_taken_off
+            and self.elapsed_s >= c.no_takeoff_deadline_s - 1e-10
+        )
         if (
             expired
             and not (full_success or drop_success or self.failure_paid)
@@ -488,6 +539,29 @@ class DenseReward:
         ):
             terms["timeout"] = -c.timeout_cost
             self.timeout_paid = True
+        if c.w_velocity_potential:
+
+            def potential(packet):
+                if packet.owner != 2 or packet.phase != Phase.PUSH or not any(packet.contact):
+                    return 0.0
+                return c.w_velocity_potential * unit(
+                    packet.COM_velocity_m_s[2] / math.sqrt(2 * 9.81 * s.target_rise_m)
+                )
+
+            # gamma(dt)*Phi(next)-Phi(previous), with terminal Phi=0.
+            # Oscillating/holding a partial pose cannot accumulate progress pay.
+            next_value = 0.0 if (fault or expired or full_success or drop_success) else potential(p)
+            terms["velocity_potential"] = math.exp(
+                -c.discount_rate_s * p.dt_s
+            ) * next_value - potential(previous)
+        if c.potential_events and s.kind == "ground_active_jump":
+            for name in ("takeoff", "air_rise_progress", "apex", "landing_stable"):
+                terms[name] = 0.0
+            terminal = fault or expired or full_success or drop_success
+            next_events = 0.0 if terminal else self.event_potential()
+            terms["progress_potential"] = (
+                math.exp(-c.discount_rate_s * p.dt_s) * next_events - previous_events
+            )
         self.previous = p
         total = float(sum(terms.values()))
         if not math.isfinite(total):

@@ -24,6 +24,25 @@ class DirectActor(StudentNetwork):
         return self.mlp(x)
 
 
+def validate_saved_std(saved, log_std):
+    """The authoritative log_std is exact; exp differs across CPU/CUDA kernels."""
+    saved, log_std = saved.detach().cpu(), log_std.detach().cpu()
+    expected = log_std.exp()
+    if saved.shape != expected.shape or saved.dtype != expected.dtype:
+        raise ValueError("Jump raw std与Actor状态冲突")
+    spacing = torch.nextafter(expected, torch.full_like(expected, float("inf"))) - expected
+    if not bool(
+        (
+            torch.isfinite(saved)
+            & torch.isfinite(expected)
+            & (saved > 0)
+            & (expected > 0)
+            & ((saved - expected).abs() <= 2 * spacing)
+        ).all()
+    ):
+        raise ValueError("Jump raw std与Actor状态冲突")
+
+
 def validate_phases(observations, valid):
     actor = observations["student_actor"]
     bits = actor[..., 31:36]
@@ -57,14 +76,14 @@ class DirectPPO(NominalPPO):
         return result
 
 
-def build_policy(job, observations, *, device="cpu", source=None):
+def build_policy(job, observations, *, device="cpu", source=None, version=VERSION):
     handle = assemble_policy(
         job,
         observations,
         device=device,
         actor_class=DirectActor,
         ppo_class=DirectPPO,
-        version=VERSION,
+        version=version,
         action_semantics="raw_Normal_direct_linear_no_Tanh",
     )
     payload = getattr(source, "payload", source)
@@ -73,11 +92,24 @@ def build_policy(job, observations, *, device="cpu", source=None):
             raise ValueError("Jump首次PPO必须是匹配ABI4的Actor-only来源；BC状态不是PPO恢复点")
         handle["ppo"].actor.load_state_dict(payload["actor"], strict=True)
         handle["ppo"].actor.requires_grad_(True)
+        from native_stand.tasks.jump.outcome import enabled
+
+        if enabled(job):
+            from .actor_initialization import physical_std
+
+            with torch.no_grad():
+                handle["ppo"].actor.log_std.copy_(physical_std(job).to(device).log())
+    semantics = dict(
+        reward=job.reward.version,
+        course=job.assets.get("jump_course"),
+        objective=job.assets.get("jump_objective"),
+    )
     capture = handle["capture"]
     restore = handle["restore"]
 
     def capture_state(*args, **kwargs):
         value = capture(*args, **kwargs)
+        value["jump_learning_semantics"] = semantics
         value["critic_schema"] = job.assets["jump_critic_schema"]
         value["source_supervised_updates"] = int(
             (payload or {}).get(
@@ -88,13 +120,16 @@ def build_policy(job, observations, *, device="cpu", source=None):
         return value
 
     def restore_state(state):
+        if (semantics["objective"] is not None or "jump_learning_semantics" in state) and (
+            state.get("jump_learning_semantics") != semantics
+        ):
+            raise ValueError("Jump learning reward/course/controller semantics differ")
         if (
             state.get("critic_schema") != job.assets["jump_critic_schema"]
             or state.get("raw_action_semantics") != "raw_Normal_direct_linear_no_Tanh"
         ):
             raise ValueError("Jump完整恢复Critic/raw合同不同")
-        if not torch.equal(state["std"].cpu(), state["actor"]["log_std"].cpu().exp()):
-            raise ValueError("Jump raw std与Actor状态冲突")
+        validate_saved_std(state["std"], state["actor"]["log_std"])
         restore(state)
 
     handle.update(capture=capture_state, restore=restore_state)

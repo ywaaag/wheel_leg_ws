@@ -239,3 +239,12 @@ Motion少量高度配方`configs/jobs/motion_height_small_dose_prepared.json`复
 `artifacts/runtime_paths.py::resolve_runs_root`在写入边界解析显式runs-root或WHEEL_LEG_DATA_ROOT，不在模块导入时绑定源码目录。owner创建run并记录同一根目录的models.json，PPO与监督均复用；resume遵循原run记录。export默认使用数据根，不回写源码run。显式导出/诊断/导入目标由调用者选择已确认数据盘，测试可用/tmp。
 
 `integrations/cloud_bundle.py::adopt_local_dependencies`接收明确保留集合，逐文件核验来源/目标、拒绝冲突，复用已有内容；只对显式不可变文件硬链接，可变文件复制。ModelIndex保护先于派生映射发布，故障重试重新核SHA；该接口不扫描历史、不删除原件。回执不是第二套资产保护索引，删除仍以唯一ModelIndex及实际消费者为准。RuntimePaths读取派生映射，原配置/spec和模型不改写。
+
+## Jump PhysX物理边界
+
+`simulation/jump_isaac_scene.py`拥有分块运动学平地与物理读回不变量；复用现有scene、ground actor及ContactSensor，不修改源USD。`jump_isaac.py`在已有host读回上验证，无额外设备同步；物理合同参与恢复身份。跨物理版本仅经配置声明的full初始化迁移，新物理证据与旧物理窗口分开，Actor-only不冒充完整学习恢复。正式训练仍经CLI→owner/worker→公共driver/JumpAdapter。
+
+Jump共享C控制器的controller revision及实际源码SHA由`jump_control_source/manifest.json`绑定，CPU/Isaac/部署复用同一源码。新鲜支撑估计与滞回未确认的接触分类分别判定；真不可用估计仍故障，未确认分类仍阻止相关FSM事件。ABI4布局不变，物理/控制行为版本进入完整恢复身份，不能混用旧C库。
+
+
+Jump闭环补教复用`simulation.collection`与`experiments.supervision_flow`，`simulation.jump_teaching`仅声明监督专用命令/有效域和真实C补偿条件，不创建worker或训练循环。TeacherConfig显式observation_adapter/action_adapter将Jump37共享物理列映射Motion31、Motion无旧C补偿目标映射到Jump既有补偿执行器，转换进入标签来源与恢复identity。学生仍原raw37 direct部署输出，不新增运行时Teacher或补偿控制器。`assets.distillation_device`显式选择BC数学device，缺省CPU保持旧消费者；物理仍job.runtime.device。

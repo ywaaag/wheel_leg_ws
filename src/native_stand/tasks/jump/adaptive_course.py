@@ -46,6 +46,7 @@ class CourseConfig:
     landing_horizon_s: float = 2.5
     reservation_active_s: float = 1.5
     reservation_landing_s: float = 1.0
+    require_landing_rehearsal: bool = True
 
     def __post_init__(self):
         if any(not math.isfinite(v) for v in asdict(self).values()):
@@ -74,10 +75,26 @@ class CourseConfig:
 
 
 class AdaptiveCourse:
-    def __init__(self, *, seed, plant_id, DR_id, config=None):
+    def __init__(self, *, seed, plant_id, DR_id, config=None, levels=None):
         if not plant_id or not DR_id:
             raise ValueError("explicit plant/DR cohort identity required")
-        self.config = config or CourseConfig()
+        self.config = (
+            CourseConfig(**config) if isinstance(config, dict) else config or CourseConfig()
+        )
+        self.levels = (
+            tuple(Level(**x) if isinstance(x, dict) else x for x in levels)
+            if levels is not None
+            else LEVELS
+        )
+        if not self.levels or any(
+            not all(math.isfinite(v) for k, v in asdict(x).items() if k != "name")
+            or not 0 < x.active_time_share <= 1
+            or not x.rise_m > 0
+            or not x.clearance_m > 0.002
+            or not 0.126 < x.air_leg_m < 0.373
+            for x in self.levels
+        ):
+            raise ValueError("Finite legal curriculum levels required")
         self.plant_id, self.DR_id = str(plant_id), str(DR_id)
         self.rng = np.random.default_rng(seed)
         self.level = self.generation = self.serial = 0
@@ -89,7 +106,7 @@ class AdaptiveCourse:
         self.episodes = 0
 
     def next_episode(self):
-        level, c = LEVELS[self.level], self.config
+        level, c = self.levels[self.level], self.config
         effective = dict(self.control_s)
         for request in self.pending.values():
             if request["generation"] == self.generation:
@@ -165,15 +182,20 @@ class AdaptiveCourse:
                 )
             elif (
                 len(active) >= c.promote_windows
-                and landing
-                and self.level < len(LEVELS) - 1
+                and (landing or not c.require_landing_rehearsal)
+                and self.level < len(self.levels) - 1
                 and all(
                     w["success_fraction"] >= c.pass_fraction
                     and w["fault_fraction"] < c.maximum_fault_fraction
                     for w in active[-c.promote_windows :]
                 )
-                and landing[-1]["success_fraction"] >= c.landing_pass_fraction
-                and landing[-1]["fault_fraction"] < c.maximum_fault_fraction
+                and (
+                    not c.require_landing_rehearsal
+                    or (
+                        landing[-1]["success_fraction"] >= c.landing_pass_fraction
+                        and landing[-1]["fault_fraction"] < c.maximum_fault_fraction
+                    )
+                )
             ):
                 transition = self._move(self.level + 1, "active_complete_and_landing_retained")
         return dict(stale_generation=False, transition=transition)
@@ -205,7 +227,7 @@ class AdaptiveCourse:
             observed_active_control_share=self.control_s["ground_active_jump"] / total
             if total
             else None,
-            target_active_control_share=LEVELS[self.level].active_time_share,
+            target_active_control_share=self.levels[self.level].active_time_share,
             pending_episodes=len(self.pending),
             recorded_episodes=self.episodes,
         )
@@ -217,7 +239,7 @@ class AdaptiveCourse:
                 config=asdict(self.config),
                 plant_id=self.plant_id,
                 DR_id=self.DR_id,
-                levels=[asdict(x) for x in LEVELS],
+                levels=[asdict(x) for x in self.levels],
                 rng=self.rng.bit_generator.state,
                 level=self.level,
                 generation=self.generation,
@@ -234,7 +256,7 @@ class AdaptiveCourse:
     @classmethod
     def restore(cls, value):
         data = copy.deepcopy(value)
-        if data.pop("version") != VERSION or data.pop("levels") != [asdict(x) for x in LEVELS]:
+        if data.pop("version") != VERSION:
             raise ValueError("curriculum version/level identity mismatch")
         rng_state = data.pop("rng")
         pending = data.pop("pending")
@@ -243,6 +265,7 @@ class AdaptiveCourse:
             plant_id=data.pop("plant_id"),
             DR_id=data.pop("DR_id"),
             config=CourseConfig(**data.pop("config")),
+            levels=data.pop("levels"),
         )
         restored.__dict__.update(data)
         restored.pending = {x["request_id"]: x for x in pending}

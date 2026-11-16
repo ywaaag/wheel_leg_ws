@@ -162,6 +162,31 @@ Motion统计现区分当前完整review窗口的Student有效样本、全部tran
 
 训练候选报告分别记录`coverage_insufficient`、`quality_insufficient`和`task_insufficient`及实际值/阈值；资格和排名规则不变，UNKNOWN不制造失败或best。最终领域/公共边界联合224 passed（21.16s）、架构208文件/0例外、CI范围Ruff0.8.4 check和207文件format通过；完整命令及改动表在迁移报告本节。本分支物理/GPU/远端/真实训练均0，未热改r15。
 
+Jump远端共享迁移（2026-11-15）：冻结实现5d1b1ec，2048×64=131072样本/更新，每100保存、墙钟null。远端4090/IsaacSim6.2两环境3200tick物理/reset门及完整学习状态恢复通过；有界2次正常STOPPED_BOUNDED后，同run已resume，worker2363实际完成u3/u4，耗时35.37/27.45秒，Actor/Critic各256优化步、无重复warmup。核验快照RUNNING/failure=null，本机此前2427＋远端4=累计2431/10000，余7569，不退款、不刷新；实时计数以原始state/budget为准。来源u196完整学习状态保留，显式前2048课程行映射、物理fresh-reset/new cohort；MuJoCo/Warp CSR逆模型兼容及独立torch动态库入口通过。Motion812同时RUNNING/failure=null，未修改。暂无真实takeoff/跳跃成功证据。portable1976通过/31历史skip，Ruff与架构220/0通过。收据与完整交付见artifacts/jump_remote_shared_20261115/DELIVERY.md及long_training_verified.json。
+
+Jump结果课程（2026-11-15）：独立worktree `wheel_leg_jump_outcome_ws` / `jump/outcome-curriculum`。实现66edb96、配方2e847de。100%主动跳、2/5/10cm结果课程、300ms保持请求、安全接受直接PUSH、不强制下蹲；完整落稳完成42分，过程势函数终态抵消、1ms→10ms折扣对齐。BC60 Actor-only均值继承，fresh Critic/双Adam；4096×64/save100/原Cylinder＋Plane及40/4.8Nm保持。CPU143/portable1972（31历史skip）、Ruff与架构220/0、真实CUDA、32env×4000tick门禁/reset/读回通过。新run `2026_11_15__jump_outcome7769_v202` 有界8次正常STOPPED_BOUNDED/failure=null；u8完整学习状态/双Adam/RNG及CLI导出C profile核验通过。8次均值51.365秒，共8683结束回合、7797接受、真实takeoff0/成功0，不能称能力accepted。原累计2231＋8=2239，余7761；现同run接续长训，运行进度以state/budget为准。精确收据 `artifacts/jump_outcome_v199/DELIVERY.md`。Motion专家切换与带速度跳尚未实现，保持独立Jump全阶段。
+
+Jump闭环补教已完成：统一owner的v4正常COMPLETED/failure=null，60BC轮/3060优化步，复用首轮768000物理步并新增1536000。BC60学生64env独立12s无回合结束/非轮接触，root约.354m、tilt最大.024rad、原1mm/2mm门通过；前向+.2m/s跟踪连续11.61s，零命令漂移/反向和正yaw跟踪仍不足，不宣称基础运动或跳跃accepted。用户明确漂移不作为开训门槛，要求优先Jump长训；从BC60 Actor-only新建PPO，保留已耗1577/剩8423，不混用BC与PPO Adam。CLI export已复用监督InferenceSpec修复，真实包及PPO factory CPU装配逐位一致、全新双Adam；portable1964/31历史skip、架构219/0、CI Ruff通过。精确运行状态以run原始state/预算为准。
+
+当前覆盖（原Cylinder＋原生Plane，2026-11-14）：用户明确倾向学习Motion静态Plane。独立jump/native-plane开发，无热改。CPU/GPU400tick冲量/reset、两次4096x6400tick原1mm/2mm门通过。新增终态Critic CPU snapshot引用释放，真实CPU数值/weakref与同窗口RSS从43GB增长改为约10.6GB。旧v15遭系统OOM，公共owner已结算FAILED75，最后有效u3；累计543/余9457，未保存72次不退款。正式配方切native_plane_v1，不再使用凸包/薄盒；正在完成最终回归与正常PPO保存恢复，尚未重新长训。以下旧状态均按原冻结run读取。
+
+严格凸包门v6后续覆盖：独立worktree开发，未热改v14。min(圆柱,凸包)净空、同1mm门，CPU43/portable1954通过、Ruff/架构通过；GPU4096x6400tick自然PASS、Critic54/inverse48及fresh reset通过。v14有界16次STOPPED_BOUNDED/failure=null，u16完整学习状态/双Adam/RNG/预测精确复验通过；累计468、剩9532。下一版本从u16接续，旧run余款退役，不叠加额度。Motion/Recovery没有相同1ms/1mm门，未停训不等于从未发生。
+
+## Jump 最终轮凸包验收（2026-11-14）
+
+显式wheel_convex30_v1已完成本机CPU/GPU cooked读回（60顶点/32面，support差0～0.331mm）；4096环境6400tick零PPO随机闭环通过，6634正常结束行，Critic54次逐位、inverse48次对照、fresh reset通过。两环境CPU/GPU各400tick冲量/reset通过，未reset行全部测量差0。保留1mm穿入/2mm闭链门禁，不改奖励/限矩/时序；原Cylinder动态倾斜接触内部根因未确认，未声称几何完全等价。实际入口仍CLI→owner/worker→公共driver。
+
+相关CPU42通过，portable1953通过/31历史skip；Ruff0.8.4 check/format与当前main架构检查218/0通过。预算已耗452/10000、剩9548，新物理cohort从v13有效u1完整学习状态继承，2次未保存更新不退款。正式配方含显式轮碰撞；下一步统一CLI有界16次正常PPO与完整恢复，再同run续训。站稳/跳跃尚无能力认证。收据artifacts/jump_diagnosis_20261113/convex30_acceptance_v150.json；各run实际状态优先于本导航。
+
+
+## Jump 独立本机修复（2026-11-13接替）
+
+分支`jump/isaac-training`保持独立。已修复单个128m薄盒造成的轮接触丢失、真实u407因exp舍入被误拒完整恢复、C把去抖未确认误作支撑不可用导致25ms故障。执行合同`jump_PhysX_tiled_flat_ground_support_valid_v3`，源USD、ABI4输入/输出、40/4.8Nm和1/5/10ms不变。新增8次有界PPO及同run完整resume已终态结算：累计415/10000、剩9585；原失败证据与账本保留。最终完整模型SHA `2ea1f5c9f42d2e7519e6daa41fc7850c8b1188679145fc536ec71c3c1c276f42`。相关CPU155通过、portable1915通过/31历史skip、Ruff0.8.4与当前main架构检查通过。本机CPU/GPU接触/冲量/reset及远端实际6.2 CPU PhysX通过；远端GPU仍0，修复后GPU验收未完成，长训未放行。继承Actor仍约0.25m/SETTLE，站稳与跳跃未认证，三类池均无accepted。远端新源码、完整模型、33依赖SHA、三段预算和剩9585配方已准备；当前结果与剩余门槛见`docs/JUMP_DIAGNOSIS_20261113.md`末节，原始收据`artifacts/jump_diagnosis_20261113/`。以下公共历史记录不覆盖此独立分支新状态。
+
+本轮续做：已补齐UnifiedReward v2对意外下落SETTLE的站高约束，以及Isaac请求在1.5s后等待首次BALANCE的单次调度。成功门控/安全边界不变；Jump相关CPU83项通过，新版正常PPO按用户性能要求改为14+2完整恢复，已正常结算16次；累计431/10000、剩9569。Critic批量读回/编码和显式环境扩容已完成CPU92项、portable1925项及真实GPU两环境I/O逐位对照，正在准备32/128/256环境各2次的性能实测。旧远端v44准备包为旧语义，暂不可用于新版开训。
+
+当前覆盖：用户指定4096×64/minibatches64。原cd24127正常完成1次并精确恢复核验，累计436、剩9564；checkpoint SHA197c84743987de0d497576d3482b2e2e93928aaec297c25de7b1a535318a5b49。等价FK/packet/schema性能版本97a3765已在原worker退出后合入，最终portable1948通过；GPU短I/O v69自然PASS，原v66手动中断诊断证据保留。新版8次有界PPO待启动，预算不能叠加旧未用局部额度。远端GPU0且SSH后转拒绝连接，等待用户通知，不自动开平台或长训。
+
 ## 主仓基线与依赖归档（2026-11-12，当前收尾）
 
 公共性能集成完成（2026-11-13）：独立worktree `/home/kellen/wheel_leg_public_ws` / `integration/performance-observability`实现，合入main前先冻结`b60f0d7`做干净clone验收。公共driver/GenericPPO/ControlledPPO/环境共享Measurement，默认无CUDA同步；嵌套子项是CPU墙钟，父项inclusive不能重复相加。启动、rollout/GAE/学习、capture/写盘SHA、课程、候选/引用、旧环境close/构造/reset-readback/编译、retention/metrics/整轮分别记录；计数只读主机已知元数据。MetricsWriter不再丢性能摘要。Recovery批量结束读回/合法初态缓存/partial profile与V4 reset行选择、Jump单job C构建/输入复用/有失效条件的缓存已集成；Motion窗口/累计计数、候选多原因与重建输入归因由运动2交付，未改资格、排名或重建决策。
@@ -353,3 +378,27 @@ r10/r11的实际故障已定位为rough穿透检测位置错误：lower-leg的�
 - 当前活动 run：[run.json](runs/2026_11_5-21_21__motion442_scale_corrected_resume9546/run.json)、[state.json](runs/2026_11_5-21_21__motion442_scale_corrected_resume9546/state.json)、[budget](runs/2026_11_5-21_21__motion442_scale_corrected_resume9546/budget.json)
 - 前段 run：[spec](configs/experiments/2026_11_5-16_51__motion_smoke12_supported015_dqgain_formal9988/spec.json)、`formal/supervisor_terminal.json`、`formal/terminal_report.json`、`formal/completion_error.json`
 - 重构范围与验证：[迁移报告](docs/MIGRATION_20261105.md)
+
+## Jump大并行增量（2026-11-13）
+
+用户明确选择4096环境，不执行256测量。32/128性能各2次已终态；累计435/10000、剩9565。4096×64/minibatches64，地面256m/8m tiles、实际出生边界33.5m，零PPO120tick/partial reset/6次Critic逐位对照PASS。正式4096首更冻结cd24127在原worktree运行，尚未完成优化；另在jump/isaac-throughput worktree开发等价FK性能补丁，未热改活动源码。远端连接后转拒绝连接，无卡；等待用户GPU通知，不启动平台或watcher。课程/候选均无能力accepted，原ready_support_v44已过时，不用于新版开训。
+
+
+## Jump本机长训授权与接触门禁（2026-11-13当前）
+
+用户明确授权本机GPU、原任务总10000次、墙钟不限。实际fast4096 v8在3次已计费后因`wheel penetration 0.00101678818m`退出FAILED；最后有效完整保存u2，模型回退1次不退款。累计439/10000，剩9561；原分配未用5次退役，旧run不resume。结算`artifacts/jump_diagnosis_20261113/task_settlement_v82.json`。本机长训pending配置已dry-run，接触失败根因尚待确认，因此尚未提交。新增失败原始packet持久化，1mm阈值不变；portable1948通过/31skip，Ruff和架构212/0通过。u2完整GPU学习状态/双Adam/std/RNG/预测精确核验PASS。32环境自由下落/随机有界力矩、128环境6s随机Actor及独立轮倾斜/冲击证据在v76-v83；4096接触探针v84正在执行，均零PPO且不作能力评估。Motion与本会话已协商各用一台：Motion远端4090，Jump本机4080；远端当前仅约12GiB余量，Jump不迁移。新SSH30548，不包含认证信息。
+
+
+Jump本机v88启动准备：v84实际4096环境零PPO2000tick物理/C/随机Actor接线自然PASS，未处理奖励/课程，不是能力评估；先前罕见1.017mm超限根因仍未确认。用户已明确授权在本机执行，决定保留原1mm fail-fast启动剩9561、不设墙钟。新run完整初始化u2 SHA7c2394d6，439已耗（含未保存1次）不退款；checkpoint每10次、最近2份+里程碑；故障packet进入execution/physical_failure.json。长训配置与授权/结算位于artifacts的v82/v88；启动收据后续以真实run为准，不能因启动声明全部前置或能力accepted。
+
+
+Jump保存频率调整：用户要求每100次保存。v9在u3正常边界保存STOPPED_BOUNDED/failure=null；前三次711.248/706.914/712.979秒。原run未用9558额度退役，完整u3 SHA6dc5b94f接续新run`2026_11_13__jump_4096_local_save100_remaining9558_v10`，累计442/10000、剩9558，墙钟null，4096×64；每100例行保存，首次/终态保存保留。统一CLI启动worker3511614，握手RUNNING、首更尚未确认。收据`artifacts/jump_diagnosis_20261113/local_save100_receipt_v89.json`；无源码热改，无预算刷新。
+
+
+Jump GPU采样提速：实现25e9968，Critic5080列V4/response历史留设备，5591列保持；逆模型仅消费阶段+单实例scratch，C/FSM和dense reward仍CPU。CPU46/portable1948、GPU两环境1800tick及4096×12步逐位/reset通过。同GPU短窗口平均10.5139→6.5048秒/策略步，非整轮PPO结果。旧v10正常u1退出，累计443/10000、剩9557，旧未用额度退役。正式新run`2026_11_13__jump_IsaacGPU_device4096_save100_v11`，唯一worker3525582，IsaacLab/PhysX GPU，4096×64、save100、墙钟null，启动握手RUNNING，首更尚未确认。原1mm物理门禁保留；之前罕见超限根因未确认。详细精确文件/收据见artifacts/jump_diagnosis_20261113/DELIVERY_GPU_ROLLOUT_v98.md。
+
+
+Jump v11后续真实整轮：3次449.77/451.61/461.20秒，随后物理tick2515因轮穿入1.04868mm FAILED；故障行636接触164.90N、闭链最大0.02418mm，根因未确认，保留原1mm保护。用户显式要求重启；完整u1 SHA c2f174e8接续新run`2026_11_13__jump_IsaacGPU_restart9554_v12`，未保存2次不退款，累计446/10000、剩9554，save100、墙钟null、4096×64。启动收据artifacts/jump_diagnosis_20261113/local_restart_receipt_v99.json；首更尚未确认。CPU奖励/编码进一步GPU化仍未实现，不将本次重启称新一轮提速完成。
+
+
+Jump全面GPU改造db0fcf9已实现并实测：C源码CUDA FSM/PD/编码、Warp仅inverse、device reward/terminal/Critic，正式Isaac物理不变。相关CPU41/portable1949、4096x640tick对照/reset、两行3200tick/inverse对照通过。真实PPO u2=24.545s、u3=37.442s，随后tick2239原1mm门禁因1.102507mm退出FAILED；轮接触216.817/103.189N，闭链0.0161mm，根因未确认。不是当前RUNNING。u1完整学习状态GPUroundtrip PASS；模型落后2已耗不退款。累计452/10000，余9548未分配，save100/墙钟null偏好保持。拒绝姿态fresh replay200tick仅证短暂恢复，不恢复hidden solver。指标旧CPU_batch_uploads误名已纠正为device_packs，构建补生成c/cu SHA。详见artifacts/jump_diagnosis_20261113/DELIVERY_FULLGPU_v125.md和task_settlement_v125.json。

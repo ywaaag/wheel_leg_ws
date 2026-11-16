@@ -10,31 +10,63 @@ import numpy as np
 from native_stand.tasks.jump.geometry import CHANNELS, LEGS
 
 
-def estimate(plant):
+def full_mass(model, data, output):
+    """MuJoCo3.12 takes MjData; older wheels take its sparse qM buffer."""
+    if hasattr(data, "qM"):
+        mujoco.mj_fullM(model, output, data.qM)
+    else:
+        mujoco.mj_fullM(model, data, output)
+
+
+class SupportWorkspace:
+    """Topology indices and overwritten scratch arrays for one inverse instance."""
+
+    def __init__(self, plant):
+        m = plant.model
+        self.active = plant.vids[list(LEGS)]
+        self.passive = np.array(
+            [
+                m.jnt_dofadr[j]
+                for n, j in plant.refs.items()
+                if n not in CHANNELS and "guide" not in n
+            ]
+        )
+        self.sites = [
+            tuple(mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_SITE, f"loop{k}{s}") for s in "ab")
+            for k in range(4)
+        ]
+        self.geoms = [
+            next(
+                int(g)
+                for g in np.flatnonzero(m.geom_bodyid == body)
+                if m.geom_type[g] == mujoco.mjtGeom.mjGEOM_CYLINDER
+            )
+            for body in plant.wheel_bodies
+        ]
+        self.a = np.zeros((3, m.nv))
+        self.b = self.a.copy()
+        self.closure = np.zeros((12, m.nv))
+        self.tangent = np.zeros((m.nv, 4))
+        self.tangent[self.active, np.arange(4)] = 1.0
+        self.mass = np.zeros((m.nv, m.nv))
+        self.external = np.zeros(m.nv)
+
+
+def estimate(plant, *, workspace=None):
     m, d = plant.model, plant.data
-    active = plant.vids[list(LEGS)]
-    passive = np.array(
-        [m.jnt_dofadr[j] for n, j in plant.refs.items() if n not in CHANNELS and "guide" not in n]
-    )
-    rows = []
+    w = workspace or SupportWorkspace(plant)
+    active, passive = w.active, w.passive
+    a, b = w.a, w.b
     for k in range(4):
-        a = np.zeros((3, m.nv))
-        b = a.copy()
-        mujoco.mj_jacSite(
-            m, d, a, None, mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_SITE, f"loop{k}a")
-        )
-        mujoco.mj_jacSite(
-            m, d, b, None, mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_SITE, f"loop{k}b")
-        )
-        rows.append(a - b)
-    closure = np.concatenate(rows)
-    tangent = np.zeros((m.nv, 4))
-    tangent[active, np.arange(4)] = 1.0
+        mujoco.mj_jacSite(m, d, a, None, w.sites[k][0])
+        mujoco.mj_jacSite(m, d, b, None, w.sites[k][1])
+        w.closure[3 * k : 3 * k + 3] = a - b
+    closure, tangent = w.closure, w.tangent
     tangent[passive] = -np.linalg.pinv(closure[:, passive], rcond=1e-9) @ closure[:, active]
-    mass = np.zeros((m.nv, m.nv))
-    mujoco.mj_fullM(m, mass, d.qM)
+    mass = w.mass
+    full_mass(m, d, mass)
     load = mass @ d.qacc + d.qfrc_bias - d.qfrc_passive
-    external = np.zeros(m.nv)
+    external = w.external
     external[plant.vids] = plant.actual_NET
     internal = tangent.T @ (load - external)
     driver = d.qfrc_actuator[active].copy()
@@ -44,14 +76,10 @@ def estimate(plant):
     forward /= np.linalg.norm(forward)
     for side, body in enumerate(plant.wheel_bodies):
         # Geometric wheel bottom point, independent of actual ground contact.
-        geom = next(
-            int(g)
-            for g in np.flatnonzero(m.geom_bodyid == body)
-            if m.geom_type[g] == mujoco.mjtGeom.mjGEOM_CYLINDER
-        )
+        geom = w.geoms[side]
         point = d.geom_xpos[geom].copy()
         point[2] -= m.geom_size[geom, 0]
-        jac = np.zeros((3, m.nv))
+        jac = w.a
         mujoco.mj_jac(m, d, jac, None, point, body)
         foot = np.stack((jac[2], forward @ jac)) @ tangent
         jacobians.append(foot[:, 2 * side : 2 * side + 2].reshape(-1))

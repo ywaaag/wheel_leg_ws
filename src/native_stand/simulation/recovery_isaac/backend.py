@@ -245,7 +245,9 @@ def preflight(job, *, for_learning=False, resources=False):
     return result
 
 
-def require_idle_gpu(expected_uuid, policy=None):
+def require_idle_gpu(
+    expected_uuid, policy=None, *, allow_bounded_diagnostic_owner=False, shared_training_task=None
+):
     policy = policy or {"mode": "exclusive"}
     shared = policy.get("mode") == "shared_authorized"
     if policy.get("mode") not in ("exclusive", "shared_authorized"):
@@ -257,6 +259,17 @@ def require_idle_gpu(expected_uuid, policy=None):
         auth = read_json(authorization["path"])
         if auth.get("shared_GPU_allowed") is not True:
             raise ValueError("Shared GPU not authorized")
+        if shared_training_task is not None and (
+            shared_training_task != "jump"
+            or policy.get("shared_training_task") != shared_training_task
+            or auth.get("shared_training_task") != shared_training_task
+            or policy.get("bounded_physical_io_only") is True
+        ):
+            raise ValueError("Explicit Jump shared-training authorization required")
+        if policy.get("bounded_physical_io_only") is True and (
+            not allow_bounded_diagnostic_owner or auth.get("bounded_physical_io_only") is not True
+        ):
+            raise ValueError("Explicit bounded physical I/O authorization required")
         import shutil
 
         if shutil.disk_usage(policy["storage_path"]).free < policy["minimum_disk_free_bytes"]:
@@ -277,6 +290,7 @@ def require_idle_gpu(expected_uuid, policy=None):
             continue
         if "native_stand.experiments.worker" in command:
             recovery = False
+            owner_tasks = set()
             for word in command.split():
                 candidate = Path(word)
                 if candidate.is_dir():
@@ -285,6 +299,8 @@ def require_idle_gpu(expected_uuid, policy=None):
                     try:
                         data = read_json(candidate)
                         data = data.get("config", data)
+                        if data.get("task"):
+                            owner_tasks.add(data["task"])
                         recovery |= (
                             data.get("task") == "recovery"
                             or data.get("backend") == "isaac_recovery"
@@ -292,7 +308,18 @@ def require_idle_gpu(expected_uuid, policy=None):
                         )
                     except (ValueError, OSError):
                         pass
-            if not shared or recovery:
+            bounded_diagnostic = (
+                shared
+                and allow_bounded_diagnostic_owner
+                and policy.get("bounded_physical_io_only") is True
+            )
+            named_sharing = shared and shared_training_task == "jump"
+            conflict = (
+                not owner_tasks or "jump" in owner_tasks
+                if named_sharing
+                else not shared or recovery
+            )
+            if conflict and not bounded_diagnostic:
                 raise RuntimeError("Existing conflicting training owner, PID=" + pid)
         if shared and "native_stand.experiments.recovery_isaac_probe" in command:
             raise RuntimeError("Duplicate Recovery probe owner, PID=" + pid)

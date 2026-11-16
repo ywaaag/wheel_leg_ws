@@ -67,6 +67,61 @@ class ClosedChain:
         self.passive = [n for n in self.leg_names if n not in CHANNELS]
         self.low = np.array([self.by_name[n]["limits_rad"][0] for n in self.leg_names])
         self.high = np.array([self.by_name[n]["limits_rad"][1] for n in self.leg_names])
+        self._leg_chain = None
+
+    def leg_lengths(self, q):
+        """Same wheel-centre FK as measure, without unrelated shape/COM work.
+
+        Preserve the original matrix multiplication order. A single SciPy
+        rotation conversion handles the independent ancestor joints in batch.
+        The full authored FK/IK/shape routines remain the reference consumers.
+        """
+        if self._leg_chain is None:
+            by_child = {j["child"]: j for j in self.joints}
+            needed = set()
+            for side in SIDES:
+                child, visited = side + "_wheel", set()
+                while child != "robot":
+                    if child in visited or child not in by_child:
+                        raise ValueError("Disconnected authored joint tree")
+                    visited.add(child)
+                    joint = by_child[child]
+                    needed.add(joint["name"])
+                    child = joint["parent"]
+            pending = [j for j in self.joints if j["name"] in needed]
+            known, chain = {"robot"}, []
+            while pending:
+                later = []
+                for joint in pending:
+                    if joint["parent"] not in known:
+                        later.append(joint)
+                        continue
+                    chain.append(
+                        (joint, np.asarray(joint["frame0"]), np.asarray(joint["inverse_frame1"]))
+                    )
+                    known.add(joint["child"])
+                if len(later) == len(pending):
+                    raise ValueError("Disconnected authored joint tree")
+                pending = later
+            self._leg_chain = chain
+            self._leg_hips = [
+                points(np.eye(4), self.by_name[side + "_hip_pitch"]["frame0_local_position"])
+                for side in SIDES
+            ]
+        vectors = np.zeros((len(self._leg_chain), 3))
+        for i, (joint, _, _) in enumerate(self._leg_chain):
+            vectors[i, joint["axis"]] = q.get(joint["name"], 0.0)
+        rotations = Rotation.from_rotvec(vectors).as_matrix()
+        poses = {"robot": np.eye(4)}
+        for (joint, frame0, frame1), rotation in zip(self._leg_chain, rotations, strict=True):
+            poses[joint["child"]] = (
+                poses[joint["parent"]] @ frame0 @ transform([0, 0, 0], rotation) @ frame1
+            )
+        lengths = []
+        for side, hip in zip(SIDES, self._leg_hips, strict=True):
+            vector = poses[side + "_wheel"][:3, 3] - hip
+            lengths.append(np.hypot(vector[1], vector[2]))
+        return np.asarray(lengths)
 
     def forward(self, q):
         poses = {"robot": np.eye(4)}

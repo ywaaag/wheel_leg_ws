@@ -13,6 +13,8 @@ class TeacherConfig:
     priority: int = 0
     conditions: dict | None = None
     qualified: bool = True
+    observation_adapter: str | None = None
+    action_adapter: str | None = None
 
 
 @dataclass(frozen=True)
@@ -64,6 +66,10 @@ class SupervisionConfig:
         ):
             raise ValueError("Recovery deterministic Actor already emits physical labels")
         for teacher in self.teachers:
+            if teacher.observation_adapter not in (None, "jump37_to_motion31_v1"):
+                raise ValueError("Unsupported Teacher observation adapter")
+            if teacher.action_adapter not in (None, "motion_no_C_spring_to_jump_C_spring_v1"):
+                raise ValueError("Unsupported Teacher executor adapter")
             if (
                 teacher.inference.get("kind") == "recovery_physical"
                 and teacher.labels.get("kind") != "physical"

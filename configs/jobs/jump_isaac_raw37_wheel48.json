@@ -1,0 +1,2372 @@
+{
+  "schema_version": 1,
+  "preset": "jump_isaac_v1",
+  "name": "jump_isaac_raw37_wheel48",
+  "model": {
+    "interface": "jump_isaac_ABI4_raw37_wheel48_v1",
+    "actor_hidden_dims": [
+      2048,
+      1024,
+      512
+    ],
+    "critic_hidden_dims": [
+      512,
+      512,
+      256
+    ],
+    "actor_input": 37,
+    "critic_input": 5591,
+    "critic_privileged_version": "jump_isaac_full_execution_critic_v1",
+    "action_version": "jump_isaac_ABI4_raw37_wheel48_v1"
+  },
+  "observation": {
+    "frame_dim": 37,
+    "actor_dim": 37,
+    "critic_dim": 5591,
+    "leg_input_scale_rad": 1.5,
+    "wheel_input_scale_rad_s": 100.0
+  },
+  "action": {
+    "dim": 6,
+    "order": [
+      "left_hip_pitch",
+      "left_active_link_pitch",
+      "left_wheel_spin",
+      "right_hip_pitch",
+      "right_active_link_pitch",
+      "right_wheel_spin"
+    ],
+    "leg_scale_rad": 0.5,
+    "wheel_scale_rad_s": 10.0,
+    "version": "jump_isaac_ABI4_raw37_wheel48_v1"
+  },
+  "control": {
+    "physics_dt_s": 0.001,
+    "pd_dt_s": 0.005,
+    "policy_dt_s": 0.01,
+    "leg_kp": 40.0,
+    "leg_kd": 2.0,
+    "wheel_kv": 0.2,
+    "effort_limits_nm": [
+      40,
+      40,
+      4.8,
+      40,
+      40,
+      4.8
+    ],
+    "height_command_m": 0.34
+  },
+  "reward": {
+    "version": "jump_unified_dense_reward_wheel48_v2",
+    "dt": 0.01,
+    "weights": [
+      1.0,
+      1.0
+    ]
+  },
+  "curriculum": {
+    "version": "jump_landing_and_active_time_course_v1",
+    "stage": 0,
+    "stages": []
+  },
+  "evaluation": {
+    "protocol_version": "jump_training_statistics_only_no_independent_evaluation_v1",
+    "envs": 1,
+    "scored_envs": 1,
+    "seconds": 1.0,
+    "seed": 2026110501,
+    "conditions": []
+  },
+  "runtime": {
+    "envs": 4096,
+    "steps_per_env": 64,
+    "seed": 2026110501,
+    "device": "cuda:0",
+    "headless": true
+  },
+  "ppo": {
+    "learning_rate": 1e-05,
+    "critic_learning_rate": 9e-05,
+    "epochs": 4,
+    "minibatches": 64,
+    "critic_warmup_updates": 5,
+    "entropy_coef": 0.0,
+    "gamma": 0.9980019986673331,
+    "value_coef": 1.0,
+    "boundary_coefficient": 0.0,
+    "dq_gain_coefficient": 0.0
+  },
+  "initialization": {
+    "mode": "actor_only",
+    "checkpoint": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__jump_motion_transfer48_refined/jump_distilled_actor.pt",
+    "sha256": "2a4d94517943559eaed51841e27be51e4672162a862ff07cd06979efc2e685fb"
+  },
+  "assets": {
+    "jump_contract_data": {
+      "version": "jump_unified_raw37_wheel48_v1",
+      "input_id": 1245118722,
+      "output_id": 1245119489,
+      "config_id": 1241842689,
+      "actor_dim": 37,
+      "fields": [
+        {
+          "start": 0,
+          "count": 3,
+          "name": "body_gyro",
+          "multiplier": 0.25,
+          "source": "IMU gyro, model mapping"
+        },
+        {
+          "start": 3,
+          "count": 3,
+          "name": "body_gravity",
+          "multiplier": 1.0,
+          "source": "gyro propagated EKF; acceleration magnitude gate v1"
+        },
+        {
+          "start": 6,
+          "count": 4,
+          "name": "leg_q",
+          "multiplier": 0.6666666666666666,
+          "source": "four actual encoder reports minus fixed zero input reference"
+        },
+        {
+          "start": 10,
+          "count": 6,
+          "name": "joint_dq",
+          "multiplier": 0.05,
+          "source": "six actual driver velocity reports"
+        },
+        {
+          "start": 16,
+          "count": 4,
+          "name": "adopted_leg_target",
+          "multiplier": 0.6666666666666666,
+          "source": "C local adoption cache minus fixed zero input reference"
+        },
+        {
+          "start": 20,
+          "count": 2,
+          "name": "adopted_wheel_target",
+          "multiplier": 0.01,
+          "source": "same adopted cache"
+        },
+        {
+          "start": 22,
+          "count": 1,
+          "name": "vx_command",
+          "multiplier": 0.25,
+          "source": "requested vx, never measured velocity"
+        },
+        {
+          "start": 23,
+          "count": 1,
+          "name": "yaw_command",
+          "multiplier": 0.25,
+          "source": "requested yaw"
+        },
+        {
+          "start": 24,
+          "count": 1,
+          "name": "handover_height_command",
+          "multiplier": 2.0,
+          "source": "root height command .34m, not leg length"
+        },
+        {
+          "start": 25,
+          "count": 6,
+          "name": "Jump_BIG",
+          "multiplier": 1.0,
+          "source": "constant [0,0,1,0,0,1]"
+        },
+        {
+          "start": 31,
+          "count": 5,
+          "name": "phase_onehot",
+          "multiplier": 1.0,
+          "source": "C event FSM; BALANCE is the explicit all-zero code"
+        },
+        {
+          "start": 36,
+          "count": 1,
+          "name": "phase_seconds",
+          "multiplier": 1.0,
+          "source": "C phase age seconds; BALANCE has no elapsed-time dependence and encodes0"
+        }
+      ],
+      "stale_ms": 24,
+      "phase_time_scale_s": 1.0,
+      "input_reference_rad": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "actor_network": [
+        37,
+        2048,
+        1024,
+        512,
+        6
+      ],
+      "activation": "ELU",
+      "output": {
+        "kind": "direct_raw_position_legs_velocity_wheels",
+        "Tanh_count": 0,
+        "nominal_trajectory": false,
+        "phase_dependent_scale": false,
+        "center": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gain": [
+          0.5,
+          0.5,
+          10.0,
+          0.5,
+          0.5,
+          10.0
+        ],
+        "target_guard": [
+          1.5,
+          1.5,
+          80.0,
+          1.5,
+          1.5,
+          80.0
+        ],
+        "raw_action_bound": null,
+        "reference_velocity_D": false,
+        "feedforward_Nm": 0.0,
+        "gain_is_not_range": true,
+        "reachable_configuration_box": false,
+        "fixed_center_basis": "existing model encoder zero; not SCUT robot joint offsets"
+      },
+      "control": {
+        "physics_ms": 1,
+        "INS_ms": 1,
+        "deployed_Chassis_FSM_PD_ms": 5,
+        "Actor_ms": 10,
+        "target_transport_ms": 5,
+        "leg_PD": [
+          40,
+          2
+        ],
+        "wheel_Kv": 0.2,
+        "final_motor_caps": [
+          40,
+          40,
+          4.8,
+          40,
+          40,
+          4.8
+        ],
+        "spring_compensation": "same RLControlCompensateSpring, total motor clamp afterward",
+        "tau_order": "raw PD + existing software spring compensation -> final motor cap40Nm",
+        "non_Jump_tau_order": "preserved inner PD cap40 -> existing compensation -> final cap40",
+        "phase_bridge": false,
+        "action_filter": false,
+        "leg_length_guard_m": [
+          0.126,
+          0.373
+        ],
+        "crouch_exit": {
+          "minimum_ms": 350,
+          "both_leg_length_at_most_m": 0.15
+        },
+        "force_accounting": "original V4 aggregate hypothesis unchanged; independent identification pending",
+        "balance_command_envelope": {
+          "vx_m_s": 2.0,
+          "yaw_rad_s": 1.0,
+          "height_m": [
+            0.3,
+            0.38
+          ]
+        },
+        "active_request": "stationary only; moving jumps require a later explicit extension",
+        "completion": "same Jump actor; own support/posture dwell1s -> BALANCE; no Motion handover"
+      },
+      "phases": [
+        "BALANCE",
+        "CROUCH",
+        "PUSH",
+        "FLIGHT",
+        "LAND",
+        "SETTLE"
+      ],
+      "support": {
+        "kind": "per-side measured-driver residual, not LQR command",
+        "on_N": 20,
+        "off_N": 8,
+        "on_dwell_ms": 5,
+        "off_dwell_ms": 8,
+        "max_age_ms": 20,
+        "unmeasured_internal_load_model": "UNKNOWN; production adapter returns unavailable",
+        "takeoff": "both OFF plus specific-force norm <3m/s2; proxy event, truth scored separately"
+      },
+      "learning": {
+        "action": "raw Normal sample -> C linear gain -> physical target protection",
+        "log_prob": "original raw sample before protection",
+        "full_resume_72D": false,
+        "full_resume_absolute37": false,
+        "full_resume_nominal_residual37": false,
+        "initial_std_raw": 0.12,
+        "successful_teacher_required_for_PPO": false,
+        "old_direct_ABI3_full_resume": false,
+        "Motion_source": "supervision only; physical targets converted to raw, no runtime teacher"
+      },
+      "production_model": null,
+      "hardware_accepted": false,
+      "ABI": 4,
+      "balance_encoding": {
+        "C_phase": 9,
+        "onehot": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "seconds": 0.0,
+        "owner": "Jump"
+      }
+    },
+    "jump_critic_schema": {
+      "version": "jump_isaac_full_execution_critic_v1",
+      "width": 5591,
+      "fields": [
+        {
+          "name": "C.phase",
+          "shape": [
+            10
+          ],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "C.owner",
+          "shape": [
+            5
+          ],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "C.fault",
+          "shape": [
+            14
+          ],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "C.status",
+          "shape": [
+            8
+          ],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "C.initialized",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "C.last_key",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "C.entry_valid",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "C.adopted_valid",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "C.command_valid",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "C.first_hold",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "C.airborne",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "C.success",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "C.stable_valid",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "C.age.phase_tick",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds"
+        },
+        {
+          "name": "C.age.jump_tick",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds"
+        },
+        {
+          "name": "C.age.last_tick",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds"
+        },
+        {
+          "name": "C.age.wait_tick",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds"
+        },
+        {
+          "name": "C.age.entry_tick",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds"
+        },
+        {
+          "name": "C.age.adopted_tick",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds"
+        },
+        {
+          "name": "C.age.command_tick",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds"
+        },
+        {
+          "name": "C.age.command_snapshot_tick",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds"
+        },
+        {
+          "name": "C.age.stable_tick",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds"
+        },
+        {
+          "name": "C.age.event_tick",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds"
+        },
+        {
+          "name": "C.contact",
+          "shape": [
+            2
+          ],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "C.candidate",
+          "shape": [
+            2
+          ],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "C.contact_valid",
+          "shape": [
+            2
+          ],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "C.off_valid",
+          "shape": [
+            2
+          ],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "C.candidate_age",
+          "shape": [
+            2
+          ],
+          "scale": 0.1,
+          "unit": "seconds"
+        },
+        {
+          "name": "C.off_age",
+          "shape": [
+            2
+          ],
+          "scale": 0.1,
+          "unit": "seconds"
+        },
+        {
+          "name": "C.command_identity",
+          "shape": [
+            4
+          ],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "C.adopted",
+          "shape": [
+            6
+          ],
+          "scale": [
+            1.5,
+            1.5,
+            100.0,
+            1.5,
+            1.5,
+            100.0
+          ],
+          "unit": "mixed_rad_rad_s"
+        },
+        {
+          "name": "C.requested",
+          "shape": [
+            6
+          ],
+          "scale": [
+            1.5,
+            1.5,
+            100.0,
+            1.5,
+            1.5,
+            100.0
+          ],
+          "unit": "mixed_rad_rad_s"
+        },
+        {
+          "name": "C.protected_target",
+          "shape": [
+            6
+          ],
+          "scale": [
+            1.5,
+            1.5,
+            100.0,
+            1.5,
+            1.5,
+            100.0
+          ],
+          "unit": "mixed_rad_rad_s"
+        },
+        {
+          "name": "C.pending",
+          "shape": [
+            6
+          ],
+          "scale": [
+            1.5,
+            1.5,
+            100.0,
+            1.5,
+            1.5,
+            100.0
+          ],
+          "unit": "mixed_rad_rad_s"
+        },
+        {
+          "name": "C.support_N",
+          "shape": [
+            2
+          ],
+          "scale": 250.0,
+          "unit": "N"
+        },
+        {
+          "name": "input.enabled_mode",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "input.key_down",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "input.upstream_owner",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "input.legacy_jump",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "input.motion_entry",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "input.motion_success",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "input.support_mask",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "input.support_model_valid",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "input.feedback_mask",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "input.imu_valid",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "input.adopted_valid",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "dimensionless"
+        },
+        {
+          "name": "input.gyro",
+          "shape": [
+            3
+          ],
+          "scale": 4.0,
+          "unit": "explicit SI physical field"
+        },
+        {
+          "name": "input.gravity",
+          "shape": [
+            3
+          ],
+          "scale": 1.0,
+          "unit": "explicit SI physical field"
+        },
+        {
+          "name": "input.q",
+          "shape": [
+            4
+          ],
+          "scale": 1.5,
+          "unit": "explicit SI physical field"
+        },
+        {
+          "name": "input.dq",
+          "shape": [
+            6
+          ],
+          "scale": 100.0,
+          "unit": "explicit SI physical field"
+        },
+        {
+          "name": "input.command",
+          "shape": [
+            3
+          ],
+          "scale": [
+            4.0,
+            4.0,
+            0.5
+          ],
+          "unit": "explicit SI physical field"
+        },
+        {
+          "name": "input.upstream_target",
+          "shape": [
+            6
+          ],
+          "scale": [
+            1.5,
+            1.5,
+            100.0,
+            1.5,
+            1.5,
+            100.0
+          ],
+          "unit": "explicit SI physical field"
+        },
+        {
+          "name": "input.accel",
+          "shape": [
+            3
+          ],
+          "scale": 9.81,
+          "unit": "explicit SI physical field"
+        },
+        {
+          "name": "input.driver_tau",
+          "shape": [
+            4
+          ],
+          "scale": 40.0,
+          "unit": "explicit SI physical field"
+        },
+        {
+          "name": "input.internal_tau",
+          "shape": [
+            4
+          ],
+          "scale": 40.0,
+          "unit": "explicit SI physical field"
+        },
+        {
+          "name": "input.support_J",
+          "shape": [
+            8
+          ],
+          "scale": 0.5,
+          "unit": "explicit SI physical field"
+        },
+        {
+          "name": "input.leg_length",
+          "shape": [
+            2
+          ],
+          "scale": 0.5,
+          "unit": "explicit SI physical field"
+        },
+        {
+          "name": "input.leg_spread",
+          "shape": [
+            2
+          ],
+          "scale": 3.141592653589793,
+          "unit": "explicit SI physical field"
+        },
+        {
+          "name": "input.age.sensor_tick",
+          "shape": [],
+          "scale": 0.1,
+          "unit": "seconds"
+        },
+        {
+          "name": "input.age.imu_tick",
+          "shape": [],
+          "scale": 0.1,
+          "unit": "seconds"
+        },
+        {
+          "name": "input.age.support_tick",
+          "shape": [],
+          "scale": 0.1,
+          "unit": "seconds"
+        },
+        {
+          "name": "input.feedback_ages",
+          "shape": [
+            6
+          ],
+          "scale": 0.1,
+          "unit": "seconds"
+        },
+        {
+          "name": "C.raw_output",
+          "shape": [
+            6
+          ],
+          "scale": 1.0,
+          "unit": "raw Normal action"
+        },
+        {
+          "name": "Actor.delayed37",
+          "shape": [
+            37
+          ],
+          "scale": 1.0,
+          "unit": "deployed normalized fields"
+        },
+        {
+          "name": "Isaac.root_relative_state",
+          "shape": [
+            13
+          ],
+          "scale": 1.0,
+          "unit": "m, xyzw, world m/s, world rad/s"
+        },
+        {
+          "name": "Isaac.all_joint_q_dq_ddq",
+          "shape": [
+            3,
+            38
+          ],
+          "scale": 10.0,
+          "unit": "rad,rad/s,finite-difference rad/s2"
+        },
+        {
+          "name": "Isaac.COM_height_velocity",
+          "shape": [
+            4
+          ],
+          "scale": 1.0,
+          "unit": "m,m/s"
+        },
+        {
+          "name": "Isaac.leg_length_swing_spring",
+          "shape": [
+            6
+          ],
+          "scale": 1.0,
+          "unit": "m,rad,m"
+        },
+        {
+          "name": "Isaac.closure_residuals",
+          "shape": [
+            4
+          ],
+          "scale": 0.005,
+          "unit": "m"
+        },
+        {
+          "name": "Isaac.wheel_normal_slip_clearance",
+          "shape": [
+            6
+          ],
+          "scale": 1.0,
+          "unit": "N,m/s,m"
+        },
+        {
+          "name": "Isaac.motor_NET_passive",
+          "shape": [
+            3,
+            6
+          ],
+          "scale": 40.0,
+          "unit": "Nm; distinct actual effort and external loads"
+        },
+        {
+          "name": "Isaac.root_mass_COM",
+          "shape": [
+            4
+          ],
+          "scale": 1.0,
+          "unit": "kg,m; actual native parameter readback"
+        },
+        {
+          "name": "Isaac.material_min_max",
+          "shape": [
+            2,
+            3
+          ],
+          "scale": 1.0,
+          "unit": "actual min/max PhysX static/dynamic friction and restitution over shapes"
+        },
+        {
+          "name": "Isaac.elapsed_request",
+          "shape": [
+            3
+          ],
+          "scale": 10.0,
+          "unit": "elapsed_s,request_time_s,active_request_enabled"
+        },
+        {
+          "name": "execution.subcycle",
+          "shape": [
+            2
+          ],
+          "scale": [
+            5,
+            10
+          ],
+          "unit": "ms within PD/Actor cycle"
+        },
+        {
+          "name": "V4.caps",
+          "shape": [
+            1,
+            6
+          ],
+          "scale": [
+            40.0,
+            40.0,
+            4.8,
+            40.0,
+            40.0,
+            4.8
+          ],
+          "unit": "Nm by channel"
+        },
+        {
+          "name": "V4.lower",
+          "shape": [
+            1,
+            6
+          ],
+          "scale": [
+            1.5,
+            1.5,
+            100.0,
+            1.5,
+            1.5,
+            100.0
+          ],
+          "unit": "rad and rad/s by channel"
+        },
+        {
+          "name": "V4.upper",
+          "shape": [
+            1,
+            6
+          ],
+          "scale": [
+            1.5,
+            1.5,
+            100.0,
+            1.5,
+            1.5,
+            100.0
+          ],
+          "unit": "rad and rad/s by channel"
+        },
+        {
+          "name": "V4.raw",
+          "shape": [
+            1,
+            6
+          ],
+          "scale": [
+            1.5,
+            1.5,
+            100.0,
+            1.5,
+            1.5,
+            100.0
+          ],
+          "unit": "rad and rad/s by channel"
+        },
+        {
+          "name": "V4.range_request",
+          "shape": [
+            1,
+            6
+          ],
+          "scale": [
+            1.5,
+            1.5,
+            100.0,
+            1.5,
+            1.5,
+            100.0
+          ],
+          "unit": "rad and rad/s by channel"
+        },
+        {
+          "name": "V4.requested",
+          "shape": [
+            1,
+            6
+          ],
+          "scale": [
+            1.5,
+            1.5,
+            100.0,
+            1.5,
+            1.5,
+            100.0
+          ],
+          "unit": "rad and rad/s by channel"
+        },
+        {
+          "name": "V4.adopted",
+          "shape": [
+            1,
+            6
+          ],
+          "scale": [
+            1.5,
+            1.5,
+            100.0,
+            1.5,
+            1.5,
+            100.0
+          ],
+          "unit": "rad and rad/s by channel"
+        },
+        {
+          "name": "V4.motor",
+          "shape": [
+            1,
+            6
+          ],
+          "scale": [
+            40.0,
+            40.0,
+            4.8,
+            40.0,
+            40.0,
+            4.8
+          ],
+          "unit": "Nm by channel"
+        },
+        {
+          "name": "V4.NET",
+          "shape": [
+            1,
+            6
+          ],
+          "scale": 40.0,
+          "unit": "external model Nm"
+        },
+        {
+          "name": "V4.wheel_PD",
+          "shape": [
+            1,
+            2
+          ],
+          "scale": 4.8,
+          "unit": "wheel Nm"
+        },
+        {
+          "name": "V4.wheel_raw",
+          "shape": [
+            1,
+            2
+          ],
+          "scale": 4.8,
+          "unit": "wheel Nm"
+        },
+        {
+          "name": "V4.request_tick.valid",
+          "shape": [
+            1
+          ],
+          "scale": 1.0,
+          "unit": "bool"
+        },
+        {
+          "name": "V4.request_tick",
+          "shape": [
+            1
+          ],
+          "scale": 1000.0,
+          "unit": "relative age ms"
+        },
+        {
+          "name": "V4.adopted_origin.valid",
+          "shape": [
+            1
+          ],
+          "scale": 1.0,
+          "unit": "bool"
+        },
+        {
+          "name": "V4.adopted_origin",
+          "shape": [
+            1
+          ],
+          "scale": 1000.0,
+          "unit": "relative age ms"
+        },
+        {
+          "name": "V4.targets",
+          "shape": [
+            128,
+            1,
+            6
+          ],
+          "scale": [
+            1.5,
+            1.5,
+            100.0,
+            1.5,
+            1.5,
+            100.0
+          ],
+          "unit": "rad and rad/s by channel"
+        },
+        {
+          "name": "V4.origins",
+          "shape": [
+            128,
+            1
+          ],
+          "scale": 1000.0,
+          "unit": "chronological request age ms"
+        },
+        {
+          "name": "V4.wheel_queue",
+          "shape": [
+            128,
+            1,
+            2
+          ],
+          "scale": 4.8,
+          "unit": "wheel Nm"
+        },
+        {
+          "name": "V4.motors",
+          "shape": [
+            128,
+            1,
+            6
+          ],
+          "scale": [
+            40.0,
+            40.0,
+            4.8,
+            40.0,
+            40.0,
+            4.8
+          ],
+          "unit": "Nm by channel"
+        },
+        {
+          "name": "V4.NETs",
+          "shape": [
+            128,
+            1,
+            6
+          ],
+          "scale": 40.0,
+          "unit": "external model Nm"
+        },
+        {
+          "name": "V4.target_delay",
+          "shape": [
+            1
+          ],
+          "scale": 40.0,
+          "unit": "count or delay ms"
+        },
+        {
+          "name": "V4.wheel_delay",
+          "shape": [
+            1,
+            2
+          ],
+          "scale": 40.0,
+          "unit": "count or delay ms"
+        },
+        {
+          "name": "V4.packet_age",
+          "shape": [
+            1
+          ],
+          "scale": 40.0,
+          "unit": "count or delay ms"
+        },
+        {
+          "name": "V4.bias",
+          "shape": [
+            1,
+            4
+          ],
+          "scale": 1.5,
+          "unit": "encoder rad"
+        },
+        {
+          "name": "V4.theta",
+          "shape": [
+            2,
+            2
+          ],
+          "scale": 1.5,
+          "unit": "paired model rad"
+        },
+        {
+          "name": "V4.omega",
+          "shape": [
+            2,
+            2
+          ],
+          "scale": 100.0,
+          "unit": "rad/s"
+        },
+        {
+          "name": "V4.last_q",
+          "shape": [
+            1,
+            6
+          ],
+          "scale": [
+            1.5,
+            1.5,
+            100.0,
+            1.5,
+            1.5,
+            100.0
+          ],
+          "unit": "rad and rad/s by channel"
+        },
+        {
+          "name": "V4.last_dq",
+          "shape": [
+            1,
+            6
+          ],
+          "scale": 100.0,
+          "unit": "rad/s"
+        },
+        {
+          "name": "V4.packet",
+          "shape": [
+            16,
+            1,
+            16
+          ],
+          "scale": 1.0,
+          "unit": "already normalized sensor packet"
+        },
+        {
+          "name": "V4.qhistory",
+          "shape": [
+            16,
+            1,
+            6
+          ],
+          "scale": [
+            1.5,
+            1.5,
+            100.0,
+            1.5,
+            1.5,
+            100.0
+          ],
+          "unit": "rad and rad/s by channel"
+        },
+        {
+          "name": "V4.dqhistory",
+          "shape": [
+            16,
+            1,
+            6
+          ],
+          "scale": 100.0,
+          "unit": "rad/s"
+        },
+        {
+          "name": "V4.target_policy_history",
+          "shape": [
+            16,
+            1,
+            6
+          ],
+          "scale": [
+            1.5,
+            1.5,
+            100.0,
+            1.5,
+            1.5,
+            100.0
+          ],
+          "unit": "rad and rad/s by channel"
+        },
+        {
+          "name": "V4.motor_policy_history",
+          "shape": [
+            16,
+            1,
+            6
+          ],
+          "scale": [
+            40.0,
+            40.0,
+            4.8,
+            40.0,
+            40.0,
+            4.8
+          ],
+          "unit": "Nm by channel"
+        },
+        {
+          "name": "V4.effective_packet_age",
+          "shape": [
+            1
+          ],
+          "scale": 40.0,
+          "unit": "count or delay ms"
+        },
+        {
+          "name": "V4.birth.valid",
+          "shape": [
+            1
+          ],
+          "scale": 1.0,
+          "unit": "bool"
+        },
+        {
+          "name": "V4.birth",
+          "shape": [
+            1
+          ],
+          "scale": 1000.0,
+          "unit": "relative age ms"
+        },
+        {
+          "name": "V4.observed_tick.valid",
+          "shape": [
+            1
+          ],
+          "scale": 1.0,
+          "unit": "bool"
+        },
+        {
+          "name": "V4.observed_tick",
+          "shape": [
+            1
+          ],
+          "scale": 1000.0,
+          "unit": "relative age ms"
+        },
+        {
+          "name": "V4.hp_low",
+          "shape": [
+            1,
+            4
+          ],
+          "scale": 100.0,
+          "unit": "rad/s or accumulated squared velocity"
+        },
+        {
+          "name": "V4.hp_power",
+          "shape": [
+            1,
+            4
+          ],
+          "scale": 10000.0,
+          "unit": "rad/s or accumulated squared velocity"
+        },
+        {
+          "name": "V4.hp_count",
+          "shape": [
+            1
+          ],
+          "scale": 1000.0,
+          "unit": "count or delay ms"
+        },
+        {
+          "name": "response.x",
+          "shape": [
+            2,
+            13
+          ],
+          "scale": 100.0,
+          "unit": "named fitted tuple in bound model units"
+        },
+        {
+          "name": "response.kp",
+          "shape": [
+            2,
+            2
+          ],
+          "scale": 40.0,
+          "unit": "Nm/rad"
+        },
+        {
+          "name": "response.kd",
+          "shape": [
+            2,
+            2
+          ],
+          "scale": 2.0,
+          "unit": "Nm s/rad"
+        },
+        {
+          "name": "response.cap",
+          "shape": [
+            2,
+            2
+          ],
+          "scale": 40.0,
+          "unit": "Nm"
+        },
+        {
+          "name": "response.strength",
+          "shape": [
+            2,
+            2
+          ],
+          "scale": 1.0,
+          "unit": "gain"
+        },
+        {
+          "name": "response.vgain",
+          "shape": [
+            2,
+            2
+          ],
+          "scale": 1.0,
+          "unit": "gain"
+        },
+        {
+          "name": "response.color",
+          "shape": [
+            2,
+            2
+          ],
+          "scale": 100.0,
+          "unit": "rad/s"
+        },
+        {
+          "name": "response.color_std",
+          "shape": [
+            2,
+            1
+          ],
+          "scale": 100.0,
+          "unit": "rad/s"
+        },
+        {
+          "name": "response.color_rho",
+          "shape": [
+            2,
+            1
+          ],
+          "scale": 1.0,
+          "unit": "gain"
+        },
+        {
+          "name": "response.qbias",
+          "shape": [
+            2,
+            2
+          ],
+          "scale": 1.5,
+          "unit": "rad"
+        },
+        {
+          "name": "response.vbias",
+          "shape": [
+            2,
+            2
+          ],
+          "scale": 100.0,
+          "unit": "rad/s"
+        },
+        {
+          "name": "response.qnoise",
+          "shape": [
+            2,
+            2
+          ],
+          "scale": 1.5,
+          "unit": "rad"
+        },
+        {
+          "name": "response.vnoise",
+          "shape": [
+            2,
+            2
+          ],
+          "scale": 100.0,
+          "unit": "rad/s"
+        },
+        {
+          "name": "response.load_scale",
+          "shape": [
+            2,
+            1
+          ],
+          "scale": 1.0,
+          "unit": "gain"
+        },
+        {
+          "name": "response.qhist",
+          "shape": [
+            128,
+            2,
+            2
+          ],
+          "scale": 1.5,
+          "unit": "rad"
+        },
+        {
+          "name": "response.vhist",
+          "shape": [
+            128,
+            2,
+            2
+          ],
+          "scale": 100.0,
+          "unit": "rad/s"
+        },
+        {
+          "name": "response.queue",
+          "shape": [
+            128,
+            2,
+            2
+          ],
+          "scale": 40.0,
+          "unit": "modal Nm"
+        },
+        {
+          "name": "response.delay",
+          "shape": [
+            2
+          ],
+          "scale": 40.0,
+          "unit": "ms"
+        },
+        {
+          "name": "response.qage",
+          "shape": [
+            2
+          ],
+          "scale": 40.0,
+          "unit": "ms"
+        },
+        {
+          "name": "response.vage",
+          "shape": [
+            2
+          ],
+          "scale": 40.0,
+          "unit": "ms"
+        },
+        {
+          "name": "response.ref",
+          "shape": [
+            2,
+            2
+          ],
+          "scale": 1.5,
+          "unit": "rad"
+        },
+        {
+          "name": "response.alpha",
+          "shape": [
+            2,
+            2
+          ],
+          "scale": 1.0,
+          "unit": "response gain"
+        },
+        {
+          "name": "response.av",
+          "shape": [
+            2,
+            1
+          ],
+          "scale": 1.0,
+          "unit": "filter gain"
+        },
+        {
+          "name": "response.filtered",
+          "shape": [
+            2,
+            2
+          ],
+          "scale": 100.0,
+          "unit": "rad/s"
+        },
+        {
+          "name": "response.heldq",
+          "shape": [
+            2,
+            2
+          ],
+          "scale": 1.5,
+          "unit": "rad"
+        },
+        {
+          "name": "response.heldv",
+          "shape": [
+            2,
+            2
+          ],
+          "scale": 100.0,
+          "unit": "rad/s"
+        },
+        {
+          "name": "response.des",
+          "shape": [
+            2,
+            2
+          ],
+          "scale": 40.0,
+          "unit": "Nm"
+        },
+        {
+          "name": "response.actual",
+          "shape": [
+            2,
+            2
+          ],
+          "scale": 40.0,
+          "unit": "modal Nm"
+        },
+        {
+          "name": "response.des_unclipped",
+          "shape": [
+            2,
+            2
+          ],
+          "scale": 40.0,
+          "unit": "Nm"
+        },
+        {
+          "name": "task.elapsed_s",
+          "shape": [],
+          "scale": 10.0,
+          "unit": "seconds"
+        },
+        {
+          "name": "task.horizon_s",
+          "shape": [],
+          "scale": 10.0,
+          "unit": "seconds"
+        },
+        {
+          "name": "task.stable_s",
+          "shape": [],
+          "scale": 10.0,
+          "unit": "seconds"
+        },
+        {
+          "name": "task.had_support",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "bool"
+        },
+        {
+          "name": "task.actual_takeoff",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "bool"
+        },
+        {
+          "name": "task.previous_contact",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "bool"
+        },
+        {
+          "name": "task.landing_paid",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "bool"
+        },
+        {
+          "name": "task.landing_only",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "bool"
+        },
+        {
+          "name": "reward.apex_paid",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "J or explicit SI/bool"
+        },
+        {
+          "name": "reward.takeoff_paid",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "J or explicit SI/bool"
+        },
+        {
+          "name": "reward.handover_paid",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "J or explicit SI/bool"
+        },
+        {
+          "name": "reward.previous_COM_vz",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "J or explicit SI/bool"
+        },
+        {
+          "name": "reward.takeoff_COM_height_m.known",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "bool"
+        },
+        {
+          "name": "reward.takeoff_COM_height_m",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "J or explicit SI/bool"
+        },
+        {
+          "name": "reward.peak_COM_height_m.known",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "bool"
+        },
+        {
+          "name": "reward.peak_COM_height_m",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "J or explicit SI/bool"
+        },
+        {
+          "name": "reward.motor_positive_work_J",
+          "shape": [],
+          "scale": 100.0,
+          "unit": "J or explicit SI/bool"
+        },
+        {
+          "name": "reward.motor_negative_work_J",
+          "shape": [],
+          "scale": 100.0,
+          "unit": "J or explicit SI/bool"
+        },
+        {
+          "name": "reward.NET_work_J",
+          "shape": [],
+          "scale": 100.0,
+          "unit": "J or explicit SI/bool"
+        },
+        {
+          "name": "reward.spring_work_J",
+          "shape": [],
+          "scale": 100.0,
+          "unit": "J or explicit SI/bool"
+        },
+        {
+          "name": "dense.kind",
+          "shape": [
+            2
+          ],
+          "scale": 1.0,
+          "unit": "bool or normalized scalar"
+        },
+        {
+          "name": "dense.goal.horizon_s",
+          "shape": [],
+          "scale": 10.0,
+          "unit": "kg, seconds or metres by field"
+        },
+        {
+          "name": "dense.goal.mass_kg",
+          "shape": [],
+          "scale": 25.0,
+          "unit": "kg, seconds or metres by field"
+        },
+        {
+          "name": "dense.goal.target_rise_m",
+          "shape": [],
+          "scale": 0.5,
+          "unit": "kg, seconds or metres by field"
+        },
+        {
+          "name": "dense.goal.target_clearance_m",
+          "shape": [],
+          "scale": 0.5,
+          "unit": "kg, seconds or metres by field"
+        },
+        {
+          "name": "dense.goal.air_leg_m",
+          "shape": [],
+          "scale": 0.5,
+          "unit": "kg, seconds or metres by field"
+        },
+        {
+          "name": "dense.goal.entry_height_m",
+          "shape": [],
+          "scale": 0.5,
+          "unit": "kg, seconds or metres by field"
+        },
+        {
+          "name": "dense.elapsed_s",
+          "shape": [],
+          "scale": 10.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.jump_control_s",
+          "shape": [],
+          "scale": 10.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.had_support",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.crouch_legal",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.push_seen",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.assisted",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.off_s",
+          "shape": [],
+          "scale": 10.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.air_origin_COM_m",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.air_origin_vz_m_s",
+          "shape": [],
+          "scale": 10.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.takeoff_COM_m",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.takeoff_vz_m_s",
+          "shape": [],
+          "scale": 10.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.peak_COM_m",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.peak_tire_clearance_m",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.has_taken_off",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.had_airborne_start",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.has_landed",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.apex_paid",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.landing_paid",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.handover_paid",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.failure_paid",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.timeout_paid",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.landing_age_s",
+          "shape": [],
+          "scale": 10.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.touchdown_down_v_m_s",
+          "shape": [],
+          "scale": 10.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.stable_s",
+          "shape": [],
+          "scale": 10.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.force_peak_score",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "seconds or SI scalar/bool by field"
+        },
+        {
+          "name": "dense.best.crouch",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "bool or normalized scalar"
+        },
+        {
+          "name": "dense.best.push",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "bool or normalized scalar"
+        },
+        {
+          "name": "dense.best.extension",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "bool or normalized scalar"
+        },
+        {
+          "name": "dense.best.air_rise",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "bool or normalized scalar"
+        },
+        {
+          "name": "dense.best.air_shape",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "bool or normalized scalar"
+        },
+        {
+          "name": "dense.best.cushion",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "bool or normalized scalar"
+        },
+        {
+          "name": "dense.best.settle",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "bool or normalized scalar"
+        },
+        {
+          "name": "dense.previous.dt_s",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "explicit previous physical packet SI/bool"
+        },
+        {
+          "name": "dense.previous.phase",
+          "shape": [
+            10
+          ],
+          "scale": 1.0,
+          "unit": "actual C phase one-hot including BALANCE9"
+        },
+        {
+          "name": "dense.previous.owner",
+          "shape": [
+            5
+          ],
+          "scale": 1.0,
+          "unit": "bool or normalized scalar"
+        },
+        {
+          "name": "dense.previous.COM_height_m",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "explicit previous physical packet SI/bool"
+        },
+        {
+          "name": "dense.previous.COM_velocity_m_s",
+          "shape": [
+            3
+          ],
+          "scale": 3.0,
+          "unit": "explicit previous physical packet SI/bool"
+        },
+        {
+          "name": "dense.previous.root_height_m",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "explicit previous physical packet SI/bool"
+        },
+        {
+          "name": "dense.previous.tilt_rad",
+          "shape": [
+            2
+          ],
+          "scale": 1.0,
+          "unit": "explicit previous physical packet SI/bool"
+        },
+        {
+          "name": "dense.previous.omega_rad_s",
+          "shape": [
+            3
+          ],
+          "scale": 4.0,
+          "unit": "explicit previous physical packet SI/bool"
+        },
+        {
+          "name": "dense.previous.leg_length_m",
+          "shape": [
+            2
+          ],
+          "scale": 1.0,
+          "unit": "explicit previous physical packet SI/bool"
+        },
+        {
+          "name": "dense.previous.leg_swing_rad",
+          "shape": [
+            2
+          ],
+          "scale": 1.0,
+          "unit": "explicit previous physical packet SI/bool"
+        },
+        {
+          "name": "dense.previous.spring_length_m",
+          "shape": [
+            2
+          ],
+          "scale": 1.0,
+          "unit": "explicit previous physical packet SI/bool"
+        },
+        {
+          "name": "dense.previous.contact",
+          "shape": [
+            2
+          ],
+          "scale": 1.0,
+          "unit": "explicit previous physical packet SI/bool"
+        },
+        {
+          "name": "dense.previous.tire_clearance_m",
+          "shape": [
+            2
+          ],
+          "scale": 1.0,
+          "unit": "explicit previous physical packet SI/bool"
+        },
+        {
+          "name": "dense.previous.wheel_normal_force_N",
+          "shape": [
+            2
+          ],
+          "scale": 250.0,
+          "unit": "explicit previous physical packet SI/bool"
+        },
+        {
+          "name": "dense.previous.contact_slip_m_s",
+          "shape": [
+            2
+          ],
+          "scale": 1.0,
+          "unit": "explicit previous physical packet SI/bool"
+        },
+        {
+          "name": "dense.previous.actual_motor_Nm",
+          "shape": [
+            6
+          ],
+          "scale": [
+            40.0,
+            40.0,
+            2.44694786377709,
+            40.0,
+            40.0,
+            2.44694786377709
+          ],
+          "unit": "explicit previous physical packet SI/bool"
+        },
+        {
+          "name": "dense.previous.actual_dq_rad_s",
+          "shape": [
+            6
+          ],
+          "scale": 100.0,
+          "unit": "explicit previous physical packet SI/bool"
+        },
+        {
+          "name": "dense.previous.adopted_target",
+          "shape": [
+            6
+          ],
+          "scale": [
+            1.5,
+            1.5,
+            100.0,
+            1.5,
+            1.5,
+            100.0
+          ],
+          "unit": "explicit previous physical packet SI/bool"
+        },
+        {
+          "name": "dense.previous.force_valid",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "explicit previous physical packet SI/bool"
+        },
+        {
+          "name": "dense.previous.motion_confirmed",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "explicit previous physical packet SI/bool"
+        },
+        {
+          "name": "dense.previous.fault",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "explicit previous physical packet SI/bool"
+        },
+        {
+          "name": "dense.previous.external_takeoff_assist",
+          "shape": [],
+          "scale": 1.0,
+          "unit": "explicit previous physical packet SI/bool"
+        }
+      ],
+      "complete_checkpoint_not_replaced": true,
+      "absolute_ticks": false,
+      "scope": "actual PhysX/C/V4/reward; no MuJoCo solver padding",
+      "physical_snapshot_bitwise": false
+    },
+    "jump_bindings": {
+      "asset": {
+        "path": "/home/kellen/wheel_leg_native_train/assets/diagnostic/rmuc_robot_closed_loop_knee_stop_0233_v2.usd",
+        "sha256": "32a56efc5ee677a7ae3b5e59c3848a141276ec4957757acde239b774b0c901b7"
+      },
+      "spring_geometry": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/gas_spring_stroke_refined_20261018/geometry.json",
+        "sha256": "039bc77fafb556600a1d87e699306864143724248fad381f53e461e189933537"
+      },
+      "V4": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_10_30__bilateral_detailed_response_v4/candidate_contract.json",
+        "sha256": "5510088cc1f57f823718fd36218beb32cabf3c1d8ce708cf75531129178dc1cd"
+      },
+      "mechanics": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_08__recovery_isaac_preparation/initial_states.json",
+        "sha256": "e4c209d6eb57fc6f80d1bdae5bb4b05eb54019ea9d6cf1441c331471d6664f64"
+      },
+      "description": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_09__jump_cpu_preparation/ready_v1/geometry_description.json",
+        "sha256": "d6155bb0708cd0ad55cad2e3971e0779083d1ba07a415b2f5c7f570781322560"
+      },
+      "Actor": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__jump_motion_transfer48_refined/jump_distilled_actor.pt",
+        "sha256": "2a4d94517943559eaed51841e27be51e4672162a862ff07cd06979efc2e685fb"
+      },
+      "BC_state": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__jump_motion_transfer48_refined/BC_training_state.pt",
+        "sha256": "b4e214128d0473a02499dfa1616d67483005c5274972ba06b2a46c40276e6763"
+      },
+      "ONNX": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__jump_motion_transfer48/jump_distilled_actor_raw37.onnx",
+        "sha256": "a6d1c2094196c7a5349bfea569359ca4f271a824be77ffe1deeda3781373b44e"
+      },
+      "C_build": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__jump_motion_transfer48/C_ready/build.json",
+        "sha256": "cffc7c01b669920b1bd2c04604612b7f2efe9acafb0025c68bddef28fd642263"
+      },
+      "settlement": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__jump_motion_transfer48/cumulative_settlement.json",
+        "sha256": "9c6c66d7b7e90ae76f03bf1aa5cb9e1b3b299079f5c957a6d15bbf691e35de7c"
+      },
+      "dataset": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__jump_motion_transfer48/dataset.json",
+        "sha256": "002d71a072f941b2fa1a9b8fe71b689629ad368e7ee46a47d620cddcc087bb0e"
+      },
+      "critic_schema": {
+        "path": "/home/kellen/wheel_leg_refactor_ws/configs/contracts/jump_isaac_full_execution_critic_v1.json",
+        "sha256": "8fc9048765caddbda3bde6136a9ae24203508f9b2251b66992ae148e9435416d"
+      },
+      "contract": {
+        "path": "/home/kellen/wheel_leg_refactor_ws/configs/contracts/jump_unified_raw37_wheel48_v1.json",
+        "sha256": "80d72686b928efe512f2e0d0b87c1b69946c14340dffa00d048b8699a9bf7336"
+      },
+      "teacher": {
+        "path": "/home/kellen/wheel_leg_native_train/runs/2026_11_8-22_20__motion_C0_yaw1to4_full_KL10000/checkpoints/model_update_4300.pt",
+        "sha256": "1c5336e4a6d1b1befdcaa27cebaf2e567309579765dc6f539b8c26c79a242525"
+      },
+      "executor_contract": {
+        "path": "/home/kellen/wheel_leg_native_train/deployment_protocol/2026_11_06__motion2320_actor20_v4legs_wheel7_11/output_contract.json",
+        "sha256": "98a7d711fe7ecce1d32dc7ac21764160a2e9b62207bf7319e4b66b423fd06d06"
+      },
+      "teacher_episodes": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/episodes.json",
+        "sha256": "b29c725a5129c568ced24a24b4c196b2a25119ee899c1da22b11ef7646229d49"
+      },
+      "data_episode_0": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case000__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "d23bca44741a4067c277d4705f638a83ff14817d72c593c7c63da34cdc62a93b"
+      },
+      "data_episode_1": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case001__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "f02dfac29c8ea728844521082253f8e51827a7d9e1ba391d3bc0b76069f26d5e"
+      },
+      "data_episode_2": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case002__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "f140c9d348ea31c512a9a21b10682cdcbbf23d9150b85bc2dd26c643131282fd"
+      },
+      "data_episode_13": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case013__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "1ccf322b4ce64beeffa61a1c1af2dfb851e594d457c90f8cc8b0dfdfc4390af6"
+      },
+      "data_episode_15": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case015__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "125c0de3672aa083a3a6a202c3e390d0142424cfe0f2946d60590380b39904e4"
+      },
+      "data_episode_16": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case016__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "e5a2baaff70e34f2663fcb6ec6984018a42f7c857c57915dbbac9367da277465"
+      },
+      "data_episode_17": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case017__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "4e2322b6175787aa72bf31b08ac8458a793b59f8ac37369031ad34c5d27ef6ad"
+      },
+      "data_episode_18": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case018__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "0d2b69523a4513e198ab23f73308b402e80836bb43d17ab57830ae927b51742e"
+      },
+      "data_episode_19": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case019__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "2eb45a3b4de70a5a0cec132fdbbd4bc790b9a136ef419a3b6211e7aa5581d622"
+      },
+      "data_episode_20": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case020__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "1dff5eac25db532175d04501213847f1a6a175d8aa16f4a0c2ba40aff24075cc"
+      },
+      "data_episode_21": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case021__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "65874c66f3b0bae2c55983e5998ecd5b62c3bfbf84d129ea05334754abdaa2e4"
+      },
+      "data_episode_22": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case022__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "8ba9a22e677ee7d80989999a38b0b7133ec69403b3134d3d24120770e2b70e8b"
+      },
+      "data_episode_31": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case026__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "e4dbc08b8964ae06072e11755ba589d73c4a2a21680cdc0ce1ff6f844b90ce6c"
+      },
+      "data_episode_32": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case027__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "5679412ae270d2cd8d5f78cc9becb5759439cc11cbeb4525fe3c0900fb024b17"
+      },
+      "data_episode_33": {
+        "path": "/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case028__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "5f6297327e8c337d88a0da4dde1546d7710d1227d59668e865bd0ba599d2aad2"
+      },
+      "execution_jump_response": {
+        "path": "/home/kellen/wheel_leg_refactor_ws/src/native_stand/simulation/jump_response.py",
+        "sha256": "b5307b651adc22bfa57870af5dba181a241810d1c9e684d901a54a9c1a34372d"
+      },
+      "execution_manifest": {
+        "path": "/home/kellen/wheel_leg_jump_outcome_ws/src/native_stand/simulation/jump_control_source/manifest.json",
+        "sha256": "f4de307b19a46c94c612d4e1c58cf758f285c4fd2bbed4b1bf3c19023af5bacb"
+      }
+    },
+    "jump_course": {
+      "plant_id": "Isaac_ABI4_tiled_grid_covered_v4_wheel48",
+      "DR_id": "nominal"
+    },
+    "jump_restore_mode": "fresh_reset",
+    "source_supervised_updates": 1500,
+    "source_cumulative_supervised_updates": 2500,
+    "source_PPO_updates": 0,
+    "jump_isaac": {
+      "gpu_uuid": "GPU-07694748-3d8b-666b-3933-6443416715dd",
+      "resource_policy": {
+        "mode": "shared_authorized",
+        "authorization": {
+          "path": "/root/gpufree-data/wheel_leg_jump/authorization.json",
+          "sha256": "76f36877f81aab84e5841c536ef749c006e12de3bbdefd155438bf60e634b504"
+        },
+        "storage_path": "/root/gpufree-data/wheel_leg_jump",
+        "minimum_disk_free_bytes": 4294967296,
+        "minimum_free_MiB": 8192
+      },
+      "execution_root": "/root/gpufree-data/wheel_leg_jump/execution"
+    },
+    "jump_ground": "native_plane_v1"
+  },
+  "diagnostics": {
+    "minimum_unique_actor_samples": 128,
+    "minimum_minibatch_samples": 8,
+    "latent_std": 0.12,
+    "performance_measurement": true
+  },
+  "limits": {
+    "smoke_updates": 0,
+    "formal_updates": 10000,
+    "sample_limit": null,
+    "chain_wall_s": null,
+    "evaluation_wall_s": null
+  },
+  "storage": {
+    "checkpoint_every_updates": 100,
+    "keep_recent_checkpoints": 2,
+    "metrics_every_updates": 1,
+    "tensorboard": true,
+    "save_traces": false,
+    "trace_max_bytes": 16777216,
+    "max_output_bytes": 8589934592,
+    "terminal_reserve_bytes": 536870912,
+    "milestones": [
+      20,
+      1000,
+      5000,
+      10000
+    ]
+  }
+}

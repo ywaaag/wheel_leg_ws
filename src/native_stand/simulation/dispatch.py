@@ -180,7 +180,10 @@ def require_supported(job: JobConfig, operation: str) -> None:
         backend_for(job)
         return
     if operation == "evaluate":
-        if job.task == "jump" and job.action.version == "jump_unified_raw37_wheel48_v1":
+        if job.task == "jump" and job.action.version in (
+            "jump_unified_raw37_wheel48_v1",
+            "jump_isaac_ABI4_raw37_wheel48_v1",
+        ):
             raise DispatchError("Jump课程/选模仅使用正常训练统计；未开放独立评估")
         if job.algorithm != "ppo":
             raise DispatchError(f"evaluate需要algorithm=ppo，当前{job.algorithm}")

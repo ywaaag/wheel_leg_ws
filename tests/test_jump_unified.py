@@ -271,6 +271,29 @@ def test_unified_reward_dt_balance_active_and_passive_provenance():
     assert not result["active_jump_success"] and result["terms"]["own_completion"] == 0
 
 
+def test_accidental_fall_settle_height_has_gradient_without_fabricating_landing():
+    from native_stand.tasks.jump.dense_reward import TaskSpec
+    from native_stand.tasks.jump.unified_reward import UnifiedReward
+
+    spec = TaskSpec(kind="ground_active_jump", horizon_s=16.0, mass_kg=20.0)
+    reward = UnifiedReward.start(spec, packet(dt_s=0.0))
+    reward.step(packet(phase=3, contact=(False, False), tire_clearance_m=(0.02, 0.02)))
+    reward.step(packet(phase=4, root_height_m=0.25))
+    saved = reward.state_dict()
+    low = reward.step(packet(phase=5, dt_s=0.01, root_height_m=0.25))
+    high_reward = UnifiedReward.restore(saved)
+    high = high_reward.step(packet(phase=5, dt_s=0.01, root_height_m=0.34))
+    assert low["terms"]["settle_height"] < high["terms"]["settle_height"] == 0
+    split = UnifiedReward.restore(saved)
+    pieces = [split.step(packet(phase=5, root_height_m=0.25)) for _ in range(10)]
+    assert low["total"] == pytest.approx(sum(p["total"] for p in pieces))
+    for scorer, result in ((reward, low), (high_reward, high), (split, pieces[-1])):
+        assert not scorer.has_taken_off and not scorer.has_landed
+        assert not result["active_jump_success"] and not result["landing_only_success"]
+        for key in ("takeoff", "apex", "landing_stable", "own_completion", "settle_progress"):
+            assert result["terms"][key] == 0
+
+
 def test_course_promotes_and_demotes_from_ended_training_episodes():
     from native_stand.tasks.jump.adaptive_course import AdaptiveCourse, CourseConfig
 

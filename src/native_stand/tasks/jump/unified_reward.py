@@ -5,9 +5,10 @@ from dataclasses import dataclass, replace
 import numpy as np
 
 from native_stand.tasks.jump.dense_reward import DenseReward, Packet, RewardConfig, TaskSpec
+from native_stand.tasks.jump.phases import Phase
 from native_stand.tasks.jump.unified import BALANCE
 
-VERSION = "jump_unified_dense_reward_wheel48_v1"
+VERSION = "jump_unified_dense_reward_wheel48_v2"
 
 
 @dataclass(frozen=True)
@@ -20,6 +21,13 @@ class UnifiedReward(DenseReward):
         if not isinstance(packet, UnifiedPacket):
             raise ValueError("explicit ABI4 packet required")
         outcome = super().step(packet)
+        if packet.owner == 2 and packet.phase == Phase.SETTLE:
+            # Recover height even after an accidental fall without a proven
+            # takeoff. Keep all positive landing/completion provenance gates.
+            h = (packet.root_height_m - self.spec.entry_height_m) / 0.10
+            outcome["terms"]["settle_height"] = (
+                -self.config.w_settle_height * min(h * h, 4.0) * packet.dt_s
+            )
         if packet.owner == 2 and packet.phase == BALANCE:
             dt = packet.dt_s
             self.jump_control_s += dt
@@ -39,13 +47,18 @@ class UnifiedReward(DenseReward):
 
     def state_dict(self):
         result = super().state_dict()
-        result["version"] = VERSION
+        from .outcome import REWARD
+
+        result["version"] = REWARD if not self.config.require_crouch else VERSION
         return result
 
     @classmethod
     def restore(cls, value):
         data = dict(value)
-        if data.pop("version") != VERSION:
+        from .outcome import REWARD
+
+        expected = VERSION if data["config"].get("require_crouch", True) else REWARD
+        if data.pop("version") != expected:
             raise ValueError("unified reward version mismatch")
         data["spec"] = TaskSpec(**data["spec"])
         data["config"] = RewardConfig(**data["config"])

@@ -26,6 +26,7 @@
 #define RL_JUMP_OUTPUT 0x4a150101u
 #define RL_JUMP_CONFIG 0x4a050101u
 #endif
+#define RL_JUMP_OUTCOME_CONFIG 0x4a050402u
 #define RL_JUMP_WHEEL_CAP 4.8f
 #define RL_JUMP_WHEEL_RAW_CAP (RL_JUMP_WHEEL_CAP * RL_MOTION31_WHEEL_CURRENT_PER_NM)
 /* Absolute requested position range is NOT a reachable configuration box. */

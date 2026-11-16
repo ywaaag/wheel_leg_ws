@@ -51,7 +51,10 @@ def spec_for_job(job, output_contract):
     """Version, never width or filename, determines mean semantics."""
     if job.action.version == "recovery_cubic_physical_Gaussian_v2":
         kind = "recovery_physical"
-    elif job.action.version == "jump_unified_raw37_wheel48_v1":
+    elif job.action.version in (
+        "jump_unified_raw37_wheel48_v1",
+        "jump_isaac_ABI4_raw37_wheel48_v1",
+    ):
         kind = "direct"
     else:
         from native_stand.tasks.motion.spec import SUPPORTED_OUTPUT_VERSIONS
@@ -100,7 +103,9 @@ class InferenceModel:
 
 def from_source(source, spec):
     declared = source.payload.get("inference_spec")
-    if declared is not None and json_digest(declared) != json_digest(spec.record()):
+    if declared is not None and json_digest(
+        InferenceSpec.from_record(declared).record()
+    ) != json_digest(spec.record()):
         raise ValueError("Loaded Actor inference contract differs")
     contract = source.payload.get("output_contract", source.payload.get("contract"))
     if contract is not None and json_digest(contract) != json_digest(spec.output_contract):

@@ -82,7 +82,7 @@ wheel-leg cloud-plan --config CONFIG.json --manifest MANIFEST.json --dry-run
 | 播放 | 一个GUI/headless循环，公共推理factory与模型执行合同；暂停不推进tick，Recovery physical输出不重复cubic解码 |
 | sim2sim | recorded或live显式协议→顺序打开后端→统一轨迹→既有诊断；live核对实际条件/子步/终止/覆盖，复用采集factory及播放器。未提供诊断读回的后端拒绝，不自动加入PPO或课程 |
 | export | 原子发布完整部署目录：Actor、可选ONNX、推理架构、合同、执行参数、共享C身份、golden、来源与依赖。可搬迁读回；完整续训checkpoint另行保留 |
-| Jump | ABI4、37D线性raw、6370D MuJoCo CPU Critic；没有Isaac GPU backend，不允许改device冒充支持 |
+| Jump | ABI4、37D线性raw；MuJoCo CPU Critic6370D，独立Isaac分支Critic5591D。当前v3已做本机6.0.1 CPU/GPU及远端6.2 CPU工程验收；累计415/10000、余9585，远端GPU仍待验、能力未认证，见`docs/JUMP_DIAGNOSIS_20261113.md` |
 
 PPO更新、监督round、实际监督优化步和物理子步分别记账。compare只读已有开发数据，不额外采样。训练候选使用正常PPO窗口，不需要独立评估。历史evaluate入口和证据保留，不构成训练或选模依赖。
 

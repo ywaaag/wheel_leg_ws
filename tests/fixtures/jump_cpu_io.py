@@ -12,14 +12,14 @@ from native_stand.experiments.config import job_from_record, load_job_config
 from native_stand.simulation.jump_shared_c import declared_input
 
 
-def mapped_job(root, data_root):
+def mapped_job(root, data_root, *, name="jump_unified_raw37_wheel48"):
     root, data_root = Path(root).resolve(), Path(data_root).resolve()
     data = read_json(data_root / "runtime_paths.json")
     paths = RuntimePaths(
         tuple(data.get("files", {}).items()),
         tuple(sorted(data.get("prefixes", {}).items(), key=lambda v: -len(v[0]))),
     )
-    job = load_job_config(root / "configs/jobs/jump_unified_raw37_wheel48.json")
+    job = load_job_config(root / "configs/jobs" / (name + ".json"))
     record = paths.view(job.as_run_record())
     # Execution sources are supplied by this checkout, not the archive's copy.
     for name, local in (
@@ -30,6 +30,9 @@ def mapped_job(root, data_root):
             root / "src/native_stand/simulation" / local
         )
     record["source_root"] = str(root / "src")
+    record["assets"]["jump_bindings"]["critic_schema"]["path"] = str(
+        root / "configs/contracts" / (record["assets"]["jump_critic_schema"]["version"] + ".json")
+    )
     return job_from_record(record)
 
 

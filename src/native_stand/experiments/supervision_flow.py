@@ -64,6 +64,8 @@ def execute(
             t.priority,
             t.conditions or {},
             t.qualified,
+            t.observation_adapter,
+            t.action_adapter,
         )
         for t in recipe.teachers
     ]
@@ -102,7 +104,7 @@ def execute(
                 options = dict(
                     stop_requested=stop_requested,
                     required_conditions=tuple(
-                        set().union(*(t.conditions or {} for t in recipe.teachers))
+                        set().union(*(t.required_conditions() for t in teachers))
                     ),
                 )
             ref = collector(
@@ -154,7 +156,7 @@ def execute(
             # Sources may carry different extra telemetry. Only the conditions
             # actually used by this Teacher set must exist in every source;
             # missing routing evidence is still rejected, never filled with 0.
-            names = set().union(*(teacher.conditions for teacher in teachers))
+            names = set().union(*(teacher.required_conditions() for teacher in teachers))
             if any(not names <= chunk["conditions"].keys() for chunk in chunks):
                 raise ValueError("Rehearsal routing conditions are incomplete")
             from native_stand.artifacts.dataset import physical_keys, sample_keys
@@ -163,7 +165,7 @@ def execute(
             seen = set()
             for ref, chunk in zip(sources, chunks, strict=True):
                 ids = sample_keys(ref, chunk)
-                mask = np.array([key not in seen and not seen.add(key) for key in ids])
+                mask = np.array([key not in seen and not seen.add(key) for key in ids], dtype=bool)
                 for key in (
                     "states",
                     "episodes",
@@ -245,6 +247,8 @@ def execute(
                     input_contract=t.model.spec.input_contract,
                     output_contract=t.model.spec.output_contract,
                     label_transform=recipe.teachers[i].labels,
+                    observation_adapter=recipe.teachers[i].observation_adapter,
+                    action_adapter=recipe.teachers[i].action_adapter,
                 )
                 for i, t in enumerate(teachers)
             ]

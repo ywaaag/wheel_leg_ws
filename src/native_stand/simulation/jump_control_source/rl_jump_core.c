@@ -85,7 +85,9 @@ int RLJumpReset(RLJumpState *s, uint32_t now, int safe) {
 }
 int RLJumpIdentity(const RLJumpConfig *c) {
   return c && c->abi == RL_JUMP_ABI && c->input_id == RL_JUMP_CONTRACT &&
-         c->output_id == RL_JUMP_OUTPUT && c->config_id == RL_JUMP_CONFIG &&
+         c->output_id == RL_JUMP_OUTPUT &&
+         (c->config_id == RL_JUMP_CONFIG ||
+          (RL_JUMP_DIRECT_V1 && c->config_id == RL_JUMP_OUTCOME_CONFIG)) &&
          c->enabled && c->model_available && c->model_id &&
          c->model_input_id == RL_JUMP_CONTRACT &&
          c->model_output_id == RL_JUMP_OUTPUT
@@ -127,7 +129,7 @@ int RLJumpEstimateSupport(const RLJumpInput *i, float f[2], uint32_t valid[2]) {
   }
   return 0;
 }
-static void contacts(RLJumpState *s, const RLJumpInput *i) {
+static int contacts(RLJumpState *s, const RLJumpInput *i) {
   uint32_t v[2];
   float f[2];
   RLJumpEstimateSupport(i, f, v);
@@ -158,6 +160,7 @@ static void contacts(RLJumpState *s, const RLJumpInput *i) {
     } else
       s->off_valid[k] = 0;
   }
+  return v[0] && v[1];
 }
 /* ABI4: one Jump actor owns balance, locomotion, passive drops and jumps.
  * Physical truth is never an input. Driver/internal-load support remains required.
@@ -168,6 +171,7 @@ int RLJumpStep(RLJumpState *s, const RLJumpInput *i, const RLJumpConfig *c) {
   if (s->initialized && (age(i->now,s->last_tick)==0u || age(i->now,s->last_tick)>10u))
     return fail(s,J_STALE_INPUT,i->now);
   s->initialized=1;s->last_tick=i->now;
+  const int outcome=c->config_id==RL_JUMP_OUTCOME_CONFIG;
   const int rising=i->key_down && !s->last_key;s->last_key=!!i->key_down;
   if (s->phase==J_FAULT) return -1;
   if (s->phase==J_BALANCE && !c->enabled) {s->owner=i->upstream_owner;return 0;}
@@ -190,7 +194,7 @@ int RLJumpStep(RLJumpState *s, const RLJumpInput *i, const RLJumpConfig *c) {
     if (!isfinite(i->leg_length[k]) || i->leg_length[k]<=.126f || i->leg_length[k]>=.373f)
       return fail(s,J_MECHANICAL_RANGE,i->now);
   s->owner=J_JUMP;
-  contacts(s,i);
+  const int support_available=contacts(s,i);
   const int known=s->contact_valid[0] && s->contact_valid[1];
   const int both=known && s->contact[0] && s->contact[1];
   const int off=known && !s->contact[0] && !s->contact[1] &&
@@ -198,7 +202,10 @@ int RLJumpStep(RLJumpState *s, const RLJumpInput *i, const RLJumpConfig *c) {
   const int posture=i->gravity[1]<-.98f &&
     fabsf(i->gyro[0])+fabsf(i->gyro[1])+fabsf(i->gyro[2])<.3f;
   const uint32_t a=age(i->now,s->phase_tick);
-  if (!known && a>24u) return fail(s,J_SUPPORT_UNKNOWN,i->now);
+  /* A fresh residual in the 8..20N hysteresis band, or still completing
+   * debounce, is not a missing support estimate. Unknown contact continues
+   * to block entry/takeoff/landing; unavailable estimates retain the timeout. */
+  if (!support_available && a>24u) return fail(s,J_SUPPORT_UNKNOWN,i->now);
   if (rising) {
     ++s->request_id;
     if (s->phase!=J_BALANCE) s->status=J_REJECT_BUSY;
@@ -212,10 +219,12 @@ int RLJumpStep(RLJumpState *s, const RLJumpInput *i, const RLJumpConfig *c) {
     } else s->entry_valid=0;
     if (off) {s->airborne=s->success=0;move(s,J_FLIGHT,i->now);}
     else if (s->status==J_WAIT) {
-      if (age(i->now,s->wait_tick)>500u) s->status=J_REJECT_TIMEOUT;
+      if (!outcome && age(i->now,s->wait_tick)>500u) s->status=J_REJECT_TIMEOUT;
       else if (s->entry_valid && age(i->now,s->entry_tick)>=100u) {
         ++s->epoch;s->status=J_ACCEPTED;s->airborne=s->success=0;
-        s->jump_tick=i->now;move(s,J_CROUCH,i->now);
+        /* Outcome profile lets the Actor choose compression/extension.
+         * No scripted crouch pose and no mandatory .15m depth. */
+        s->jump_tick=i->now;move(s,outcome?J_PUSH:J_CROUCH,i->now);
       }
     }
   } else if (s->phase==J_CROUCH) {
@@ -224,7 +233,7 @@ int RLJumpStep(RLJumpState *s, const RLJumpInput *i, const RLJumpConfig *c) {
     else if (a>800u) return fail(s,J_PHASE_TIMEOUT,i->now);
   } else if (s->phase==J_PUSH) {
     if (off) {s->airborne=1;move(s,J_FLIGHT,i->now);}
-    else if (a>350u) return fail(s,J_NO_TAKEOFF,i->now);
+    else if (a>(outcome?1200u:350u)) return fail(s,J_NO_TAKEOFF,i->now);
   } else if (s->phase==J_FLIGHT) {
     if (known && (s->contact[0] || s->contact[1])) move(s,J_LAND,i->now);
     else if (a>1200u) return fail(s,J_PHASE_TIMEOUT,i->now);

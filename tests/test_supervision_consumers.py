@@ -17,6 +17,57 @@ from native_stand.experiments.supervision_flow import execute
 FROZEN_TEST_SCOPE = "PORTABLE"
 
 
+def test_cli_exports_fitted_bc_with_declared_contract_and_rejects_drift(tmp_path):
+    from native_stand.artifacts.deployment import verify_package
+    from native_stand.cli import main
+    from native_stand.learning.inference import InferenceSpec, load_model
+
+    job = supervision_job(tmp_path)
+    job = dataclasses.replace(
+        job,
+        supervision=dataclasses.replace(
+            job.supervision, phases=(PhaseConfig("label"), PhaseConfig("fit", rounds=1))
+        ),
+    )
+    run = tmp_path / "run"
+    run.mkdir()
+    write_json(run / "run.json", dict(config=job.as_run_record()))
+    state, done = execute(
+        job,
+        run / "supervision",
+        stop_requested=lambda: False,
+        on_round_complete=lambda r: None,
+        on_round_saved=lambda r: None,
+    )
+    assert done
+    selected = state["selected"]
+    output = tmp_path / "package"
+    arguments = [
+        "export",
+        "--run",
+        str(run),
+        "--checkpoint",
+        selected["path"],
+        "--output",
+        str(output),
+    ]
+    assert main(arguments) == 0
+    record = verify_package(output)
+    spec = InferenceSpec.from_record(job.supervision.student)
+    original = load_model(selected["path"], spec, sha256=selected["sha256"])
+    deployed = load_model(output / "actor.pt", spec, sha256=file_sha256(output / "actor.pt"))
+    states = torch.randn(5, spec.input_dim)
+    torch.testing.assert_close(original.mean(states), deployed.mean(states), atol=0, rtol=0)
+    payload = torch.load(output / "actor.pt", weights_only=False)
+    assert payload["actor_only"] and "optimizer" not in payload and "critic" not in payload
+    assert record["source"]["sha256"] == selected["sha256"]
+    bad = torch.load(selected["path"], weights_only=False)
+    bad["inference_spec"]["input_contract"] = {"version": "wrong_columns"}
+    torch.save(bad, selected["path"])
+    assert main(arguments[:-1] + [str(tmp_path / "bad_package")]) == 1
+    assert not (tmp_path / "bad_package").exists()
+
+
 def test_two_collections_accumulate_deduplicate_and_resume(tmp_path):
     job = supervision_job(tmp_path)
     replay = tmp_path / "replay.npz"
