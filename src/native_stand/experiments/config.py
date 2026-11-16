@@ -803,7 +803,7 @@ def load_job_config(path: str | Path) -> JobConfig:
     from native_stand.artifacts.runtime_paths import RuntimePaths, asset_values
 
     paths = RuntimePaths.from_assets(merged.get("assets", {}))
-    merged["assets"] = asset_values(paths.view(merged.get("assets", {})), base, paths)
+    merged["assets"] = asset_values(merged.get("assets", {}), base, paths)
     source_root_raw = raw.get("source_root")
     source_root = (
         resolve_path(paths.resolve(source_root_raw), base)

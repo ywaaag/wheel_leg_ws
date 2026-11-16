@@ -60,32 +60,50 @@ def execution_json(path, assets):
 
 def asset_values(assets, base, paths):
     """Expand explicitly named, SHA-bound JSON values at the config read boundary."""
-    def references(value):
+
+    def references(value, relative_to):
         if isinstance(value, list):
-            return [references(item) for item in value]
+            return [references(item, relative_to) for item in value]
+        if isinstance(value, str) and value.startswith("/") and not value.startswith("/World/"):
+            return paths.resolve(value)
         if not isinstance(value, dict):
             return value
-        result = {k: references(v) for k, v in value.items()}
-        if isinstance(value.get("path"), str) and "sha256" in value:
-            path = Path(paths.resolve(value["path"]))
-            result["path"] = str((Path(base) / path).resolve() if not path.is_absolute() else path)
+        identified = isinstance(value.get("path"), str) and value["path"] and "sha256" in value
+        result = {
+            k: v if identified and k == "path" else references(v, relative_to)
+            for k, v in value.items()
+        }
+        if identified:
+            path = Path(value["path"])
+            if not path.is_absolute():
+                path = (Path(relative_to) / path).resolve()
+            result["path"] = paths.resolve(path)
         return result
 
-    result = references(assets)
-    references = result.get("value_files", {})
-    if not isinstance(references, dict):
+    result = references(assets, base)
+    files = result.get("value_files", {})
+    if not isinstance(files, dict):
         raise ValueError("assets.value_files must map names to JSON path/SHA references")
     bound = {}
-    for name, ref in references.items():
-        if not isinstance(name, str) or name in result or name == "value_files":
+    for name, ref in files.items():
+        if not isinstance(name, str) or not name or name in result:
             raise ValueError("Bound asset values cannot overwrite inline configuration")
-        path = Path(paths.resolve(ref["path"]))
-        path = (Path(base) / path).resolve() if not path.is_absolute() else path
+        if (
+            not isinstance(ref, dict)
+            or set(ref) != {"path", "sha256"}
+            or not isinstance(ref["path"], str)
+            or not ref["path"]
+            or not isinstance(ref["sha256"], str)
+            or len(ref["sha256"]) != 64
+            or any(c not in "0123456789abcdef" for c in ref["sha256"])
+        ):
+            raise ValueError("assets.value_files requires explicit JSON path and SHA256")
+        path = Path(ref["path"])
         if file_sha256(path) != ref["sha256"]:
             raise ValueError("Bound asset JSON SHA differs: " + name)
-        result[name] = paths.view(read_json(path))
+        result[name] = references(read_json(path), path.parent)
         bound[name] = dict(path=str(path), sha256=ref["sha256"])
-    if references:
+    if files:
         result["value_files"] = bound
     return result
 
