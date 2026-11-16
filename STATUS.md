@@ -1,18 +1,16 @@
-## Motion050多Teacher蒸馏（2026-11-16）
+## Motion050多Teacher蒸馏（2026-11-16，本轮结项）
 
-已定位第二块静态整回合Teacher路由错误：61个回合的初始31D输入逐位相同，u2200与vM1物理腿目标却最大相差.16119rad、轮速3.98375rad/s。该8,400优化步已耗不退款，候选同条件开发仅11/56任务门、8/56保留门、核心0/33，不accepted。修复为显式observable domain，仅当前命令与proprioception决定C0安静/vM1核心/u2200新命令，真实owner进入标签provenance；不增加部署输入/控制器。
+本轮执行完成，候选NOT_ACCEPTED，不替换原vM1或现用部署模型。最终源码执行版本e21fe60，分支motion/multiteacher050-final；数据根motion_multiteacher050_20261116的REPORT.md/CONTINUE.md、independent_final_comparison.json、terminal_accounting.json是完整交付入口。没有活动本任务worker；PPO0、Isaac0、远端0、电控改写0、刷板0、外部通知0。
 
-第三块准备重标原合格Teacher数据并加入独立seed学生真闭环状态。训练原始131696行中97187有资格，开发86202中52402有资格，留出44800；新增68309行越适用box标UNKNOWN，Teacher原回合成功身份不继承。计划12轮、batch64、18228实际优化步上限，显式从第一块候选Actor初始化、fresh Adam；两块失败/恢复点/数据和账本保留。物理仍是固定vM1参考，支撑严格>60%，PPO0。实际启动/终态以新run为准。
+冻结Actor SHA8890532c241d63e5caa17696e6329b8de285fbfbe20ec96b23ddd3a540e8f9e7，31→256→128→64→6、050原u2200中心。两个新seed各56条件，任务均50/56、保真均43/56；vM1核心任务均33/33，保真30/33、31/33；新能力保真13/23、12/23。核心评分窗承重均100%，整回合最低95.2%，严格超过60%。主要差距是-.5m/s跟踪、后向速度推扰恢复时间，以及±3.6m/s、.20m与部分转弯/高度质量。0/30ms Actor物理观测年龄各3个应力均通过，不称全DR。
 
-用户指定后续采用vM1 MuJoCo配置，并改双轮支撑门为严格>60%。已沿旧正式调用链确认：原MJCF/21网格、implicitfast、2mm margin以及运行时closure_contact_tight_v1（不是裸XML .008柔顺）。新motion_replication_probe_v2经同一MotionPlayer构造SHA绑定原MJCF，正确处理轮gear；Teacher vM1站立/+.25启停/+1侧推3/3通过，站立漂移.203m/s，与历史约.20一致；C0站立通过，u2200同3项通过。第一6轮Student仅站立通过、低速/侧推未保留，不能当accepted。新物理参考已写AGENTS/ARCHITECTURE，旧局部参数和USD生成模型结果只读，不继续作为正式蒸馏配置。
+正式BC三块6/12/12轮、27042优化步；静态整回合Teacher隐藏未来冲突已在第三块修复，仅按当前31D互斥选择Teacher；未知适用域68309行拒绝标签，未继承成功。52个最终块全部终态，实际4549565步；连同旧探索共176块、20956603步，失败消耗全部保留。最终证据不回灌本候选、不调门或换选中点，后续新版本须另设新开发/留出。
 
-用户另授权本机CPU/GPU提速。GPU-e704e7d4-2965-4712-9759-ba6b9910bd72已读回空闲；u2200 batch8192×10推理CPU2.253秒、CUDA.01946秒。正式监督复用同BC循环的runtime.device，CUDA RNG/优化设备进入完整恢复点；CPU物理按独立回合并行，不换物理后端。PPO仍0。来源/物理/阶段消耗与新旧协议收据均在数据根motion_multiteacher050_20261116，不改其他任务。
+固定vM1 MuJoCo参考motion_vm1_mujoco_v1已写入AGENTS/ARCHITECTURE/README，合同SHA9ae012adbeb675aa3c44930f830aa12ef05279486a00be013cfe95f1c173c6c0。原MJCF/网格加历史closure_contact_tight_v1，不是裸XML柔顺；当前轮4.8Nm与历史2.44695Nm差异另列。CPU独立MuJoCo回合并行、CUDA批量Teacher/BC，仍走统一CLI/owner/worker/ModelIndex。
 
-验证版本修正MotionPlayer承重读回：旧实现按contact.dist>0跳过margin接触，可能漏掉有效法向力。新版本只更正统计，保留物理、触碰布尔值与既定门槛，逐步另存正距离承重力；旧轨迹与失败证据不改写。第一BC块经公共owner停在3轮/207优化步后已正式resume，计划6轮总计414优化步，PPO0；精确终态以run账本为准。
+官方export_candidate_v1保留PT/ONNX/全部依赖/共享C源码；数据根另有256 C权重副本、050中心配置头、96+128条真实状态单条golden，最大PT/ONNX误差2.24e-7、C解码1.49e-7、PD6.68e-6，头文件编译解码误差0。板端050适配、ARM时延/内存与补偿后实机验收NOT_RUN；原015不能只换权重运行。完整BC恢复点与部署Actor分开，原Teacher/旧失败/账本只读。
 
-负责人：当前会话7e855c08-0408-4c8a-aafd-3b6b29238d96。独立分支motion/multiteacher050-distillation、worktree wheel_leg_motion_multiteacher_ws、基点0baa131。仅CPU、有界MuJoCo和BC；PPO0，不修改电控。Student31→256→128→64→6，保留新u2200原050/80中心。原vM1/C0/u2200/u50逐SHA来源在数据根motion_multiteacher050_20261116/sources.json；旧run/模型/账本只读。
-
-正式diagnose新增显式motion_replication_probe_v1，复用MotionPlayer.step与共享C/V4，补命令程序、root速度推扰、单位范数2/6Nm模态100ms外扰及1kHz接触力/控制分路证据。先CPU与dry-run，再4模型×3case首块，累计上限368000物理步/900秒墙钟/384MiB；BC计划6轮，数据准入后冻结实际样本与优化步计划。独立最终集在冻结候选后执行，历史证据不回灌。进度/消耗以数据根收据为准。
+最终portable2067 passed/31 skipped/10 warnings，导出消费者49 passed、路由81 passed、真实CUDA保存恢复数值核验通过；架构224/0、Ruff0.8.4规定范围与dry-run通过。仓库无remote，未推送。主仓原dirty STATUS与未跟踪文档未修改。
 
 ## 实机反馈文档登记（2026-11-15）
 
