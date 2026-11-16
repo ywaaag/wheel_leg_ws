@@ -58,6 +58,38 @@ def execution_json(path, assets):
     return RuntimePaths.from_assets(assets).read(path)
 
 
+def asset_values(assets, base, paths):
+    """Expand explicitly named, SHA-bound JSON values at the config read boundary."""
+    def references(value):
+        if isinstance(value, list):
+            return [references(item) for item in value]
+        if not isinstance(value, dict):
+            return value
+        result = {k: references(v) for k, v in value.items()}
+        if isinstance(value.get("path"), str) and "sha256" in value:
+            path = Path(paths.resolve(value["path"]))
+            result["path"] = str((Path(base) / path).resolve() if not path.is_absolute() else path)
+        return result
+
+    result = references(assets)
+    references = result.get("value_files", {})
+    if not isinstance(references, dict):
+        raise ValueError("assets.value_files must map names to JSON path/SHA references")
+    bound = {}
+    for name, ref in references.items():
+        if not isinstance(name, str) or name in result or name == "value_files":
+            raise ValueError("Bound asset values cannot overwrite inline configuration")
+        path = Path(paths.resolve(ref["path"]))
+        path = (Path(base) / path).resolve() if not path.is_absolute() else path
+        if file_sha256(path) != ref["sha256"]:
+            raise ValueError("Bound asset JSON SHA differs: " + name)
+        result[name] = paths.view(read_json(path))
+        bound[name] = dict(path=str(path), sha256=ref["sha256"])
+    if references:
+        result["value_files"] = bound
+    return result
+
+
 def execution_job(job):
     """Map a runtime view once, leaving original records and semantic digests intact."""
     if not job.assets.get("path_mapping"):

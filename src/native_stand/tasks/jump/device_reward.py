@@ -27,12 +27,15 @@ class DeviceReward:
         self.c = rows[0].config
         if any(row.config != self.c for row in rows):
             raise ValueError("One explicit reward configuration per batch required")
+        self.goal_fields = tuple(k for k in vars(rows[0].spec) if k != "kind")
+        if any(tuple(k for k in vars(row.spec) if k != "kind") != self.goal_fields for row in rows):
+            raise ValueError("One explicit task goal layout per batch required")
         self.state, self.previous, self.goals, self.best = {}, {}, {}, {}
         for name in MEMORY:
             self.state[name] = torch.empty(self.n, dtype=torch.float64, device=device)
         for name in BEST:
             self.best[name] = torch.empty(self.n, dtype=torch.float64, device=device)
-        for name in GOALS:
+        for name in self.goal_fields:
             self.goals[name] = torch.empty(self.n, dtype=torch.float64, device=device)
         self.active = torch.empty(self.n, dtype=torch.bool, device=device)
         for name in PACKET:
@@ -50,7 +53,7 @@ class DeviceReward:
         for names, target, source in (
             (MEMORY, self.state, lambda r, k: getattr(r, k)),
             (BEST, self.best, lambda r, k: r.best[k]),
-            (GOALS, self.goals, lambda r, k: getattr(r.spec, k)),
+            (self.goal_fields, self.goals, lambda r, k: getattr(r.spec, k)),
             (PACKET, self.previous, lambda r, k: getattr(r.previous, k)),
         ):
             for name in names:
@@ -140,7 +143,7 @@ class DeviceReward:
         both = p["contact"].bool().all(-1)
         contact = p["contact"].bool().any(-1)
         vz = p["COM_velocity_m_s"][:, 2]
-        air = ~contact & (p["tire_clearance_m"].amin(-1) > 0.002)
+        air = ~contact & (p["tire_clearance_m"].amin(-1) > s.get("takeoff_clearance_m", 0.002))
         put("had_support", flag("had_support") | both)
         crouch = control & (phase == 1)
         put(
@@ -381,6 +384,17 @@ class DeviceReward:
         )
         if c.goal_gate_landing:
             terms["handover"] = torch.where(success, terms["handover"], 0.0)
+        course_success = success
+        if "objective" in s:
+            course_success = eligible & ~flag("failure_paid") & torch.where(
+                s["objective"] == 0,
+                flag("has_taken_off"),
+                torch.where(
+                    s["objective"] == 1,
+                    flag("has_taken_off") & flag("apex_paid") & flag("landing_paid"),
+                    success,
+                ),
+            )
         drop = (
             ~self.active & flag("had_airborne_start") & flag("landing_paid") & ~flag("failure_paid")
         )
@@ -390,7 +404,7 @@ class DeviceReward:
             & ~flag("has_taken_off")
             & (m["elapsed_s"] >= c.no_takeoff_deadline_s - 1e-10)
         )
-        timeout = expired & ~(success | drop | flag("failure_paid")) & ~flag("timeout_paid")
+        timeout = expired & ~(course_success | drop | flag("failure_paid")) & ~flag("timeout_paid")
         terms["timeout"] = timeout.double() * -c.timeout_cost
         put("timeout_paid", flag("timeout_paid") | timeout)
         if c.w_velocity_potential:
@@ -407,14 +421,14 @@ class DeviceReward:
                     0.0,
                 )
 
-            next_value = torch.where(fault | expired | success | drop, 0.0, potential(p))
+            next_value = torch.where(fault | expired | course_success | drop, 0.0, potential(p))
             terms["velocity_potential"] = (-c.discount_rate_s * dt).exp() * next_value - potential(
                 old
             )
         if c.potential_events:
             for name in ("takeoff", "air_rise_progress", "apex", "landing_stable"):
                 terms[name] = torch.where(self.active, 0.0, terms[name])
-            next_events = torch.where(fault | expired | success | drop, 0.0, event_potential())
+            next_events = torch.where(fault | expired | course_success | drop, 0.0, event_potential())
             terms["progress_potential"] = (
                 -c.discount_rate_s * dt
             ).exp() * next_events - previous_events
@@ -455,8 +469,9 @@ class DeviceReward:
                 + terms.get("progress_potential", torch.zeros_like(dt)),
                 0.0,
             ),
-            terminated=enabled & (fault | expired | success | drop),
+            terminated=enabled & (fault | expired | course_success | drop),
             active_jump_success=success,
+            course_success=course_success,
             landing_only_success=drop,
         )
 

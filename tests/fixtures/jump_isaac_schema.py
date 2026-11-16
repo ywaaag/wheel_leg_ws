@@ -43,15 +43,21 @@ def schema(job, output):
         adopted_target=(0,) * 6,
         force_valid=True,
     )
-    reward = UnifiedReward.start(
-        TaskSpec(kind="ground_active_jump", horizon_s=16, mass_kg=21), initial
-    )
+    from native_stand.tasks.jump import skill_course
+
+    if skill_course.enabled(job):
+        spec = skill_course.SkillTaskSpec("ground_active_jump", 6, 21, objective=0)
+        reward = UnifiedReward.start(spec, initial, skill_course.reward_config())
+    else:
+        reward = UnifiedReward.start(
+            TaskSpec(kind="ground_active_jump", horizon_s=16, mass_kg=21), initial
+        )
     fields = {name: np.empty(shape) for name, (shape, _, _) in engine_fields(joints).items()}
     # Values here are placeholders solely to declare shapes. They never enter
     # a runtime environment, PPO storage, physical readiness or saved model.
     for value in fields.values():
         value.fill(0.0)
-    critic = RowCritic(joints)
+    critic = RowCritic(joints, version=job.model.critic_privileged_version)
     critic.pack(
         execution, 0, np.zeros(37), fields, reward, dict(kind="ground_active_jump", seconds=16.0)
     )

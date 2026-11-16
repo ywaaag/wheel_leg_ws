@@ -71,8 +71,11 @@ def validate_job(job):
     if job.assets.get("jump_compute") not in (None, "cuda_firmware_warp_inverse_v1"):
         raise ValueError("Explicit supported Jump compute contract required")
     from native_stand.tasks.jump.outcome import REWARD, enabled
+    from native_stand.tasks.jump import skill_course
 
-    expected_reward = REWARD if enabled(job) else REWARD_VERSION
+    expected_reward = (
+        skill_course.REWARD if skill_course.enabled(job) else REWARD if enabled(job) else REWARD_VERSION
+    )
     if job.reward.version != expected_reward:
         raise ValueError("Explicit current Jump reward version required")
     if enabled(job) and abs(job.ppo.gamma - np.exp(-0.2 * job.control.policy_dt_s)) > 1e-12:
@@ -85,7 +88,9 @@ def validate_job(job):
         0.01,
     ):
         raise ValueError("Jump1/5/10ms")
-    if job.model.critic_privileged_version != CRITIC:
+    if job.model.critic_privileged_version != (
+        skill_course.CRITIC if skill_course.enabled(job) else CRITIC
+    ):
         raise ValueError("Jump Isaac Critic identity")
     if job.assets.get("jump_restore_mode") != "fresh_reset":
         raise ValueError(
@@ -144,13 +149,13 @@ class IsaacJump:
 
         self.outcome_objective = enabled(job)
         self.request_after_ms = REQUEST_AFTER_MS if self.outcome_objective else 1500
-        self.reward_config = reward_config() if self.outcome_objective else RewardConfig()
+        self.reward_config = reward_config(job) if self.outcome_objective else RewardConfig()
         self.training_semantics = dict(TRAINING_SEMANTICS)
         if self.outcome_objective:
             self.training_semantics.update(
                 reward=job.reward.version,
                 request="pending_request_after_300ms_until_acceptance",
-                controller=controller_record(),
+                controller=controller_record(job),
             )
         if self.job.assets.get("jump_compute") == "cuda_firmware_warp_inverse_v1":
             self.training_semantics["compute"] = "cuda_firmware_warp_inverse_v1"
@@ -301,7 +306,12 @@ class IsaacJump:
         ]
         self.requests = [None] * self.num_envs
         self.rewards = [None] * self.num_envs
-        self.critics = [RowCritic(len(self.mechanics["joint_names"])) for _ in self.courses]
+        self.critics = [
+            RowCritic(
+                len(self.mechanics["joint_names"]), version=self.job.model.critic_privileged_version
+            )
+            for _ in self.courses
+        ]
         self.starts = np.zeros(self.num_envs, dtype=np.int64)
         self.balance_s = np.zeros(self.num_envs)
         self.balance_good = np.zeros(self.num_envs)
@@ -699,7 +709,9 @@ class IsaacJump:
                 self.prepare(h, reset_ids=ids)
             for i in ids:
                 r = self.requests[i]
-                spec = TaskSpec(
+                from native_stand.tasks.jump.skill_course import SkillTaskSpec
+
+                spec = (SkillTaskSpec if "objective" in r else TaskSpec)(
                     kind=r["kind"],
                     horizon_s=r["seconds"],
                     mass_kg=float(self.scene.physics.mass[i].sum()),
@@ -707,6 +719,7 @@ class IsaacJump:
                     target_clearance_m=r["target_clearance_m"],
                     air_leg_m=r["air_leg_m"],
                     entry_height_m=r["entry_height_m"],
+                    **({"objective": r["objective"]} if "objective" in r else {}),
                 )
                 self.rewards[i] = UnifiedReward.start(
                     spec, self.packet(i, h, 0.0), self.reward_config
@@ -846,7 +859,10 @@ class IsaacJump:
             )
             if self.teaching_commands is None:
                 self.courses[i].record(
-                    r, jump_control_s=rew.jump_control_s, success=success, fault=rew.failure_paid
+                    r,
+                    jump_control_s=rew.jump_control_s,
+                    success=result.get("course_success", success),
+                    fault=rew.failure_paid,
                 )
             self.serial += 1
             self.completed.append(
@@ -854,6 +870,8 @@ class IsaacJump:
                     id=self.serial,
                     request=copy.deepcopy(r),
                     success=success,
+                    course_success=result.get("course_success", success),
+                    objective=r.get("objective", 2),
                     fault=bool(rew.failure_paid),
                     jump_control_s=rew.jump_control_s,
                     reason="task_failure"

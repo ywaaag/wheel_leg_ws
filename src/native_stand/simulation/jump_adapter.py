@@ -269,6 +269,10 @@ def episode_metrics(rows):
         result[kind] = dict(
             episodes=count,
             successes=sum(r["success"] for r in group),
+            course_successes=sum(r.get("course_success", r["success"]) for r in group),
+            objectives=dict(
+                (str(k), sum(r.get("objective", 2) == k for r in group)) for k in (0, 1, 2)
+            ),
             faults=sum(r["fault"] for r in group),
             requested=sum(r.get("C_requests", 0) > 0 for r in group),
             accepted=sum(r.get("C_accepted_jumps", 0) > 0 for r in group),

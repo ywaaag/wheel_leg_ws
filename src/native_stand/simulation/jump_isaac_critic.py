@@ -22,18 +22,23 @@ class BaseCritic(PackedCritic):
 
 
 class IsaacCritic(PackedCritic):
+    def __init__(self, fields, *, version=CRITIC):
+        super().__init__(fields)
+        self.version = version
+
     def contract(self):
         return {
             **super().contract(),
-            "version": CRITIC,
+            "version": self.version,
             "scope": "actual PhysX/C/V4/reward; no MuJoCo solver padding",
             "physical_snapshot_bitwise": False,
         }
 
 
 class RowCritic:
-    def __init__(self, joints):
+    def __init__(self, joints, *, version=CRITIC):
         self.fields = engine_fields(joints)
+        self.version = version
         self.schema = self.tail_schema = None
         self.base = SimpleNamespace(schema=None)
 
@@ -68,7 +73,7 @@ class RowCritic:
             # values. Freeze that layout at the first actual observation.
             # encode below still validates every dynamic name/shape/value.
             self.tail_schema = PackedCritic(fields)
-            self.schema = IsaacCritic(list(self.base.schema.fields) + fields)
+            self.schema = IsaacCritic(list(self.base.schema.fields) + fields, version=self.version)
         return np.concatenate((head, self.tail_schema.encode(tail)))
 
 

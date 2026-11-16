@@ -113,7 +113,7 @@ class TaskSpec:
     def __post_init__(self):
         if self.kind not in ("ground_active_jump", "landing_only"):
             raise ValueError("explicit reset provenance required")
-        values = [v for k, v in asdict(self).items() if k != "kind"]
+        values = [getattr(self, k) for k in TaskSpec.__dataclass_fields__ if k != "kind"]
         if any(not math.isfinite(v) or v <= 0 for v in values):
             raise ValueError("finite positive physical task parameters required")
         if not 0.126 < self.air_leg_m < 0.373 or self.target_clearance_m <= 0.002:
@@ -294,7 +294,9 @@ class DenseReward:
         self.jump_control_s += p.dt_s if active_control else 0.0
         both, any_contact = all(p.contact), any(p.contact)
         vz = p.COM_velocity_m_s[2]
-        air = not any_contact and min(p.tire_clearance_m) > 0.002
+        air = not any_contact and min(p.tire_clearance_m) > getattr(
+            s, "takeoff_clearance_m", 0.002
+        )
         terms = {
             name: 0.0
             for name in (
@@ -520,6 +522,18 @@ class DenseReward:
         )
         if c.goal_gate_landing and not full_success:
             terms["handover"] = 0.0
+        objective = getattr(s, "objective", 2)
+        course_success = (
+            self.active_eligible
+            and not self.failure_paid
+            and (
+                self.has_taken_off
+                if objective == 0
+                else self.has_taken_off and self.apex_paid and self.landing_paid
+                if objective == 1
+                else full_success
+            )
+        )
         drop_success = (
             s.kind == "landing_only"
             and self.had_airborne_start
@@ -534,7 +548,7 @@ class DenseReward:
         )
         if (
             expired
-            and not (full_success or drop_success or self.failure_paid)
+            and not (course_success or drop_success or self.failure_paid)
             and not self.timeout_paid
         ):
             terms["timeout"] = -c.timeout_cost
@@ -550,14 +564,14 @@ class DenseReward:
 
             # gamma(dt)*Phi(next)-Phi(previous), with terminal Phi=0.
             # Oscillating/holding a partial pose cannot accumulate progress pay.
-            next_value = 0.0 if (fault or expired or full_success or drop_success) else potential(p)
+            next_value = 0.0 if (fault or expired or course_success or drop_success) else potential(p)
             terms["velocity_potential"] = math.exp(
                 -c.discount_rate_s * p.dt_s
             ) * next_value - potential(previous)
         if c.potential_events and s.kind == "ground_active_jump":
             for name in ("takeoff", "air_rise_progress", "apex", "landing_stable"):
                 terms[name] = 0.0
-            terminal = fault or expired or full_success or drop_success
+            terminal = fault or expired or course_success or drop_success
             next_events = 0.0 if terminal else self.event_potential()
             terms["progress_potential"] = (
                 math.exp(-c.discount_rate_s * p.dt_s) * next_events - previous_events
@@ -569,10 +583,11 @@ class DenseReward:
         return dict(
             total=total,
             terms=terms,
-            terminated=bool(fault or expired or full_success or drop_success),
+            terminated=bool(fault or expired or course_success or drop_success),
             truncated=False,
             timeout_bootstrap_allowed=False,
             active_jump_success=full_success,
+            course_success=course_success,
             landing_only_success=drop_success,
             actual_takeoff=self.has_taken_off,
             landing_stable=self.landing_paid,
@@ -606,8 +621,16 @@ class DenseReward:
                 add(
                     "goal." + name,
                     value,
-                    25.0 if name == "mass_kg" else 10.0 if name == "horizon_s" else 0.5,
-                    "kg, seconds or metres by field",
+                    1.0
+                    if name == "objective"
+                    else 25.0
+                    if name == "mass_kg"
+                    else 10.0
+                    if name == "horizon_s"
+                    else 0.5,
+                    "0=takeoff,1=stable_landing,2=complete_jump"
+                    if name == "objective"
+                    else "kg, seconds or metres by field",
                 )
         state = vars(self)
         for name, value in state.items():

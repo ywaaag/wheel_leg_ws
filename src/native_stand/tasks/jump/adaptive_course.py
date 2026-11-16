@@ -81,8 +81,13 @@ class AdaptiveCourse:
         self.config = (
             CourseConfig(**config) if isinstance(config, dict) else config or CourseConfig()
         )
+        from .skill_course import SkillLevel
+
         self.levels = (
-            tuple(Level(**x) if isinstance(x, dict) else x for x in levels)
+            tuple(
+                (SkillLevel if "objective" in x else Level)(**x) if isinstance(x, dict) else x
+                for x in levels
+            )
             if levels is not None
             else LEVELS
         )
@@ -137,6 +142,8 @@ class AdaptiveCourse:
             seconds=c.active_horizon_s if choose_active else c.landing_horizon_s,
             reserved_jump_s=c.reservation_active_s if choose_active else c.reservation_landing_s,
         )
+        if hasattr(level, "objective"):
+            request["objective"] = level.objective
         self.pending[self.serial] = copy.deepcopy(request)
         return request
 

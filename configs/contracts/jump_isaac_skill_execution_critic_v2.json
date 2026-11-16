@@ -1,0 +1,1858 @@
+{
+  "version": "jump_isaac_skill_execution_critic_v2",
+  "width": 5593,
+  "fields": [
+    {
+      "name": "C.phase",
+      "shape": [
+        10
+      ],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "C.owner",
+      "shape": [
+        5
+      ],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "C.fault",
+      "shape": [
+        14
+      ],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "C.status",
+      "shape": [
+        8
+      ],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "C.initialized",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "C.last_key",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "C.entry_valid",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "C.adopted_valid",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "C.command_valid",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "C.first_hold",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "C.airborne",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "C.success",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "C.stable_valid",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "C.age.phase_tick",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds"
+    },
+    {
+      "name": "C.age.jump_tick",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds"
+    },
+    {
+      "name": "C.age.last_tick",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds"
+    },
+    {
+      "name": "C.age.wait_tick",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds"
+    },
+    {
+      "name": "C.age.entry_tick",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds"
+    },
+    {
+      "name": "C.age.adopted_tick",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds"
+    },
+    {
+      "name": "C.age.command_tick",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds"
+    },
+    {
+      "name": "C.age.command_snapshot_tick",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds"
+    },
+    {
+      "name": "C.age.stable_tick",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds"
+    },
+    {
+      "name": "C.age.event_tick",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds"
+    },
+    {
+      "name": "C.contact",
+      "shape": [
+        2
+      ],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "C.candidate",
+      "shape": [
+        2
+      ],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "C.contact_valid",
+      "shape": [
+        2
+      ],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "C.off_valid",
+      "shape": [
+        2
+      ],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "C.candidate_age",
+      "shape": [
+        2
+      ],
+      "scale": 0.1,
+      "unit": "seconds"
+    },
+    {
+      "name": "C.off_age",
+      "shape": [
+        2
+      ],
+      "scale": 0.1,
+      "unit": "seconds"
+    },
+    {
+      "name": "C.command_identity",
+      "shape": [
+        4
+      ],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "C.adopted",
+      "shape": [
+        6
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        100.0,
+        1.5,
+        1.5,
+        100.0
+      ],
+      "unit": "mixed_rad_rad_s"
+    },
+    {
+      "name": "C.requested",
+      "shape": [
+        6
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        100.0,
+        1.5,
+        1.5,
+        100.0
+      ],
+      "unit": "mixed_rad_rad_s"
+    },
+    {
+      "name": "C.protected_target",
+      "shape": [
+        6
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        100.0,
+        1.5,
+        1.5,
+        100.0
+      ],
+      "unit": "mixed_rad_rad_s"
+    },
+    {
+      "name": "C.pending",
+      "shape": [
+        6
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        100.0,
+        1.5,
+        1.5,
+        100.0
+      ],
+      "unit": "mixed_rad_rad_s"
+    },
+    {
+      "name": "C.support_N",
+      "shape": [
+        2
+      ],
+      "scale": 250.0,
+      "unit": "N"
+    },
+    {
+      "name": "input.enabled_mode",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "input.key_down",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "input.upstream_owner",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "input.legacy_jump",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "input.motion_entry",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "input.motion_success",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "input.support_mask",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "input.support_model_valid",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "input.feedback_mask",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "input.imu_valid",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "input.adopted_valid",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "dimensionless"
+    },
+    {
+      "name": "input.gyro",
+      "shape": [
+        3
+      ],
+      "scale": 4.0,
+      "unit": "explicit SI physical field"
+    },
+    {
+      "name": "input.gravity",
+      "shape": [
+        3
+      ],
+      "scale": 1.0,
+      "unit": "explicit SI physical field"
+    },
+    {
+      "name": "input.q",
+      "shape": [
+        4
+      ],
+      "scale": 1.5,
+      "unit": "explicit SI physical field"
+    },
+    {
+      "name": "input.dq",
+      "shape": [
+        6
+      ],
+      "scale": 100.0,
+      "unit": "explicit SI physical field"
+    },
+    {
+      "name": "input.command",
+      "shape": [
+        3
+      ],
+      "scale": [
+        4.0,
+        4.0,
+        0.5
+      ],
+      "unit": "explicit SI physical field"
+    },
+    {
+      "name": "input.upstream_target",
+      "shape": [
+        6
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        100.0,
+        1.5,
+        1.5,
+        100.0
+      ],
+      "unit": "explicit SI physical field"
+    },
+    {
+      "name": "input.accel",
+      "shape": [
+        3
+      ],
+      "scale": 9.81,
+      "unit": "explicit SI physical field"
+    },
+    {
+      "name": "input.driver_tau",
+      "shape": [
+        4
+      ],
+      "scale": 40.0,
+      "unit": "explicit SI physical field"
+    },
+    {
+      "name": "input.internal_tau",
+      "shape": [
+        4
+      ],
+      "scale": 40.0,
+      "unit": "explicit SI physical field"
+    },
+    {
+      "name": "input.support_J",
+      "shape": [
+        8
+      ],
+      "scale": 0.5,
+      "unit": "explicit SI physical field"
+    },
+    {
+      "name": "input.leg_length",
+      "shape": [
+        2
+      ],
+      "scale": 0.5,
+      "unit": "explicit SI physical field"
+    },
+    {
+      "name": "input.leg_spread",
+      "shape": [
+        2
+      ],
+      "scale": 3.141592653589793,
+      "unit": "explicit SI physical field"
+    },
+    {
+      "name": "input.age.sensor_tick",
+      "shape": [],
+      "scale": 0.1,
+      "unit": "seconds"
+    },
+    {
+      "name": "input.age.imu_tick",
+      "shape": [],
+      "scale": 0.1,
+      "unit": "seconds"
+    },
+    {
+      "name": "input.age.support_tick",
+      "shape": [],
+      "scale": 0.1,
+      "unit": "seconds"
+    },
+    {
+      "name": "input.feedback_ages",
+      "shape": [
+        6
+      ],
+      "scale": 0.1,
+      "unit": "seconds"
+    },
+    {
+      "name": "C.raw_output",
+      "shape": [
+        6
+      ],
+      "scale": 1.0,
+      "unit": "raw Normal action"
+    },
+    {
+      "name": "Actor.delayed37",
+      "shape": [
+        37
+      ],
+      "scale": 1.0,
+      "unit": "deployed normalized fields"
+    },
+    {
+      "name": "Isaac.root_relative_state",
+      "shape": [
+        13
+      ],
+      "scale": 1.0,
+      "unit": "m, xyzw, world m/s, world rad/s"
+    },
+    {
+      "name": "Isaac.all_joint_q_dq_ddq",
+      "shape": [
+        3,
+        38
+      ],
+      "scale": 10.0,
+      "unit": "rad,rad/s,finite-difference rad/s2"
+    },
+    {
+      "name": "Isaac.COM_height_velocity",
+      "shape": [
+        4
+      ],
+      "scale": 1.0,
+      "unit": "m,m/s"
+    },
+    {
+      "name": "Isaac.leg_length_swing_spring",
+      "shape": [
+        6
+      ],
+      "scale": 1.0,
+      "unit": "m,rad,m"
+    },
+    {
+      "name": "Isaac.closure_residuals",
+      "shape": [
+        4
+      ],
+      "scale": 0.005,
+      "unit": "m"
+    },
+    {
+      "name": "Isaac.wheel_normal_slip_clearance",
+      "shape": [
+        6
+      ],
+      "scale": 1.0,
+      "unit": "N,m/s,m"
+    },
+    {
+      "name": "Isaac.motor_NET_passive",
+      "shape": [
+        3,
+        6
+      ],
+      "scale": 40.0,
+      "unit": "Nm; distinct actual effort and external loads"
+    },
+    {
+      "name": "Isaac.root_mass_COM",
+      "shape": [
+        4
+      ],
+      "scale": 1.0,
+      "unit": "kg,m; actual native parameter readback"
+    },
+    {
+      "name": "Isaac.material_min_max",
+      "shape": [
+        2,
+        3
+      ],
+      "scale": 1.0,
+      "unit": "actual min/max PhysX static/dynamic friction and restitution over shapes"
+    },
+    {
+      "name": "Isaac.elapsed_request",
+      "shape": [
+        3
+      ],
+      "scale": 10.0,
+      "unit": "elapsed_s,request_time_s,active_request_enabled"
+    },
+    {
+      "name": "execution.subcycle",
+      "shape": [
+        2
+      ],
+      "scale": [
+        5,
+        10
+      ],
+      "unit": "ms within PD/Actor cycle"
+    },
+    {
+      "name": "V4.caps",
+      "shape": [
+        1,
+        6
+      ],
+      "scale": [
+        40.0,
+        40.0,
+        4.8,
+        40.0,
+        40.0,
+        4.8
+      ],
+      "unit": "Nm by channel"
+    },
+    {
+      "name": "V4.lower",
+      "shape": [
+        1,
+        6
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        100.0,
+        1.5,
+        1.5,
+        100.0
+      ],
+      "unit": "rad and rad/s by channel"
+    },
+    {
+      "name": "V4.upper",
+      "shape": [
+        1,
+        6
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        100.0,
+        1.5,
+        1.5,
+        100.0
+      ],
+      "unit": "rad and rad/s by channel"
+    },
+    {
+      "name": "V4.raw",
+      "shape": [
+        1,
+        6
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        100.0,
+        1.5,
+        1.5,
+        100.0
+      ],
+      "unit": "rad and rad/s by channel"
+    },
+    {
+      "name": "V4.range_request",
+      "shape": [
+        1,
+        6
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        100.0,
+        1.5,
+        1.5,
+        100.0
+      ],
+      "unit": "rad and rad/s by channel"
+    },
+    {
+      "name": "V4.requested",
+      "shape": [
+        1,
+        6
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        100.0,
+        1.5,
+        1.5,
+        100.0
+      ],
+      "unit": "rad and rad/s by channel"
+    },
+    {
+      "name": "V4.adopted",
+      "shape": [
+        1,
+        6
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        100.0,
+        1.5,
+        1.5,
+        100.0
+      ],
+      "unit": "rad and rad/s by channel"
+    },
+    {
+      "name": "V4.motor",
+      "shape": [
+        1,
+        6
+      ],
+      "scale": [
+        40.0,
+        40.0,
+        4.8,
+        40.0,
+        40.0,
+        4.8
+      ],
+      "unit": "Nm by channel"
+    },
+    {
+      "name": "V4.NET",
+      "shape": [
+        1,
+        6
+      ],
+      "scale": 40.0,
+      "unit": "external model Nm"
+    },
+    {
+      "name": "V4.wheel_PD",
+      "shape": [
+        1,
+        2
+      ],
+      "scale": 4.8,
+      "unit": "wheel Nm"
+    },
+    {
+      "name": "V4.wheel_raw",
+      "shape": [
+        1,
+        2
+      ],
+      "scale": 4.8,
+      "unit": "wheel Nm"
+    },
+    {
+      "name": "V4.request_tick.valid",
+      "shape": [
+        1
+      ],
+      "scale": 1.0,
+      "unit": "bool"
+    },
+    {
+      "name": "V4.request_tick",
+      "shape": [
+        1
+      ],
+      "scale": 1000.0,
+      "unit": "relative age ms"
+    },
+    {
+      "name": "V4.adopted_origin.valid",
+      "shape": [
+        1
+      ],
+      "scale": 1.0,
+      "unit": "bool"
+    },
+    {
+      "name": "V4.adopted_origin",
+      "shape": [
+        1
+      ],
+      "scale": 1000.0,
+      "unit": "relative age ms"
+    },
+    {
+      "name": "V4.targets",
+      "shape": [
+        128,
+        1,
+        6
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        100.0,
+        1.5,
+        1.5,
+        100.0
+      ],
+      "unit": "rad and rad/s by channel"
+    },
+    {
+      "name": "V4.origins",
+      "shape": [
+        128,
+        1
+      ],
+      "scale": 1000.0,
+      "unit": "chronological request age ms"
+    },
+    {
+      "name": "V4.wheel_queue",
+      "shape": [
+        128,
+        1,
+        2
+      ],
+      "scale": 4.8,
+      "unit": "wheel Nm"
+    },
+    {
+      "name": "V4.motors",
+      "shape": [
+        128,
+        1,
+        6
+      ],
+      "scale": [
+        40.0,
+        40.0,
+        4.8,
+        40.0,
+        40.0,
+        4.8
+      ],
+      "unit": "Nm by channel"
+    },
+    {
+      "name": "V4.NETs",
+      "shape": [
+        128,
+        1,
+        6
+      ],
+      "scale": 40.0,
+      "unit": "external model Nm"
+    },
+    {
+      "name": "V4.target_delay",
+      "shape": [
+        1
+      ],
+      "scale": 40.0,
+      "unit": "count or delay ms"
+    },
+    {
+      "name": "V4.wheel_delay",
+      "shape": [
+        1,
+        2
+      ],
+      "scale": 40.0,
+      "unit": "count or delay ms"
+    },
+    {
+      "name": "V4.packet_age",
+      "shape": [
+        1
+      ],
+      "scale": 40.0,
+      "unit": "count or delay ms"
+    },
+    {
+      "name": "V4.bias",
+      "shape": [
+        1,
+        4
+      ],
+      "scale": 1.5,
+      "unit": "encoder rad"
+    },
+    {
+      "name": "V4.theta",
+      "shape": [
+        2,
+        2
+      ],
+      "scale": 1.5,
+      "unit": "paired model rad"
+    },
+    {
+      "name": "V4.omega",
+      "shape": [
+        2,
+        2
+      ],
+      "scale": 100.0,
+      "unit": "rad/s"
+    },
+    {
+      "name": "V4.last_q",
+      "shape": [
+        1,
+        6
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        100.0,
+        1.5,
+        1.5,
+        100.0
+      ],
+      "unit": "rad and rad/s by channel"
+    },
+    {
+      "name": "V4.last_dq",
+      "shape": [
+        1,
+        6
+      ],
+      "scale": 100.0,
+      "unit": "rad/s"
+    },
+    {
+      "name": "V4.packet",
+      "shape": [
+        16,
+        1,
+        16
+      ],
+      "scale": 1.0,
+      "unit": "already normalized sensor packet"
+    },
+    {
+      "name": "V4.qhistory",
+      "shape": [
+        16,
+        1,
+        6
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        100.0,
+        1.5,
+        1.5,
+        100.0
+      ],
+      "unit": "rad and rad/s by channel"
+    },
+    {
+      "name": "V4.dqhistory",
+      "shape": [
+        16,
+        1,
+        6
+      ],
+      "scale": 100.0,
+      "unit": "rad/s"
+    },
+    {
+      "name": "V4.target_policy_history",
+      "shape": [
+        16,
+        1,
+        6
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        100.0,
+        1.5,
+        1.5,
+        100.0
+      ],
+      "unit": "rad and rad/s by channel"
+    },
+    {
+      "name": "V4.motor_policy_history",
+      "shape": [
+        16,
+        1,
+        6
+      ],
+      "scale": [
+        40.0,
+        40.0,
+        4.8,
+        40.0,
+        40.0,
+        4.8
+      ],
+      "unit": "Nm by channel"
+    },
+    {
+      "name": "V4.effective_packet_age",
+      "shape": [
+        1
+      ],
+      "scale": 40.0,
+      "unit": "count or delay ms"
+    },
+    {
+      "name": "V4.birth.valid",
+      "shape": [
+        1
+      ],
+      "scale": 1.0,
+      "unit": "bool"
+    },
+    {
+      "name": "V4.birth",
+      "shape": [
+        1
+      ],
+      "scale": 1000.0,
+      "unit": "relative age ms"
+    },
+    {
+      "name": "V4.observed_tick.valid",
+      "shape": [
+        1
+      ],
+      "scale": 1.0,
+      "unit": "bool"
+    },
+    {
+      "name": "V4.observed_tick",
+      "shape": [
+        1
+      ],
+      "scale": 1000.0,
+      "unit": "relative age ms"
+    },
+    {
+      "name": "V4.hp_low",
+      "shape": [
+        1,
+        4
+      ],
+      "scale": 100.0,
+      "unit": "rad/s or accumulated squared velocity"
+    },
+    {
+      "name": "V4.hp_power",
+      "shape": [
+        1,
+        4
+      ],
+      "scale": 10000.0,
+      "unit": "rad/s or accumulated squared velocity"
+    },
+    {
+      "name": "V4.hp_count",
+      "shape": [
+        1
+      ],
+      "scale": 1000.0,
+      "unit": "count or delay ms"
+    },
+    {
+      "name": "response.x",
+      "shape": [
+        2,
+        13
+      ],
+      "scale": 100.0,
+      "unit": "named fitted tuple in bound model units"
+    },
+    {
+      "name": "response.kp",
+      "shape": [
+        2,
+        2
+      ],
+      "scale": 40.0,
+      "unit": "Nm/rad"
+    },
+    {
+      "name": "response.kd",
+      "shape": [
+        2,
+        2
+      ],
+      "scale": 2.0,
+      "unit": "Nm s/rad"
+    },
+    {
+      "name": "response.cap",
+      "shape": [
+        2,
+        2
+      ],
+      "scale": 40.0,
+      "unit": "Nm"
+    },
+    {
+      "name": "response.strength",
+      "shape": [
+        2,
+        2
+      ],
+      "scale": 1.0,
+      "unit": "gain"
+    },
+    {
+      "name": "response.vgain",
+      "shape": [
+        2,
+        2
+      ],
+      "scale": 1.0,
+      "unit": "gain"
+    },
+    {
+      "name": "response.color",
+      "shape": [
+        2,
+        2
+      ],
+      "scale": 100.0,
+      "unit": "rad/s"
+    },
+    {
+      "name": "response.color_std",
+      "shape": [
+        2,
+        1
+      ],
+      "scale": 100.0,
+      "unit": "rad/s"
+    },
+    {
+      "name": "response.color_rho",
+      "shape": [
+        2,
+        1
+      ],
+      "scale": 1.0,
+      "unit": "gain"
+    },
+    {
+      "name": "response.qbias",
+      "shape": [
+        2,
+        2
+      ],
+      "scale": 1.5,
+      "unit": "rad"
+    },
+    {
+      "name": "response.vbias",
+      "shape": [
+        2,
+        2
+      ],
+      "scale": 100.0,
+      "unit": "rad/s"
+    },
+    {
+      "name": "response.qnoise",
+      "shape": [
+        2,
+        2
+      ],
+      "scale": 1.5,
+      "unit": "rad"
+    },
+    {
+      "name": "response.vnoise",
+      "shape": [
+        2,
+        2
+      ],
+      "scale": 100.0,
+      "unit": "rad/s"
+    },
+    {
+      "name": "response.load_scale",
+      "shape": [
+        2,
+        1
+      ],
+      "scale": 1.0,
+      "unit": "gain"
+    },
+    {
+      "name": "response.qhist",
+      "shape": [
+        128,
+        2,
+        2
+      ],
+      "scale": 1.5,
+      "unit": "rad"
+    },
+    {
+      "name": "response.vhist",
+      "shape": [
+        128,
+        2,
+        2
+      ],
+      "scale": 100.0,
+      "unit": "rad/s"
+    },
+    {
+      "name": "response.queue",
+      "shape": [
+        128,
+        2,
+        2
+      ],
+      "scale": 40.0,
+      "unit": "modal Nm"
+    },
+    {
+      "name": "response.delay",
+      "shape": [
+        2
+      ],
+      "scale": 40.0,
+      "unit": "ms"
+    },
+    {
+      "name": "response.qage",
+      "shape": [
+        2
+      ],
+      "scale": 40.0,
+      "unit": "ms"
+    },
+    {
+      "name": "response.vage",
+      "shape": [
+        2
+      ],
+      "scale": 40.0,
+      "unit": "ms"
+    },
+    {
+      "name": "response.ref",
+      "shape": [
+        2,
+        2
+      ],
+      "scale": 1.5,
+      "unit": "rad"
+    },
+    {
+      "name": "response.alpha",
+      "shape": [
+        2,
+        2
+      ],
+      "scale": 1.0,
+      "unit": "response gain"
+    },
+    {
+      "name": "response.av",
+      "shape": [
+        2,
+        1
+      ],
+      "scale": 1.0,
+      "unit": "filter gain"
+    },
+    {
+      "name": "response.filtered",
+      "shape": [
+        2,
+        2
+      ],
+      "scale": 100.0,
+      "unit": "rad/s"
+    },
+    {
+      "name": "response.heldq",
+      "shape": [
+        2,
+        2
+      ],
+      "scale": 1.5,
+      "unit": "rad"
+    },
+    {
+      "name": "response.heldv",
+      "shape": [
+        2,
+        2
+      ],
+      "scale": 100.0,
+      "unit": "rad/s"
+    },
+    {
+      "name": "response.des",
+      "shape": [
+        2,
+        2
+      ],
+      "scale": 40.0,
+      "unit": "Nm"
+    },
+    {
+      "name": "response.actual",
+      "shape": [
+        2,
+        2
+      ],
+      "scale": 40.0,
+      "unit": "modal Nm"
+    },
+    {
+      "name": "response.des_unclipped",
+      "shape": [
+        2,
+        2
+      ],
+      "scale": 40.0,
+      "unit": "Nm"
+    },
+    {
+      "name": "task.elapsed_s",
+      "shape": [],
+      "scale": 10.0,
+      "unit": "seconds"
+    },
+    {
+      "name": "task.horizon_s",
+      "shape": [],
+      "scale": 10.0,
+      "unit": "seconds"
+    },
+    {
+      "name": "task.stable_s",
+      "shape": [],
+      "scale": 10.0,
+      "unit": "seconds"
+    },
+    {
+      "name": "task.had_support",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "bool"
+    },
+    {
+      "name": "task.actual_takeoff",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "bool"
+    },
+    {
+      "name": "task.previous_contact",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "bool"
+    },
+    {
+      "name": "task.landing_paid",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "bool"
+    },
+    {
+      "name": "task.landing_only",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "bool"
+    },
+    {
+      "name": "reward.apex_paid",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "J or explicit SI/bool"
+    },
+    {
+      "name": "reward.takeoff_paid",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "J or explicit SI/bool"
+    },
+    {
+      "name": "reward.handover_paid",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "J or explicit SI/bool"
+    },
+    {
+      "name": "reward.previous_COM_vz",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "J or explicit SI/bool"
+    },
+    {
+      "name": "reward.takeoff_COM_height_m.known",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "bool"
+    },
+    {
+      "name": "reward.takeoff_COM_height_m",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "J or explicit SI/bool"
+    },
+    {
+      "name": "reward.peak_COM_height_m.known",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "bool"
+    },
+    {
+      "name": "reward.peak_COM_height_m",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "J or explicit SI/bool"
+    },
+    {
+      "name": "reward.motor_positive_work_J",
+      "shape": [],
+      "scale": 100.0,
+      "unit": "J or explicit SI/bool"
+    },
+    {
+      "name": "reward.motor_negative_work_J",
+      "shape": [],
+      "scale": 100.0,
+      "unit": "J or explicit SI/bool"
+    },
+    {
+      "name": "reward.NET_work_J",
+      "shape": [],
+      "scale": 100.0,
+      "unit": "J or explicit SI/bool"
+    },
+    {
+      "name": "reward.spring_work_J",
+      "shape": [],
+      "scale": 100.0,
+      "unit": "J or explicit SI/bool"
+    },
+    {
+      "name": "dense.kind",
+      "shape": [
+        2
+      ],
+      "scale": 1.0,
+      "unit": "bool or normalized scalar"
+    },
+    {
+      "name": "dense.goal.horizon_s",
+      "shape": [],
+      "scale": 10.0,
+      "unit": "kg, seconds or metres by field"
+    },
+    {
+      "name": "dense.goal.mass_kg",
+      "shape": [],
+      "scale": 25.0,
+      "unit": "kg, seconds or metres by field"
+    },
+    {
+      "name": "dense.goal.target_rise_m",
+      "shape": [],
+      "scale": 0.5,
+      "unit": "kg, seconds or metres by field"
+    },
+    {
+      "name": "dense.goal.target_clearance_m",
+      "shape": [],
+      "scale": 0.5,
+      "unit": "kg, seconds or metres by field"
+    },
+    {
+      "name": "dense.goal.air_leg_m",
+      "shape": [],
+      "scale": 0.5,
+      "unit": "kg, seconds or metres by field"
+    },
+    {
+      "name": "dense.goal.entry_height_m",
+      "shape": [],
+      "scale": 0.5,
+      "unit": "kg, seconds or metres by field"
+    },
+    {
+      "name": "dense.goal.objective",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "0=takeoff,1=stable_landing,2=complete_jump"
+    },
+    {
+      "name": "dense.goal.takeoff_clearance_m",
+      "shape": [],
+      "scale": 0.5,
+      "unit": "kg, seconds or metres by field"
+    },
+    {
+      "name": "dense.elapsed_s",
+      "shape": [],
+      "scale": 10.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.jump_control_s",
+      "shape": [],
+      "scale": 10.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.had_support",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.crouch_legal",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.push_seen",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.assisted",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.off_s",
+      "shape": [],
+      "scale": 10.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.air_origin_COM_m",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.air_origin_vz_m_s",
+      "shape": [],
+      "scale": 10.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.takeoff_COM_m",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.takeoff_vz_m_s",
+      "shape": [],
+      "scale": 10.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.peak_COM_m",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.peak_tire_clearance_m",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.has_taken_off",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.had_airborne_start",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.has_landed",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.apex_paid",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.landing_paid",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.handover_paid",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.failure_paid",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.timeout_paid",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.landing_age_s",
+      "shape": [],
+      "scale": 10.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.touchdown_down_v_m_s",
+      "shape": [],
+      "scale": 10.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.stable_s",
+      "shape": [],
+      "scale": 10.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.force_peak_score",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "seconds or SI scalar/bool by field"
+    },
+    {
+      "name": "dense.best.crouch",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "bool or normalized scalar"
+    },
+    {
+      "name": "dense.best.push",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "bool or normalized scalar"
+    },
+    {
+      "name": "dense.best.extension",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "bool or normalized scalar"
+    },
+    {
+      "name": "dense.best.air_rise",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "bool or normalized scalar"
+    },
+    {
+      "name": "dense.best.air_shape",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "bool or normalized scalar"
+    },
+    {
+      "name": "dense.best.cushion",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "bool or normalized scalar"
+    },
+    {
+      "name": "dense.best.settle",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "bool or normalized scalar"
+    },
+    {
+      "name": "dense.previous.dt_s",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "explicit previous physical packet SI/bool"
+    },
+    {
+      "name": "dense.previous.phase",
+      "shape": [
+        10
+      ],
+      "scale": 1.0,
+      "unit": "actual C phase one-hot including BALANCE9"
+    },
+    {
+      "name": "dense.previous.owner",
+      "shape": [
+        5
+      ],
+      "scale": 1.0,
+      "unit": "bool or normalized scalar"
+    },
+    {
+      "name": "dense.previous.COM_height_m",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "explicit previous physical packet SI/bool"
+    },
+    {
+      "name": "dense.previous.COM_velocity_m_s",
+      "shape": [
+        3
+      ],
+      "scale": 3.0,
+      "unit": "explicit previous physical packet SI/bool"
+    },
+    {
+      "name": "dense.previous.root_height_m",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "explicit previous physical packet SI/bool"
+    },
+    {
+      "name": "dense.previous.tilt_rad",
+      "shape": [
+        2
+      ],
+      "scale": 1.0,
+      "unit": "explicit previous physical packet SI/bool"
+    },
+    {
+      "name": "dense.previous.omega_rad_s",
+      "shape": [
+        3
+      ],
+      "scale": 4.0,
+      "unit": "explicit previous physical packet SI/bool"
+    },
+    {
+      "name": "dense.previous.leg_length_m",
+      "shape": [
+        2
+      ],
+      "scale": 1.0,
+      "unit": "explicit previous physical packet SI/bool"
+    },
+    {
+      "name": "dense.previous.leg_swing_rad",
+      "shape": [
+        2
+      ],
+      "scale": 1.0,
+      "unit": "explicit previous physical packet SI/bool"
+    },
+    {
+      "name": "dense.previous.spring_length_m",
+      "shape": [
+        2
+      ],
+      "scale": 1.0,
+      "unit": "explicit previous physical packet SI/bool"
+    },
+    {
+      "name": "dense.previous.contact",
+      "shape": [
+        2
+      ],
+      "scale": 1.0,
+      "unit": "explicit previous physical packet SI/bool"
+    },
+    {
+      "name": "dense.previous.tire_clearance_m",
+      "shape": [
+        2
+      ],
+      "scale": 1.0,
+      "unit": "explicit previous physical packet SI/bool"
+    },
+    {
+      "name": "dense.previous.wheel_normal_force_N",
+      "shape": [
+        2
+      ],
+      "scale": 250.0,
+      "unit": "explicit previous physical packet SI/bool"
+    },
+    {
+      "name": "dense.previous.contact_slip_m_s",
+      "shape": [
+        2
+      ],
+      "scale": 1.0,
+      "unit": "explicit previous physical packet SI/bool"
+    },
+    {
+      "name": "dense.previous.actual_motor_Nm",
+      "shape": [
+        6
+      ],
+      "scale": [
+        40.0,
+        40.0,
+        2.44694786377709,
+        40.0,
+        40.0,
+        2.44694786377709
+      ],
+      "unit": "explicit previous physical packet SI/bool"
+    },
+    {
+      "name": "dense.previous.actual_dq_rad_s",
+      "shape": [
+        6
+      ],
+      "scale": 100.0,
+      "unit": "explicit previous physical packet SI/bool"
+    },
+    {
+      "name": "dense.previous.adopted_target",
+      "shape": [
+        6
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        100.0,
+        1.5,
+        1.5,
+        100.0
+      ],
+      "unit": "explicit previous physical packet SI/bool"
+    },
+    {
+      "name": "dense.previous.force_valid",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "explicit previous physical packet SI/bool"
+    },
+    {
+      "name": "dense.previous.motion_confirmed",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "explicit previous physical packet SI/bool"
+    },
+    {
+      "name": "dense.previous.fault",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "explicit previous physical packet SI/bool"
+    },
+    {
+      "name": "dense.previous.external_takeoff_assist",
+      "shape": [],
+      "scale": 1.0,
+      "unit": "explicit previous physical packet SI/bool"
+    }
+  ],
+  "complete_checkpoint_not_replaced": true,
+  "absolute_ticks": false,
+  "scope": "actual PhysX/C/V4/reward; no MuJoCo solver padding",
+  "physical_snapshot_bitwise": false
+}

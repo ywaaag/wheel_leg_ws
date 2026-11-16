@@ -48,19 +48,36 @@ class UnifiedReward(DenseReward):
     def state_dict(self):
         result = super().state_dict()
         from .outcome import REWARD
+        from .skill_course import REWARD as SKILL_REWARD
+        from .skill_course import SkillTaskSpec
 
-        result["version"] = REWARD if not self.config.require_crouch else VERSION
+        result["version"] = (
+            SKILL_REWARD
+            if isinstance(self.spec, SkillTaskSpec)
+            else REWARD
+            if not self.config.require_crouch
+            else VERSION
+        )
         return result
 
     @classmethod
     def restore(cls, value):
         data = dict(value)
         from .outcome import REWARD
+        from .skill_course import REWARD as SKILL_REWARD
+        from .skill_course import SkillTaskSpec
 
-        expected = VERSION if data["config"].get("require_crouch", True) else REWARD
+        skill = "objective" in data["spec"]
+        expected = (
+            SKILL_REWARD
+            if skill
+            else VERSION
+            if data["config"].get("require_crouch", True)
+            else REWARD
+        )
         if data.pop("version") != expected:
             raise ValueError("unified reward version mismatch")
-        data["spec"] = TaskSpec(**data["spec"])
+        data["spec"] = (SkillTaskSpec if skill else TaskSpec)(**data["spec"])
         data["config"] = RewardConfig(**data["config"])
         data["previous"] = UnifiedPacket(**data["previous"])
         return cls(**data)

@@ -1,0 +1,364 @@
+{
+  "schema_version": 1,
+  "preset": "jump_isaac_v1",
+  "name": "jump_first_takeoff_isaac_prepared",
+  "source_root": "../../src",
+  "model": {
+    "interface": "jump_isaac_ABI4_raw37_wheel48_v1",
+    "actor_hidden_dims": [
+      2048,
+      1024,
+      512
+    ],
+    "critic_hidden_dims": [
+      512,
+      512,
+      256
+    ],
+    "actor_input": 37,
+    "critic_input": 5593,
+    "critic_privileged_version": "jump_isaac_skill_execution_critic_v2",
+    "action_version": "jump_isaac_ABI4_raw37_wheel48_v1",
+    "kind": "mlp"
+  },
+  "observation": {
+    "frame_dim": 37,
+    "actor_dim": 37,
+    "critic_dim": 5593,
+    "leg_input_scale_rad": 1.5,
+    "wheel_input_scale_rad_s": 100.0
+  },
+  "action": {
+    "dim": 6,
+    "order": [
+      "left_hip_pitch",
+      "left_active_link_pitch",
+      "left_wheel_spin",
+      "right_hip_pitch",
+      "right_active_link_pitch",
+      "right_wheel_spin"
+    ],
+    "leg_scale_rad": 0.5,
+    "wheel_scale_rad_s": 10.0,
+    "version": "jump_isaac_ABI4_raw37_wheel48_v1"
+  },
+  "control": {
+    "physics_dt_s": 0.001,
+    "pd_dt_s": 0.005,
+    "policy_dt_s": 0.01,
+    "leg_kp": 40.0,
+    "leg_kd": 2.0,
+    "wheel_kv": 0.2,
+    "effort_limits_nm": [
+      40,
+      40,
+      4.8,
+      40,
+      40,
+      4.8
+    ],
+    "height_command_m": 0.34
+  },
+  "initialization": {
+    "mode": "actor_only",
+    "checkpoint": "/home/kellen/wheel_leg_training_data/2026_11_15__jump_closed_loop_teaching_v4/exports/BC60_actor_v192/actor.pt",
+    "sha256": "871bf6316a0ec44cb342c4f42579928265fb163e4d15775909a58e97d30d9d5e"
+  },
+  "reward": {
+    "version": "jump_physical_skill_events_reward_v1",
+    "dt": 0.01,
+    "weights": [
+      1.0
+    ]
+  },
+  "curriculum": {
+    "version": "jump_landing_and_active_time_course_v1",
+    "stage": 0,
+    "stages": []
+  },
+  "evaluation": {
+    "envs": 1,
+    "scored_envs": 1,
+    "seconds": 1.0,
+    "seed": 2026111601,
+    "protocol_version": "jump_training_statistics_only_no_independent_evaluation_v1",
+    "conditions": []
+  },
+  "runtime": {
+    "envs": 2048,
+    "steps_per_env": 64,
+    "seed": 2026111601,
+    "device": "cuda:0",
+    "headless": true
+  },
+  "ppo": {
+    "learning_rate": 6e-05,
+    "critic_learning_rate": 9e-05,
+    "epochs": 4,
+    "minibatches": 64,
+    "critic_warmup_updates": 10,
+    "gamma": 0.9980019986673331,
+    "lam": 0.95,
+    "entropy_coef": 0.0,
+    "value_coef": 1.0,
+    "boundary_coefficient": 0.0,
+    "dq_gain_coefficient": 0.0,
+    "exploration_leg_rad": 0.06,
+    "exploration_wheel_rad_s": 1.0
+  },
+  "limits": {
+    "smoke_updates": 0,
+    "formal_updates": 0,
+    "sample_limit": null,
+    "evaluation_wall_s": null,
+    "chain_wall_s": null
+  },
+  "storage": {
+    "checkpoint_every_updates": 100,
+    "keep_recent_checkpoints": 2,
+    "metrics_every_updates": 1,
+    "tensorboard": false,
+    "save_traces": false,
+    "milestones": [
+      1,
+      100,
+      500,
+      1000,
+      2000,
+      5000,
+      10000
+    ],
+    "max_output_bytes": 4294967296,
+    "terminal_reserve_bytes": 536870912
+  },
+  "notifications": {
+    "enabled": false
+  },
+  "assets": {
+    "value_files": {
+      "jump_contract_data": {
+        "path": "../contracts/jump_unified_raw37_wheel48_v1.json",
+        "sha256": "80d72686b928efe512f2e0d0b87c1b69946c14340dffa00d048b8699a9bf7336"
+      },
+      "jump_critic_schema": {
+        "path": "../contracts/jump_isaac_skill_execution_critic_v2.json",
+        "sha256": "c88c5068ffefecbc42cfdc5d444fd02ad0ada36da588878f4a58c07a42ab67c5"
+      }
+    },
+    "jump_bindings": {
+      "asset": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/assets/diagnostic/rmuc_robot_closed_loop_knee_stop_0233_v2.usd",
+        "sha256": "32a56efc5ee677a7ae3b5e59c3848a141276ec4957757acde239b774b0c901b7"
+      },
+      "spring_geometry": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/gas_spring_stroke_refined_20261018/geometry.json",
+        "sha256": "039bc77fafb556600a1d87e699306864143724248fad381f53e461e189933537"
+      },
+      "V4": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_10_30__bilateral_detailed_response_v4/candidate_contract.json",
+        "sha256": "5510088cc1f57f823718fd36218beb32cabf3c1d8ce708cf75531129178dc1cd"
+      },
+      "mechanics": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_08__recovery_isaac_preparation/initial_states.json",
+        "sha256": "e4c209d6eb57fc6f80d1bdae5bb4b05eb54019ea9d6cf1441c331471d6664f64"
+      },
+      "description": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_09__jump_cpu_preparation/ready_v1/geometry_description.json",
+        "sha256": "d6155bb0708cd0ad55cad2e3971e0779083d1ba07a415b2f5c7f570781322560"
+      },
+      "Actor": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__jump_motion_transfer48_refined/jump_distilled_actor.pt",
+        "sha256": "2a4d94517943559eaed51841e27be51e4672162a862ff07cd06979efc2e685fb"
+      },
+      "BC_state": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__jump_motion_transfer48_refined/BC_training_state.pt",
+        "sha256": "b4e214128d0473a02499dfa1616d67483005c5274972ba06b2a46c40276e6763"
+      },
+      "ONNX": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__jump_motion_transfer48/jump_distilled_actor_raw37.onnx",
+        "sha256": "a6d1c2094196c7a5349bfea569359ca4f271a824be77ffe1deeda3781373b44e"
+      },
+      "C_build": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__jump_motion_transfer48/C_ready/build.json",
+        "sha256": "cffc7c01b669920b1bd2c04604612b7f2efe9acafb0025c68bddef28fd642263"
+      },
+      "settlement": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__jump_motion_transfer48/cumulative_settlement.json",
+        "sha256": "9c6c66d7b7e90ae76f03bf1aa5cb9e1b3b299079f5c957a6d15bbf691e35de7c"
+      },
+      "dataset": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__jump_motion_transfer48/dataset.json",
+        "sha256": "002d71a072f941b2fa1a9b8fe71b689629ad368e7ee46a47d620cddcc087bb0e"
+      },
+      "critic_schema": {
+        "path": "../contracts/jump_isaac_skill_execution_critic_v2.json",
+        "sha256": "c88c5068ffefecbc42cfdc5d444fd02ad0ada36da588878f4a58c07a42ab67c5"
+      },
+      "contract": {
+        "path": "../contracts/jump_unified_raw37_wheel48_v1.json",
+        "sha256": "80d72686b928efe512f2e0d0b87c1b69946c14340dffa00d048b8699a9bf7336"
+      },
+      "teacher": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/runs/2026_11_8-22_20__motion_C0_yaw1to4_full_KL10000/checkpoints/model_update_4300.pt",
+        "sha256": "1c5336e4a6d1b1befdcaa27cebaf2e567309579765dc6f539b8c26c79a242525"
+      },
+      "executor_contract": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/deployment_protocol/2026_11_06__motion2320_actor20_v4legs_wheel7_11/output_contract.json",
+        "sha256": "98a7d711fe7ecce1d32dc7ac21764160a2e9b62207bf7319e4b66b423fd06d06"
+      },
+      "teacher_episodes": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/episodes.json",
+        "sha256": "b29c725a5129c568ced24a24b4c196b2a25119ee899c1da22b11ef7646229d49"
+      },
+      "data_episode_0": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case000__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "d23bca44741a4067c277d4705f638a83ff14817d72c593c7c63da34cdc62a93b"
+      },
+      "data_episode_1": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case001__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "f02dfac29c8ea728844521082253f8e51827a7d9e1ba391d3bc0b76069f26d5e"
+      },
+      "data_episode_2": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case002__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "f140c9d348ea31c512a9a21b10682cdcbbf23d9150b85bc2dd26c643131282fd"
+      },
+      "data_episode_13": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case013__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "1ccf322b4ce64beeffa61a1c1af2dfb851e594d457c90f8cc8b0dfdfc4390af6"
+      },
+      "data_episode_15": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case015__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "125c0de3672aa083a3a6a202c3e390d0142424cfe0f2946d60590380b39904e4"
+      },
+      "data_episode_16": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case016__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "e5a2baaff70e34f2663fcb6ec6984018a42f7c857c57915dbbac9367da277465"
+      },
+      "data_episode_17": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case017__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "4e2322b6175787aa72bf31b08ac8458a793b59f8ac37369031ad34c5d27ef6ad"
+      },
+      "data_episode_18": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case018__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "0d2b69523a4513e198ab23f73308b402e80836bb43d17ab57830ae927b51742e"
+      },
+      "data_episode_19": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case019__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "2eb45a3b4de70a5a0cec132fdbbd4bc790b9a136ef419a3b6211e7aa5581d622"
+      },
+      "data_episode_20": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case020__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "1dff5eac25db532175d04501213847f1a6a175d8aa16f4a0c2ba40aff24075cc"
+      },
+      "data_episode_21": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case021__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "65874c66f3b0bae2c55983e5998ecd5b62c3bfbf84d129ea05334754abdaa2e4"
+      },
+      "data_episode_22": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case022__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "8ba9a22e677ee7d80989999a38b0b7133ec69403b3134d3d24120770e2b70e8b"
+      },
+      "data_episode_31": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case026__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "e4dbc08b8964ae06072e11755ba589d73c4a2a21680cdc0ce1ff6f844b90ce6c"
+      },
+      "data_episode_32": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case027__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "5679412ae270d2cd8d5f78cc9becb5759439cc11cbeb4525fe3c0900fb024b17"
+      },
+      "data_episode_33": {
+        "path": "/home/kellen/wheel_leg_training_data/dependencies/home/kellen/wheel_leg_native_train/artifacts/2026_11_10__motion48_height_banking/comparison/motion4300/motor48/V4_nominal__case028__log_geometry_adopted_cache__policy_to_policy.npz",
+        "sha256": "5f6297327e8c337d88a0da4dde1546d7710d1227d59668e865bd0ba599d2aad2"
+      },
+      "execution_jump_response": {
+        "path": "../../src/native_stand/simulation/jump_response.py",
+        "sha256": "b5307b651adc22bfa57870af5dba181a241810d1c9e684d901a54a9c1a34372d"
+      },
+      "execution_manifest": {
+        "path": "../../src/native_stand/simulation/jump_control_source/manifest.json",
+        "sha256": "f4de307b19a46c94c612d4e1c58cf758f285c4fd2bbed4b1bf3c19023af5bacb"
+      }
+    },
+    "jump_objective": "jump_first_takeoff_course_v1",
+    "jump_exploration": "fixed_physical_Normal_v1",
+    "jump_course": {
+      "plant_id": "Isaac_nativePlane_Cylinder_ABI4_skill_v1",
+      "DR_id": "nominal",
+      "config": {
+        "active_horizon_s": 6.0,
+        "require_landing_rehearsal": false
+      },
+      "levels": [
+        {
+          "name": "first_true_active_takeoff",
+          "active_time_share": 1.0,
+          "rise_m": 0.02,
+          "clearance_m": 0.005,
+          "air_leg_m": 0.18,
+          "objective": 0
+        },
+        {
+          "name": "first_stable_landing",
+          "active_time_share": 1.0,
+          "rise_m": 0.02,
+          "clearance_m": 0.005,
+          "air_leg_m": 0.18,
+          "objective": 1
+        },
+        {
+          "name": "complete_jump_2cm",
+          "active_time_share": 1.0,
+          "rise_m": 0.02,
+          "clearance_m": 0.005,
+          "air_leg_m": 0.18,
+          "objective": 2
+        },
+        {
+          "name": "complete_jump_5cm",
+          "active_time_share": 1.0,
+          "rise_m": 0.05,
+          "clearance_m": 0.02,
+          "air_leg_m": 0.18,
+          "objective": 2
+        },
+        {
+          "name": "complete_jump_10cm",
+          "active_time_share": 1.0,
+          "rise_m": 0.1,
+          "clearance_m": 0.04,
+          "air_leg_m": 0.18,
+          "objective": 2
+        }
+      ]
+    },
+    "jump_restore_mode": "fresh_reset",
+    "jump_compute": "cuda_firmware_warp_inverse_v1",
+    "jump_ground": "native_plane_v1",
+    "source_supervised_updates": 3060,
+    "jump_isaac": {
+      "gpu_uuid": "GPU-e704e7d4-2965-4712-9759-ba6b9910bd72",
+      "execution_root": "/home/kellen/wheel_leg_training_data/jump_outcome_execution",
+      "resource_policy": {
+        "mode": "shared_authorized",
+        "shared_training_task": "jump",
+        "authorization": {
+          "path": "/home/kellen/wheel_leg_jump_gpu_ws/artifacts/jump_diagnosis_20261113/local_long_training_authorization_v82.json",
+          "sha256": "d9e6620f0ab27ccaa9f3eb9e9413f984395d5c0aa044d23509226704fb3c54a7"
+        },
+        "storage_path": "/home/kellen/wheel_leg_training_data",
+        "minimum_disk_free_bytes": 4294967296,
+        "minimum_free_MiB": 16384
+      }
+    },
+    "jump_task_budget_lineage": {
+      "task_limit": 10000,
+      "this_allocation": 0,
+      "status": "prepared_only; settle running source before allocating any remainder"
+    }
+  },
+  "diagnostics": {
+    "minimum_unique_actor_samples": 128,
+    "minimum_minibatch_samples": 8,
+    "performance_measurement": true
+  }
+}

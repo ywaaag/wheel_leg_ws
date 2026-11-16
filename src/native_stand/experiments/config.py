@@ -800,10 +800,10 @@ def load_job_config(path: str | Path) -> JobConfig:
         _check_keys(merged[section], _section_allowed(section), section)
 
     base = config_path.parent
-    from native_stand.artifacts.runtime_paths import RuntimePaths
+    from native_stand.artifacts.runtime_paths import RuntimePaths, asset_values
 
     paths = RuntimePaths.from_assets(merged.get("assets", {}))
-    merged["assets"] = paths.view(merged.get("assets", {}))
+    merged["assets"] = asset_values(paths.view(merged.get("assets", {})), base, paths)
     source_root_raw = raw.get("source_root")
     source_root = (
         resolve_path(paths.resolve(source_root_raw), base)

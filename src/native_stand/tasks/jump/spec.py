@@ -26,6 +26,10 @@ def build_task(job):
         import math
 
         from .unified import contract as unified_contract
+        from . import skill_course
+
+        skill_course.validate(job)
+        critic_version = skill_course.CRITIC if skill_course.enabled(job) else CRITIC
 
         contract = job.assets["jump_contract_data"]
         schema = job.assets["jump_critic_schema"]
@@ -38,7 +42,7 @@ def build_task(job):
         if (job.model.actor_input, job.observation.actor_dim) != (37, 37):
             raise ValueError("Jump Isaac DirectActor37 required")
         if (
-            schema["version"] != CRITIC
+            schema["version"] != critic_version
             or schema["width"] != job.model.critic_input
             or sum(math.prod(f["shape"]) for f in schema["fields"]) != schema["width"]
         ):

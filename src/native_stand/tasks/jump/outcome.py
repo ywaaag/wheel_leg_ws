@@ -11,13 +11,19 @@ REQUEST_AFTER_MS = 300
 
 
 def enabled(job):
+    from .skill_course import PROFILE as SKILL_PROFILE
+
     value = job.assets.get("jump_objective")
-    if value not in (None, PROFILE):
+    if value not in (None, PROFILE, SKILL_PROFILE):
         raise ValueError("Unknown explicit Jump objective")
-    return value == PROFILE
+    return value is not None
 
 
-def reward_config():
+def reward_config(job=None):
+    from . import skill_course
+
+    if job is not None and skill_course.enabled(job):
+        return skill_course.reward_config()
     return replace(
         RewardConfig(),
         require_crouch=False,
@@ -45,14 +51,16 @@ def reward_config():
     )
 
 
-def controller_record():
+def controller_record(job=None):
+    from . import skill_course
+
     return dict(
-        version=PROFILE,
+        version=skill_course.PROFILE if job is not None and skill_course.enabled(job) else PROFILE,
         config_id=CONFIG_ID,
         request_after_ms=REQUEST_AFTER_MS,
         request="pending_until_safe_acceptance_or_episode_end",
         crouch="no_mandatory_pose_or_phase",
         push_timeout_ms=1200,
-        no_takeoff_deadline_s=2.0,
+        no_takeoff_deadline_s=reward_config(job).no_takeoff_deadline_s,
         external_assist=False,
     )

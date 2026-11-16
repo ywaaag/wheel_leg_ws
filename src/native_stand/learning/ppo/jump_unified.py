@@ -77,6 +77,8 @@ class DirectPPO(NominalPPO):
 
 
 def build_policy(job, observations, *, device="cpu", source=None, version=VERSION):
+    from native_stand.tasks.jump import skill_course
+
     handle = assemble_policy(
         job,
         observations,
@@ -99,11 +101,23 @@ def build_policy(job, observations, *, device="cpu", source=None, version=VERSIO
 
             with torch.no_grad():
                 handle["ppo"].actor.log_std.copy_(physical_std(job).to(device).log())
+    fixed_std = None
+    if skill_course.enabled(job):
+        from .actor_initialization import physical_std
+
+        fixed_std = physical_std(job)
+        with torch.no_grad():
+            handle["ppo"].actor.log_std.copy_(fixed_std.log().to(device))
+        handle["ppo"].actor.log_std.requires_grad_(False)
     semantics = dict(
         reward=job.reward.version,
         course=job.assets.get("jump_course"),
         objective=job.assets.get("jump_objective"),
     )
+    if fixed_std is not None:
+        semantics["exploration"] = dict(
+            version=skill_course.EXPLORATION, raw_std=fixed_std.tolist()
+        )
     capture = handle["capture"]
     restore = handle["restore"]
 
@@ -130,6 +144,10 @@ def build_policy(job, observations, *, device="cpu", source=None, version=VERSIO
         ):
             raise ValueError("Jump完整恢复Critic/raw合同不同")
         validate_saved_std(state["std"], state["actor"]["log_std"])
+        if fixed_std is not None and not torch.allclose(
+            state["std"].detach().cpu(), fixed_std, atol=0, rtol=2e-6
+        ):
+            raise ValueError("Jump fixed physical exploration differs from saved distribution")
         restore(state)
 
     handle.update(capture=capture_state, restore=restore_state)
