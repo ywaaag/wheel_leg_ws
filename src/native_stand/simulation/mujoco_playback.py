@@ -230,17 +230,23 @@ class MotionPlayer:
         roll, pitch, _ = Rotation.from_matrix(flu).as_euler("xyz")
         contacts = {"left_wheel": False, "right_wheel": False}
         normal = {"left_wheel": 0.0, "right_wheel": 0.0}
+        positive_gap_normal = {"left_wheel": 0.0, "right_wheel": 0.0}
         for index, contact in enumerate(d.contact):
             a, b = contact.geom
             for robot, ground in [(a, b), (b, a)]:
-                if m.geom_bodyid[ground] != 0 or contact.dist > 0:
+                if m.geom_bodyid[ground] != 0:
                     continue
                 body = mj.mj_id2name(m, mj.mjtObj.mjOBJ_BODY, m.geom_bodyid[robot])
                 if body in contacts:
-                    contacts[body] = True
+                    contacts[body] |= contact.dist <= 0
                     force = np.zeros(6)
                     mj.mj_contactForce(m, d, index, force)
-                    normal[body] += max(0.0, float(force[0]))
+                    # Margin contacts can carry load at positive distance. The
+                    # solver's force, rather than penetration, measures support.
+                    load = max(0.0, float(force[0]))
+                    normal[body] += load
+                    if contact.dist > 0:
+                        positive_gap_normal[body] += load
         try:
             ground = float(self.ground_height(d.qpos[None, :2])[0])
         except ValueError:
@@ -263,6 +269,8 @@ class MotionPlayer:
             contact_geometric_left=contacts["right_wheel"],
             normal_force_geometric_right_N=normal["left_wheel"],
             normal_force_geometric_left_N=normal["right_wheel"],
+            positive_gap_normal_force_geometric_right_N=positive_gap_normal["left_wheel"],
+            positive_gap_normal_force_geometric_left_N=positive_gap_normal["right_wheel"],
             q=d.qpos[self.qids].tolist(),
             dq=d.qvel[self.vids].tolist(),
             raw=None if self.last_record is None else self.last_record["raw"].tolist(),

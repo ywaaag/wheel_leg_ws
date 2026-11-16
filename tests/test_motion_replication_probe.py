@@ -98,6 +98,40 @@ def test_dry_run_never_builds_C_creates_player_or_output(tmp_path):
     assert not result['starts_engine'] and not result['writes'] and not (tmp_path/'absent').exists()
 
 
+def test_support_force_includes_loaded_positive_gap_contact_without_changing_legacy_touch():
+    from native_stand.simulation.mujoco_playback import MotionPlayer
+
+    player = object.__new__(MotionPlayer)
+    player.data = SimpleNamespace(
+        xmat=np.array([[[0, 0, -1], [-1, 0, 0], [0, 1, 0]]]), qpos=np.zeros(6), qvel=np.zeros(6), time=0.,
+        contact=[SimpleNamespace(geom=(1, 0), dist=.0002),
+                 SimpleNamespace(geom=(2, 0), dist=-.0001)],
+    )
+    player.model = SimpleNamespace(geom_bodyid=np.array([0, 1, 2]))
+    def force(model, data, index, output):
+        output[0] = [23., 29.][index]
+    player.mj = SimpleNamespace(
+        mjtObj=SimpleNamespace(mjOBJ_BODY=1),
+        mj_id2name=lambda model, kind, index: ['world', 'left_wheel', 'right_wheel'][index],
+        mj_contactForce=force,
+        mj_objectVelocity=lambda model, data, kind, body, output, local: output.fill(0),
+    )
+    player.execution = SimpleNamespace(tick=0, requested=np.zeros(6),
+                                      core=SimpleNamespace(adopted=np.zeros(6)),
+                                      motor=np.zeros(6), NET=np.zeros(6))
+    player.robot_body=player.reset_count=0
+    player.qids=player.vids=np.arange(6)
+    player.last_record=None; player.terrain=None; player.spawn='test'
+    player.solver_readback={'version': 'test'}
+    player.ground_height=lambda xy: np.zeros(len(xy))
+    result=player.telemetry()
+    assert result['normal_force_geometric_right_N']==23.
+    assert result['positive_gap_normal_force_geometric_right_N']==23.
+    assert result['normal_force_geometric_left_N']==29.
+    assert result['positive_gap_normal_force_geometric_left_N']==0.
+    assert not result['contact_geometric_right'] and result['contact_geometric_left']
+
+
 def test_physical_huber_contract_and_gradient_are_not_raw_MSE():
     import torch
     from native_stand.learning.distillation.loop import supervised_loss

@@ -1,5 +1,7 @@
 ## Motion050多Teacher蒸馏（2026-11-16）
 
+验证版本修正MotionPlayer承重读回：旧实现按contact.dist>0跳过margin接触，可能漏掉有效法向力。新版本只更正统计，保留物理、触碰布尔值与既定门槛，逐步另存正距离承重力；旧轨迹与失败证据不改写。第一BC块经公共owner停在3轮/207优化步后已正式resume，计划6轮总计414优化步，PPO0；精确终态以run账本为准。
+
 负责人：当前会话7e855c08-0408-4c8a-aafd-3b6b29238d96。独立分支motion/multiteacher050-distillation、worktree wheel_leg_motion_multiteacher_ws、基点0baa131。仅CPU、有界MuJoCo和BC；PPO0，不修改电控。Student31→256→128→64→6，保留新u2200原050/80中心。原vM1/C0/u2200/u50逐SHA来源在数据根motion_multiteacher050_20261116/sources.json；旧run/模型/账本只读。
 
 正式diagnose新增显式motion_replication_probe_v1，复用MotionPlayer.step与共享C/V4，补命令程序、root速度推扰、单位范数2/6Nm模态100ms外扰及1kHz接触力/控制分路证据。先CPU与dry-run，再4模型×3case首块，累计上限368000物理步/900秒墙钟/384MiB；BC计划6轮，数据准入后冻结实际样本与优化步计划。独立最终集在冻结候选后执行，历史证据不回灌。进度/消耗以数据根收据为准。

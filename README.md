@@ -275,3 +275,5 @@ PYTHONPATH=src python -m native_stand dashboard --root /path/to/local/runs \
 本地看板 `--root /authorized/runs` 在每次页面数据刷新时发现直接子目录的新run。远端 `--remote-root` 可以指定单个run，或由用户明确授权的**runs目录**；点击“刷新远端快照”后自动发现直接子run，不递归扫描磁盘、不扫描端口。最多20个run（按产物文件更新时间选择最近项，不作为训练时间轴）、总传输14MiB；资源只采一次。新run继续复用原SSH连接资料与私密凭据，不加载checkpoint。下次更换平台重新配置连接；远端根目录只在后端参数中授权，网页不能自行扩大范围。页面自动刷新默认关闭。
 
 固定Motion同条件复刻诊断使用`wheel-leg diagnose --config PROTOCOL.json [--dry-run]`，协议版本`motion_replication_probe_v1`。它复用现有MuJoCo播放器，显式有限case/墙钟/积分步/输出空间，保留各Actor合同与1ms证据；不改中心、模型或电控。源Actor、公共plant、命令/事件、完整episode角色和评分门槛均须明示，能力结论以逐条件指标为准。
+
+承重统计使用每步`mj_contactForce`法向力，包含正距离margin接触的求解器承重；额外保存`positive_gap_normal_force_N`供审计。旧触碰布尔值仍表示距离≤0，不能代替承重力。结果记录读回版本与post-step/forward时点；旧统计结果不覆盖，跨版本比较应重评分或重新同条件验证。

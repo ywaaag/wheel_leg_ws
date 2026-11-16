@@ -168,6 +168,7 @@ def from_file(path, *, dry_run=False):
         protocol_sha256=file_sha256(path),
         PPO_updates=0,
         BC_rounds=0,
+        contact_force_readback="mj_contactForce after step/forward; includes positive-distance margin constraints",
         planned_physics_steps=sum(round(c["duration_s"] * 1000) for c in cfg["cases"]),
         starts_engine=not dry_run,
         writes=not dry_run,
@@ -264,6 +265,10 @@ def from_file(path, *, dry_run=False):
                         normal_force_N=[
                             s["normal_force_geometric_right_N"],
                             s["normal_force_geometric_left_N"],
+                        ],
+                        positive_gap_normal_force_N=[
+                            s["positive_gap_normal_force_geometric_right_N"],
+                            s["positive_gap_normal_force_geometric_left_N"],
                         ],
                         raw=r["raw"].copy(),
                         observation=r["observation"].copy(),
