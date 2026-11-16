@@ -1,3 +1,9 @@
+## Motion050多Teacher蒸馏（2026-11-16）
+
+负责人：当前会话7e855c08-0408-4c8a-aafd-3b6b29238d96。独立分支motion/multiteacher050-distillation、worktree wheel_leg_motion_multiteacher_ws、基点0baa131。仅CPU、有界MuJoCo和BC；PPO0，不修改电控。Student31→256→128→64→6，保留新u2200原050/80中心。原vM1/C0/u2200/u50逐SHA来源在数据根motion_multiteacher050_20261116/sources.json；旧run/模型/账本只读。
+
+正式diagnose新增显式motion_replication_probe_v1，复用MotionPlayer.step与共享C/V4，补命令程序、root速度推扰、单位范数2/6Nm模态100ms外扰及1kHz接触力/控制分路证据。先CPU与dry-run，再4模型×3case首块，累计上限368000物理步/900秒墙钟/384MiB；BC计划6轮，数据准入后冻结实际样本与优化步计划。独立最终集在冻结候选后执行，历史证据不回灌。进度/消耗以数据根收据为准。
+
 ## 实机反馈文档登记（2026-11-15）
 
 按用户提供记录整理Motion vM0（1106/e8658ce）、vM1（1110/4ba73bc）、vM2（1112/786a2c5）及Recovery vR0（1115/烧录哈希未提供），统一入口docs/HARDWARE_FEEDBACK.md，README与ARCHITECTURE已接导航及职责边界。三份Motion提交身份已核对；视频仅飞书占位、CSV未提供。vM1的11月15日震荡／LQR不震荡复测、vR0断电与新满电电池对照、交接未知及两项用户候选办法均保留，欠压未确诊。不更改模型／电控、训练或原始证据。

@@ -94,6 +94,7 @@ class MotionPlayer:
             self.teacher_core = ControlCore(core.binding, read_json(contract_path))
         self.robot_body = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "robot")
         self.policy_ticks = 0
+        self.actual_physics_steps = 0
         self.last_record = None
         self.records = deque(maxlen=10000)
         self.reset()
@@ -117,13 +118,14 @@ class MotionPlayer:
         self.mj.mj_forward(self.model, self.data)
         self.execution.reset(self.data.qpos[self.qids], self.data.qvel[self.vids])
         self.policy_ticks = 0
+        self.actual_physics_steps = 0
         self.last_record = None
         self.reset_count += 1
         self.records.clear()
         if self.teacher_core is not None:
             self.teacher_core.adopted = self.execution.core.adopted
 
-    def step(self, controls):
+    def step(self, controls, *, external_torque_nm=None):
         e = self.execution
         d = self.data
         m = self.model
@@ -189,6 +191,11 @@ class MotionPlayer:
         d.ctrl[:] = motor
         d.qfrc_applied[:] = 0.0
         d.qfrc_applied[self.vids] = NET
+        if external_torque_nm is not None:
+            external = np.asarray(external_torque_nm, dtype=float)
+            if external.shape != (6,) or not np.isfinite(external).all():
+                raise ValueError("外扰必须为显式有限六通道关节力矩")
+            d.qfrc_applied[self.vids] += external
         if self.recording and self.last_record is not None and (e.tick - 1) % 10 == 0:
             self.records.append(
                 dict(
@@ -202,6 +209,7 @@ class MotionPlayer:
                 )
             )
         self.mj.mj_step(m, d)
+        self.actual_physics_steps += 1
         if not np.isfinite(d.qpos).all() or not np.isfinite(d.qvel).all():
             raise FloatingPointError("播放器物理状态非有限")
         self.mj.mj_forward(m, d)
@@ -221,7 +229,8 @@ class MotionPlayer:
         mj.mj_objectVelocity(m, d, mj.mjtObj.mjOBJ_BODY, self.robot_body, velocity, 0)
         roll, pitch, _ = Rotation.from_matrix(flu).as_euler("xyz")
         contacts = {"left_wheel": False, "right_wheel": False}
-        for contact in d.contact:
+        normal = {"left_wheel": 0.0, "right_wheel": 0.0}
+        for index, contact in enumerate(d.contact):
             a, b = contact.geom
             for robot, ground in [(a, b), (b, a)]:
                 if m.geom_bodyid[ground] != 0 or contact.dist > 0:
@@ -229,6 +238,9 @@ class MotionPlayer:
                 body = mj.mj_id2name(m, mj.mjtObj.mjOBJ_BODY, m.geom_bodyid[robot])
                 if body in contacts:
                     contacts[body] = True
+                    force = np.zeros(6)
+                    mj.mj_contactForce(m, d, index, force)
+                    normal[body] += max(0.0, float(force[0]))
         try:
             ground = float(self.ground_height(d.qpos[None, :2])[0])
         except ValueError:
@@ -240,6 +252,7 @@ class MotionPlayer:
             resets=self.reset_count,
             adopted_command=cmd,
             vx=float(velocity[3:] @ flu[:, 0]),
+            vy=float(velocity[3:] @ flu[:, 1]),
             yaw=float(velocity[:3] @ flu[:, 2]),
             height=None if ground is None else float(d.qpos[2] - ground),
             root_z=float(d.qpos[2]),
@@ -248,6 +261,8 @@ class MotionPlayer:
             pitch=float(pitch),
             contact_geometric_right=contacts["left_wheel"],
             contact_geometric_left=contacts["right_wheel"],
+            normal_force_geometric_right_N=normal["left_wheel"],
+            normal_force_geometric_left_N=normal["right_wheel"],
             q=d.qpos[self.qids].tolist(),
             dq=d.qvel[self.vids].tolist(),
             raw=None if self.last_record is None else self.last_record["raw"].tolist(),

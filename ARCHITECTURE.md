@@ -239,3 +239,7 @@ Motion少量高度配方`configs/jobs/motion_height_small_dose_prepared.json`复
 `artifacts/runtime_paths.py::resolve_runs_root`在写入边界解析显式runs-root或WHEEL_LEG_DATA_ROOT，不在模块导入时绑定源码目录。owner创建run并记录同一根目录的models.json，PPO与监督均复用；resume遵循原run记录。export默认使用数据根，不回写源码run。显式导出/诊断/导入目标由调用者选择已确认数据盘，测试可用/tmp。
 
 `integrations/cloud_bundle.py::adopt_local_dependencies`接收明确保留集合，逐文件核验来源/目标、拒绝冲突，复用已有内容；只对显式不可变文件硬链接，可变文件复制。ModelIndex保护先于派生映射发布，故障重试重新核SHA；该接口不扫描历史、不删除原件。回执不是第二套资产保护索引，删除仍以唯一ModelIndex及实际消费者为准。RuntimePaths读取派生映射，原配置/spec和模型不改写。
+
+### 固定Motion复刻诊断
+
+`cli diagnose`显式`motion_replication_probe_v1`→`simulation.motion_replication_probe`→公共`playback.plan`/`learning.inference`/`MotionPlayer.step`。与旧承重中心探查不同，此协议保留每个Actor自身decoder、不做raw重标或中心干预；共同物理执行条件绑定，允许命令时间序列、显式root速度增量、单位四腿模态外扰。外扰在公共step中与NET分路相加，力矩上限不变。逐1ms真实接触力、q/dq、命令/previous/目标/PD/motor/NET/外扰进入数据根，`tasks.motion.replication_metrics`只算离线窗口/带通/恢复指标。诊断没有训练生命周期；状态及完整episode身份交给现有dataset/supervision，多Teacher与BC继续由原owner/worker管理。不同于sim2sim双后端对照，不构造第二套物理积分器或模型索引。
