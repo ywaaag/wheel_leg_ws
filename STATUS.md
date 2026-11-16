@@ -1,6 +1,6 @@
 ## Jump 用户暂停（2026-11-16）
 
-用户明确要求暂停工作、暂停训练并保存现场；只能在用户重新开启Jump项目后继续，不自动resume。新开发worktree `/home/kellen/wheel_leg_jump_first_takeoff_ws` / `jump/first-takeoff-course` 从main31aaeb9建立，已合并原远端Jump冻结实现，基线提交b34d974（portable2140通过/31历史skip，架构/Ruff通过）。新课程/奖励/固定探索/5593D Critic为**未完成WIP**，未开训、分配0次；当前新代码未做完整联合回归，不得当作可运行长训版本。设计与待办见 `docs/JUMP_FIRST_TAKEOFF_COURSE_WIP.md`。现场备份与最终停训收据位于 `/home/kellen/wheel_leg_training_data/jump_first_takeoff_design_20261116/`。远端原run已通过冻结统一CLI提交request-only停止请求，终态及预算以该目录 `pause_terminal_verified.json` 为准；不得沿用旧STATUS中的RUNNING导航判断当前状态。
+用户明确要求暂停工作、暂停训练并保存现场；只能在用户重新开启Jump项目后继续，不自动resume。远端原run经冻结统一CLI request-only停止，已核验STOPPED_BOUNDED/failure=null、1363次，worker2363退出；累计3790/10000、剩6210。完整u1363 SHA01d3e9c6…90d83f已备份本机并核验字段齐全。新开发worktree `/home/kellen/wheel_leg_jump_first_takeoff_ws` / `jump/first-takeoff-course` 从main31aaeb9建立，已合并原远端Jump冻结实现，基线提交b34d974（portable2140通过/31历史skip，架构/Ruff通过）。新课程/奖励/固定探索/5593D Critic已保存在WIP cbdaedf，未开训、分配0次；当前新代码未做完整联合回归，不得当作可运行长训版本。设计与待办见 `docs/JUMP_FIRST_TAKEOFF_COURSE_WIP.md`。现场备份与最终停训收据位于 `/home/kellen/wheel_leg_training_data/jump_first_takeoff_design_20261116/`，以该目录 `pause_terminal_verified.json` 为准；不得沿用旧STATUS中的RUNNING导航判断当前状态。
 
 ## 实机反馈文档登记（2026-11-15）
 

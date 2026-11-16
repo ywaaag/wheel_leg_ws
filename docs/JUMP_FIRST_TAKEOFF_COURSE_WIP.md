@@ -8,6 +8,7 @@
 - 从当前main `31aaeb9`建立，合并原Jump远端实现`08a4683`得到基线`b34d974`。主仓、Motion、Recovery及远端活动源码均未热改。
 - 原远端源码冻结实现`5d1b1ec`，run `/root/gpufree-data/wheel_leg_jump/outcome_migration_20261115/runs/jump_outcome_shared2048_remaining7573`。本次已从该冻结wrapper调用统一CLI `stop --request-only`，不发OS信号、不强杀。
 - 最终停训状态、checkpoint SHA与预算以数据根收据 `jump_first_takeoff_design_20261116/pause_terminal_verified.json` 为准。远端此前额度7573、此前已耗2427；本次终态实际用了N次，则任务累计2427+N、剩7573-N，不能刷新或退款。
+- 本次最终核验：远端`STOPPED_BOUNDED`、failure=null、1363次，worker2363已退出；任务累计3790/10000，剩6210次。完整u1363共196267265字节、SHA `01d3e9c6ec855abe803603a8b77a28384dcda2fe1689780b8e682d7aa490d83f`，已下载数据根同目录`remote_terminal_model_update_1363.pt`，SHA一致。CPU载荷检查Actor/Critic/双Adam/std/RNG/计数/2048课程字段齐全、warmup_done=5；没有执行学习状态恢复或新增积分来冒充验收。
 - WIP没有提交新训练，prepared配置`formal_updates=0`；不能把旧run的剩余额度自动复制给新版本。
 
 ## 已完成的定位
