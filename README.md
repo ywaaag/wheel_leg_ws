@@ -280,6 +280,8 @@ PYTHONPATH=src python -m native_stand dashboard --root /path/to/local/runs \
 
 离线监督使用`runtime.device=cpu`或`cuda:0`，同一`wheel-leg distill → owner/worker → supervision_flow → BC loop`。CUDA保存RNG/设备身份，完整resume沿用原设备；MuJoCo仍是CPU逐回合积分。资源授权与物理GPU UUID在每次正式提交前核验。
 
+当前多Teacher配方使用Teacher的`observation_domain`，版本`motion_observable_teacher_domain_v1`。C0安静、vM1核心、u2200新命令三个角色只读取当前31D并互斥；不会按回合未来用途给相同输入冲突标签。该字段进入监督身份与label_provenance，旧conditions接口保留给原冻结任务。
+
 承重统计使用每步`mj_contactForce`法向力，包含正距离margin接触的求解器承重；额外保存`positive_gap_normal_force_N`供审计。旧触碰布尔值仍表示距离≤0，不能代替承重力。结果记录读回版本与post-step/forward时点；旧统计结果不覆盖，跨版本比较应重评分或重新同条件验证。
 
 学生状态补教可在dataset来源引用中声明`observation_envelope={version:teacher_observation_box_v1,lower:[...],upper:[...]}`。向量长度必须等于输入维度；范围外及无效transition保留为UNKNOWN，监督循环在Teacher查询前跳过。范围由有资格来源和固定余量给出，不能继承Teacher原回合的成功身份。

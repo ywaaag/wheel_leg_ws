@@ -252,6 +252,8 @@ v1诊断与USD生成模型保留供既有冻结消费者和明确标注的诊断
 
 提速复用同一BC循环的显式runtime.device：CPU MuJoCo按独立物理回合并行；大Teacher批量标注与BC可在已核验的本机CUDA设备上运行。保存额外包含CUDA RNG和optimization_device，同run恢复禁止偷偷换设备，Adam/RNG/rounds仍由原owner/worker结算。单回合策略推理可留CPU，避免小batch设备往返；基准报告实测吞吐。portable测试保持CPU且不调用CUDA或物理积分。
 
+多Teacher标签不能依赖Student看不到的整回合未来场景。`TeacherConfig.observation_domain`显式`motion_observable_teacher_domain_v1`→`tasks.motion.teacher_domain`，只从当前31D的命令、gyro/gravity、真实dq判定互斥角色：0.34m零命令且安静才用C0；其余0.34m直行≤1m/s用vM1；其他已准入的高度/高速/转弯命令用u2200。具体阈值由新配方冻结。推扰后的瞬时速度/dq不能把零命令误切为高速Teacher。相同31D输入必须选同一个完整六通道Teacher，不传未来case标签，不按关节拼动作，不在部署增加路由。原静态conditions保留供语义确实不同的既有消费者；当前多Teacher配方不再以隐藏episode身份路由。
+
 `cli diagnose`显式`motion_replication_probe_v1`→`simulation.motion_replication_probe`→公共`playback.plan`/`learning.inference`/`MotionPlayer.step`。与旧承重中心探查不同，此协议保留每个Actor自身decoder、不做raw重标或中心干预；共同物理执行条件绑定，允许命令时间序列、显式root速度增量、单位四腿模态外扰。外扰在公共step中与NET分路相加，力矩上限不变。逐1ms真实接触力、q/dq、命令/previous/目标/PD/motor/NET/外扰进入数据根，`tasks.motion.replication_metrics`只算离线窗口/带通/恢复指标。诊断没有训练生命周期；状态及完整episode身份交给现有dataset/supervision，多Teacher与BC继续由原owner/worker管理。不同于sim2sim双后端对照，不构造第二套物理积分器或模型索引。
 
 DAgger来源引用可显式携带`observation_envelope`（`teacher_observation_box_v1`、完整输入的有限lower/upper）。`artifacts.dataset.read_source`在采样前合并原transition_valid和范围准入；`supervision_flow`把准入mask传给既有`routing.label`。不合格行保留样本/回合身份，owner=-1、标签NaN，不查询Teacher、不做物理逆变换、不训练。观测box是已声明的保守适用域，不能当作Teacher在所有box内状态成功的证明；来源轨迹与固定余量由配方/证据绑定。该机制不增加Student输入、部署路由或控制器。

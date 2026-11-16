@@ -1,5 +1,9 @@
 ## Motion050多Teacher蒸馏（2026-11-16）
 
+已定位第二块静态整回合Teacher路由错误：61个回合的初始31D输入逐位相同，u2200与vM1物理腿目标却最大相差.16119rad、轮速3.98375rad/s。该8,400优化步已耗不退款，候选同条件开发仅11/56任务门、8/56保留门、核心0/33，不accepted。修复为显式observable domain，仅当前命令与proprioception决定C0安静/vM1核心/u2200新命令，真实owner进入标签provenance；不增加部署输入/控制器。
+
+第三块准备重标原合格Teacher数据并加入独立seed学生真闭环状态。训练原始131696行中97187有资格，开发86202中52402有资格，留出44800；新增68309行越适用box标UNKNOWN，Teacher原回合成功身份不继承。计划12轮、batch64、18228实际优化步上限，显式从第一块候选Actor初始化、fresh Adam；两块失败/恢复点/数据和账本保留。物理仍是固定vM1参考，支撑严格>60%，PPO0。实际启动/终态以新run为准。
+
 用户指定后续采用vM1 MuJoCo配置，并改双轮支撑门为严格>60%。已沿旧正式调用链确认：原MJCF/21网格、implicitfast、2mm margin以及运行时closure_contact_tight_v1（不是裸XML .008柔顺）。新motion_replication_probe_v2经同一MotionPlayer构造SHA绑定原MJCF，正确处理轮gear；Teacher vM1站立/+.25启停/+1侧推3/3通过，站立漂移.203m/s，与历史约.20一致；C0站立通过，u2200同3项通过。第一6轮Student仅站立通过、低速/侧推未保留，不能当accepted。新物理参考已写AGENTS/ARCHITECTURE，旧局部参数和USD生成模型结果只读，不继续作为正式蒸馏配置。
 
 用户另授权本机CPU/GPU提速。GPU-e704e7d4-2965-4712-9759-ba6b9910bd72已读回空闲；u2200 batch8192×10推理CPU2.253秒、CUDA.01946秒。正式监督复用同BC循环的runtime.device，CUDA RNG/优化设备进入完整恢复点；CPU物理按独立回合并行，不换物理后端。PPO仍0。来源/物理/阶段消耗与新旧协议收据均在数据根motion_multiteacher050_20261116，不改其他任务。

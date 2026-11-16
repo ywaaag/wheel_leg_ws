@@ -13,6 +13,19 @@ class TeacherConfig:
     priority: int = 0
     conditions: dict | None = None
     qualified: bool = True
+    observation_domain: dict | None = None
+
+    def __post_init__(self):
+        if self.observation_domain is not None:
+            from native_stand.tasks.motion.teacher_domain import validate
+
+            validate(self.observation_domain)
+            if (
+                self.inference["input_dim"] != 31
+                or self.labels.get("kind") != "motion_contract"
+                or not self.inference["output_contract"]["action_version"].startswith("motion")
+            ):
+                raise ValueError("Observable Motion domain requires Motion31 input")
 
 
 @dataclass(frozen=True)
@@ -177,7 +190,11 @@ def semantic_identity(recipe):
                 and isinstance(value.get("sha256"), str)
                 and len(value["sha256"]) == 64
             )
-            return {k: identity(v) for k, v in value.items() if not (bound and k == "path")}
+            return {
+                k: identity(v)
+                for k, v in value.items()
+                if not (bound and k == "path") and not (k == "observation_domain" and v is None)
+            }
         if isinstance(value, list | tuple):
             return [identity(v) for v in value]
         return value

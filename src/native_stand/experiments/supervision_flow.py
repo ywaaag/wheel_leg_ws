@@ -64,6 +64,7 @@ def execute(
             t.priority,
             t.conditions or {},
             t.qualified,
+            t.observation_domain,
         )
         for t in recipe.teachers
     ]
@@ -249,6 +250,7 @@ def execute(
                     input_contract=t.model.spec.input_contract,
                     output_contract=t.model.spec.output_contract,
                     label_transform=recipe.teachers[i].labels,
+                    observation_domain=recipe.teachers[i].observation_domain,
                 )
                 for i, t in enumerate(teachers)
             ]

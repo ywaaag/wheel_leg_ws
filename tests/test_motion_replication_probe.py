@@ -262,3 +262,32 @@ def test_vm1_model_constructor_keeps_wheel_transmission_and_motor_only_caps(tmp_
     np.testing.assert_allclose(m.actuator_ctrlrange[[2,5]],[[-.3,.3]]*2)
     np.testing.assert_allclose(m.actuator_forcerange[[2,5]],[[-.3,.3]]*2)
     np.testing.assert_array_equal(m.geom_friction[:,1:],0.)
+
+
+def test_observable_teacher_routing_cannot_use_future_scenario_or_push_velocity():
+    import torch
+    from native_stand.learning.distillation.routing import ActionLabels,Teacher,label
+    from native_stand.tasks.motion.teacher_domain import validate
+
+    base=dict(version='motion_observable_teacher_domain_v1',reference_height_m=.34,
+              command_tolerance=1e-6,core_max_vx_mps=1.,quiet_gyro_rad_s=.25,
+              quiet_leg_dq_rad_s=.25,quiet_wheel_dq_rad_s=5.,quiet_tilt_rad=.04)
+    teachers=[]
+    for i,role in enumerate(['quiet_c0','core_vm1','new_u2200']):
+        cfg=dict(base,role=role);validate(cfg)
+        model=SimpleNamespace(mean=lambda x,i=i:torch.full((len(x),6),float(i)))
+        teachers.append(Teacher(role,model,ActionLabels('physical'),1,{},observation_domain=cfg))
+    obs=torch.zeros(7,31);obs[:,4]=-1;obs[:,24]=.68
+    obs[2,22]=.025  # actual command+.1m/s -> vM1
+    obs[3,12]=.5    # wheel10rad/s, zero command after a push -> vM1, never u2200
+    obs[4,22]=.9    # command3.6m/s -> u2200
+    obs[5,23]=.125  # commandyaw.5rad/s -> u2200
+    obs[6,24]=.4    # commandheight.20m -> u2200
+    before=obs.clone()
+    actions,owner,valid=label(teachers,obs,{'future_scenario':['low','high','a','b','c','d','e']},ActionLabels('physical'))
+    assert owner.tolist()==[0,0,1,1,2,2,2] and valid.all()
+    torch.testing.assert_close(actions,owner[:,None].expand(-1,6).float())
+    torch.testing.assert_close(obs,before)
+    base['role']='new_u2200';base['future_scenario']='high'
+    with pytest.raises(ValueError,match='observable'):
+        validate(base)
