@@ -33,6 +33,8 @@
 
 当前原run已`STOPPED_BOUNDED/failure=null`，最后有界核验worker812已退出；不自动恢复。formal实际已耗2289，加本机smoke52，本次10000已耗2341、剩7659。完整u2200（SHA `7387d0d2f9a42e450d32b35aa47a8b05bfa1de810488cf558d621530bbc6dd89`，53380558字节）、原run/预算/候选/诊断、609模块冻结源码及交付依赖已回传数据根`motion_preservation/20261116_wide050_pause/backup/`；764文件、381292321字节逐SHA一致，7个完整checkpoint已通过现有ModelIndex保护。本机完整u2200 CPU加载及生产PPO装配通过：Actor/Critic/双Adam/std一致，RNG/课程/bank游标保留，warmup_done=50。没有新增PPO或独立能力评估。
 
+用户随后要求精简，本机本次正式长训模型仅保留完整u2200（恢复来源）与u50（Actor未更新的基线），合计85181189字节。通过现有ModelIndex引用锁和retention入口删除备份中u1/u500/u1000/u2000/u2100，并删除启动目录同SHA的u1重复副本，共6文件、277198650逻辑字节；原始7份清单是清理前历史。原run/预算/课程证据与必要Teacher/bank不变，其余757份原备份逐SHA仍一致。收据为上述数据目录`model_prune_20261116.json`及`model_prune_duplicate_20261116.json`；远端、独立smoke和其他领域模型未操作。
+
 停止保存存在缺口：停止请求在rollout中途被`simulation/isaac/motion_backend.py:828`发现，公共`simulation/driver.py:169`的incomplete分支直接返回最后保存点，未调用最终保存；因此u2201～2289共89次已耗更新没有落盘，不能冒称完整保存u2289或退款。普通同run resume会被`experiments/worker.py:138`的计数一致性校验拒绝；用户下次复训前须完成显式模型/消耗差额接续，并在新版本修复停止边界，不能热改或重写原checkpoint。完整收据、逐文件SHA、CPU核验、结算与恢复限制见上述目录`CONTINUE.md`、`settlement.json`。备份完成后的SSH31193连接被拒，未据此推断服务器状态；原件未删除。
 
 以下保留原启动及配方历史，不能按启动快照重新train。
