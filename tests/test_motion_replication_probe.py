@@ -36,6 +36,36 @@ def test_validate_limits_before_any_engine():
     cfg['max_physics_steps']=5999
     with pytest.raises(ValueError,match='budget'):
         validate(cfg)
+    cfg['max_physics_steps']=6000
+    cfg['actor_packet_age_ms']=7
+    with pytest.raises(ValueError,match='stress'):
+        validate(cfg)
+
+
+def test_packet_stress_only_changes_Actor_age_in_existing_player_plan(tmp_path):
+    import dataclasses
+    from native_stand.experiments.config import load_job_config
+    from native_stand.simulation.playback import PlaybackPlan
+    from native_stand.simulation.motion_replication_probe import prepare
+    root=__import__('pathlib').Path(__file__).resolve().parents[1]
+    job=dataclasses.replace(load_job_config(root/'configs/jobs/motion_supported015_dqgain.json'),assets={})
+    contract=dict(action_version=job.action.version,leg_halfwidth_rad=.15,
+                  height_command_range_m=[.30,.40],mean_activation='Tanh')
+    spec=dict(kind='tanh',input_dim=31,hidden_dims=[8],output_dim=6,
+              input_contract=dict(version='multiskill_mcu_v2'),output_contract=contract)
+    nominal=dict(version='motion48_v4_wheel_reported_delay_actor20_dr_v2',
+                 actor_packet_nominal_ms=20,actor_leg_packet_nominal_ms=20,
+                 target_nominal_ms=5,wheel_transport_nominal_ms=[7,11])
+    plan=PlaybackPlan(tmp_path,tmp_path/'source.pt',job,{},contract,nominal)
+    cfg=dict(plant=dict(run='r',checkpoint='c',path_mapping='m',sha256='a'*64,
+                       solver_profile='closure_contact_tight_v1'),
+             actor=dict(path='actor.pt',sha256='b'*64,inference=spec),
+             cases=[case()],actor_packet_age_ms=30)
+    with patch('native_stand.simulation.playback.plan',return_value=plan),patch('native_stand.learning.inference.load_model',return_value='actor'):
+        result,_=prepare(cfg)
+    assert result.timing['actor_packet_nominal_ms']==result.timing['actor_leg_packet_nominal_ms']==30
+    assert nominal['actor_packet_nominal_ms']==20
+    assert result.timing['target_nominal_ms']==5 and result.timing['wheel_transport_nominal_ms']==[7,11]
 
 
 def test_frequency_units_support_gap_and_quiet_recovery():
@@ -60,6 +90,26 @@ def test_frequency_units_support_gap_and_quiet_recovery():
     r=summarize(trace,c,None,gates)
     assert r['longest_support_loss_s']==.2
     assert not r['teacher_eligible']
+
+
+def test_explicit_support_gate_is_strictly_greater_than_sixty_percent():
+    c=case();c['events']=[];t=np.arange(6000)*.001+.001;z=np.zeros(6000)
+    trace=dict(time=t,vx=z,vy=z,yaw=z,roll=z,pitch=z,height=z+.34,
+               command=np.tile([0,0,.34],(6000,1)),q=np.zeros((6000,6)),
+               dq=np.zeros((6000,6)),normal_force_N=np.ones((6000,2))*30,
+               position_xy=np.zeros((6000,2)),raw=np.zeros((6000,6)),
+               motor=np.zeros((6000,6)),requested=np.zeros((6000,6)),adopted=np.zeros((6000,6)))
+    indices=np.flatnonzero((t>=4)&(t<6));lost=indices[np.arange(len(indices))%5<2]
+    trace['normal_force_N'][lost]=0
+    gates=dict(support_force_N=2,longest_support_loss_s=.15,height_MAE_m=.035,
+               dual_support_fraction=.6,support_fraction_comparison='gt',attitude_rad=.35,
+               vx_MAE_floor_mps=.3,vx_MAE_fraction=.25,yaw_MAE_rad_s=.5,
+               absolute_stationary_speed_mps=.15,response_tolerance_mps=.15,
+               quiet_dq_rad_s=.25,quiet_hf_rad_s=.25,quiet_speed_mps=.30,quiet_roll_rad=.05,quiet_pitch_rad=.10)
+    result=summarize(trace,c,None,gates)
+    assert result['dual_support_fraction']==.6 and not result['teacher_eligible']
+    trace['normal_force_N'][lost[0]]=30
+    assert summarize(trace,c,None,gates)['teacher_eligible']
 
 
 def test_external_torque_added_after_NET_without_changing_motor_or_caches():
@@ -158,4 +208,35 @@ def test_dataset_window_quotas_keep_complete_episode_role_and_sample_identity(tm
     assert set(result['physical_episode_keys'])=={'epA','epB'}
     ref['sampling']['windows']=[[0,.6,10],[.5,1.,20]]
     with pytest.raises(ValueError,match='disjoint'):
+        read_source(ref)
+
+
+def test_teacher_envelope_marks_unknown_before_routing_and_physical_conversion(tmp_path):
+    import torch
+    from native_stand.artifacts.dataset import read_source
+    from native_stand.artifacts.io import file_sha256, write_npz
+    from native_stand.learning.distillation.routing import ActionLabels, Teacher, label
+
+    file=tmp_path/'student_states.npz'
+    write_npz(file,dict(states=np.array([[.1]*31,[2.]*31],np.float32),episodes=np.zeros(2),
+                        roles=np.full(2,'train'),sample_ids=np.array(['a','b']),
+                        transition_valid=np.ones(2,bool)))
+    envelope=dict(version='teacher_observation_box_v1',lower=[-1.]*31,upper=[1.]*31)
+    ref=dict(path=str(file),sha256=file_sha256(file),observation_envelope=envelope)
+    chunk=read_source(ref)
+    np.testing.assert_array_equal(chunk['behavior_valid'],[True,False])
+    assert list(chunk['sample_ids'])==['a','b']
+    seen=[]
+    def mean(states):
+        seen.append(states.clone())
+        assert bool((states<=1).all())
+        return states[:,:6]
+    teacher=Teacher('qualified',SimpleNamespace(mean=mean),ActionLabels('physical'),1,{})
+    result,owner,valid=label([teacher],torch.from_numpy(chunk['states']),{},ActionLabels('physical'),
+                             row_valid=chunk['behavior_valid'])
+    assert len(seen)==1 and seen[0].shape==(1,31)
+    assert owner.tolist()==[0,-1] and valid.tolist()==[True,False]
+    assert torch.isnan(result[1]).all()
+    ref['observation_envelope']={**envelope,'upper':[1.]*30}
+    with pytest.raises(ValueError,match='envelope'):
         read_source(ref)

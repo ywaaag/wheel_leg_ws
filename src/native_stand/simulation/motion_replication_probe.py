@@ -32,6 +32,10 @@ def validate(cfg):
         raise ValueError("Explicit finite wall/physical limits required")
     if not 1 <= cfg["max_output_bytes"] <= 512 * 2**20:
         raise ValueError("Explicit bounded output required")
+    if "actor_packet_age_ms" in cfg and (
+        type(cfg["actor_packet_age_ms"]) is not int or cfg["actor_packet_age_ms"] not in (0, 20, 30)
+    ):
+        raise ValueError("Explicit Actor packet stress must be 0, 20 or 30ms")
     names = set()
     steps = 0
     for c in cfg["cases"]:
@@ -151,7 +155,13 @@ def prepare(cfg):
             leg_scale_rad=spec.output_contract["leg_halfwidth_rad"],
         ),
     )
-    prepared = dataclasses.replace(prepared, job=job, output_contract=spec.output_contract)
+    timing = dict(prepared.timing)
+    if "actor_packet_age_ms" in cfg:
+        for key in ("actor_packet_nominal_ms", "actor_leg_packet_nominal_ms"):
+            timing[key] = cfg["actor_packet_age_ms"]
+    prepared = dataclasses.replace(
+        prepared, job=job, output_contract=spec.output_contract, timing=timing
+    )
     return prepared, model
 
 

@@ -277,3 +277,9 @@ PYTHONPATH=src python -m native_stand dashboard --root /path/to/local/runs \
 固定Motion同条件复刻诊断使用`wheel-leg diagnose --config PROTOCOL.json [--dry-run]`，协议版本`motion_replication_probe_v1`。它复用现有MuJoCo播放器，显式有限case/墙钟/积分步/输出空间，保留各Actor合同与1ms证据；不改中心、模型或电控。源Actor、公共plant、命令/事件、完整episode角色和评分门槛均须明示，能力结论以逐条件指标为准。
 
 承重统计使用每步`mj_contactForce`法向力，包含正距离margin接触的求解器承重；额外保存`positive_gap_normal_force_N`供审计。旧触碰布尔值仍表示距离≤0，不能代替承重力。结果记录读回版本与post-step/forward时点；旧统计结果不覆盖，跨版本比较应重评分或重新同条件验证。
+
+学生状态补教可在dataset来源引用中声明`observation_envelope={version:teacher_observation_box_v1,lower:[...],upper:[...]}`。向量长度必须等于输入维度；范围外及无效transition保留为UNKNOWN，监督循环在Teacher查询前跳过。范围由有资格来源和固定余量给出，不能继承Teacher原回合的成功身份。
+
+诊断协议可显式指定`actor_packet_age_ms`为0、20或30；只同时改变Actor物理包与腿包年龄，目标5ms、轮7/11ms和V4保持。缺省使用冻结名义值；结果与每回合initial_state记录实际时序。应力条件分别评分，不能当作全DR或实机人为延迟授权。
+
+历史MuJoCo接触对照可显式选择`motion_vm1_contact_20261109_v1`：implicitfast/Newton、100/50迭代、接触solref .008/1、2mm margin、闭链solref .008/1，恢复vM1来源MJCF及播放摩擦覆盖。只对当前绑定机械模型恢复这些接触/引擎参数，不能称整份旧MJCF等价。Teacher与Student必须使用同一配置。门槛`support_fraction_comparison=gt`表示严格大于指定比例；本轮用户修订为双轮法向力各>2N的1kHz比例>0.60，旧0.90协议保持原身份。

@@ -17,6 +17,27 @@ from native_stand.experiments.supervision_flow import execute
 FROZEN_TEST_SCOPE = "PORTABLE"
 
 
+def test_formal_supervision_guard_retains_unknown_samples_and_does_not_train_them(tmp_path):
+    job = supervision_job(tmp_path)
+    original = job.supervision.dataset
+    with np.load(original['path']) as data:
+        states=data['states'].copy(); episodes=data['episodes'].copy()
+    states[0] = 50.
+    write_npz(original['path'], dict(states=states, episodes=episodes))
+    ref = dict(original, sha256=file_sha256(original['path']),
+               observation_envelope=dict(version='teacher_observation_box_v1',
+                                         lower=[-10.]*31, upper=[10.]*31))
+    job=dataclasses.replace(job, supervision=dataclasses.replace(job.supervision,dataset=ref))
+    state,done=execute(job,tmp_path/'guarded',stop_requested=lambda:False,
+                       on_round_complete=lambda r:None,on_round_saved=lambda r:None)
+    assert done
+    with np.load(tmp_path/'guarded/phase_000_label/labels.npz') as data:
+        assert len(data['states'])==len(states)
+        assert not data['valid'][0] and data['teacher_owner'][0]==-1
+        assert np.isnan(data['teacher_actions'][0]).all()
+        assert data['valid'][1:].all()
+
+
 def test_two_collections_accumulate_deduplicate_and_resume(tmp_path):
     job = supervision_job(tmp_path)
     replay = tmp_path / "replay.npz"

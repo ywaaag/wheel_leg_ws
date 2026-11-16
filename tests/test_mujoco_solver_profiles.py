@@ -49,7 +49,7 @@ def preserved(model):
         'dof_damping', 'jnt_range', 'geom_friction', 'geom_condim', 'geom_margin', 'geom_priority', 'pair_solref')}
 
 
-@pytest.mark.parametrize('profile', PROFILES)
+@pytest.mark.parametrize('profile', [p for p in PROFILES if p != 'motion_vm1_contact_20261109_v1'])
 def test_profiles_keep_physics_and_actuation_contract(plant, profile):
     _, m, r = plant
     before = preserved(m)
@@ -75,6 +75,23 @@ def test_contact_profile_changes_selected_surfaces_only(plant):
     np.testing.assert_array_equal(m.geom_solref[1], original[1])
     np.testing.assert_array_equal(m.geom_solref[ids, 0], [.002] * 3)
     assert m.eq_solref[0, 0] == .008
+
+
+def test_explicit_historical_vm1_contact_profile_preserves_mechanics_and_limits(plant):
+    _,m,r=plant
+    keys=('body_mass','body_inertia','dof_armature','dof_damping','jnt_range',
+          'actuator_ctrlrange','actuator_forcerange','geom_size','geom_pos')
+    before={k:getattr(m,k).copy() for k in keys}
+    other=m.geom_solref[1].copy()
+    report=apply(m,r,'motion_vm1_contact_20261109_v1')
+    for key,value in before.items():np.testing.assert_array_equal(getattr(m,key),value)
+    assert int(m.opt.integrator)==3 and m.opt.iterations==100 and m.opt.timestep==.001
+    np.testing.assert_array_equal(m.eq_solref[0],[.008,1])
+    np.testing.assert_array_equal(m.eq_solimp[0],[.95,.99,.002,.5,2])
+    ids=surface_ids(m,r)
+    assert (m.geom_margin[ids]==.002).all() and (m.geom_condim[ids]==3).all()
+    np.testing.assert_array_equal(m.geom_solref[1],other)
+    assert report['source_xml_sha256'].startswith('663e121e')
 
 
 def test_combined_stricter_only_changes_convergence_and_is_idempotent(plant):

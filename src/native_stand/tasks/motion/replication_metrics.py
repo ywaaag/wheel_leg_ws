@@ -78,10 +78,15 @@ def summarize(trace, case, termination, gates):
         mirror_leg_error_mean_rad=float(np.abs(q[:, [0, 1]] - q[:, [2, 3]] * [-1, 1]).mean()),
         capability_accepted=False,
     )
+    support_pass = (
+        result["dual_support_fraction"] > gates["dual_support_fraction"]
+        if gates.get("support_fraction_comparison", "ge") == "gt"
+        else result["dual_support_fraction"] >= gates["dual_support_fraction"]
+    )
     quality = (
         complete
         and result["height_MAE_m"] <= gates["height_MAE_m"]
-        and result["dual_support_fraction"] >= gates["dual_support_fraction"]
+        and support_pass
         and result["longest_support_loss_s"] <= gates["longest_support_loss_s"]
         and max(result["roll_abs_peak_rad"], result["pitch_abs_peak_rad"]) <= gates["attitude_rad"]
     )

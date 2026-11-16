@@ -142,6 +142,23 @@ def read_source(reference, *, paths=None):
         )
     if states.ndim != 2 or len(episodes) != len(states) or not np.isfinite(states).all():
         raise ValueError("Invalid dataset rows")
+    envelope = reference.get("observation_envelope")
+    if envelope is not None:
+        lower = np.asarray(envelope["lower"], dtype=float)
+        upper = np.asarray(envelope["upper"], dtype=float)
+        if (
+            envelope["version"] != "teacher_observation_box_v1"
+            or lower.shape != (states.shape[1],)
+            or upper.shape != lower.shape
+            or not np.isfinite(lower).all()
+            or not np.isfinite(upper).all()
+            or (lower > upper).any()
+        ):
+            raise ValueError("Invalid explicit Teacher observation envelope")
+        admitted = ((states >= lower) & (states <= upper)).all(1)
+        behavior_valid = (
+            admitted if behavior_valid is None else behavior_valid.astype(bool) & admitted
+        )
     result = dict(
         states=states,
         episodes=episodes,

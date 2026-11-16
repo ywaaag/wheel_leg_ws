@@ -244,4 +244,6 @@ Motion少量高度配方`configs/jobs/motion_height_small_dose_prepared.json`复
 
 `cli diagnose`显式`motion_replication_probe_v1`→`simulation.motion_replication_probe`→公共`playback.plan`/`learning.inference`/`MotionPlayer.step`。与旧承重中心探查不同，此协议保留每个Actor自身decoder、不做raw重标或中心干预；共同物理执行条件绑定，允许命令时间序列、显式root速度增量、单位四腿模态外扰。外扰在公共step中与NET分路相加，力矩上限不变。逐1ms真实接触力、q/dq、命令/previous/目标/PD/motor/NET/外扰进入数据根，`tasks.motion.replication_metrics`只算离线窗口/带通/恢复指标。诊断没有训练生命周期；状态及完整episode身份交给现有dataset/supervision，多Teacher与BC继续由原owner/worker管理。不同于sim2sim双后端对照，不构造第二套物理积分器或模型索引。
 
+DAgger来源引用可显式携带`observation_envelope`（`teacher_observation_box_v1`、完整输入的有限lower/upper）。`artifacts.dataset.read_source`在采样前合并原transition_valid和范围准入；`supervision_flow`把准入mask传给既有`routing.label`。不合格行保留样本/回合身份，owner=-1、标签NaN，不查询Teacher、不做物理逆变换、不训练。观测box是已声明的保守适用域，不能当作Teacher在所有box内状态成功的证明；来源轨迹与固定余量由配方/证据绑定。该机制不增加Student输入、部署路由或控制器。
+
 监督新增可选`loss=motion_physical_huber`，仍由同一BC循环优化/开发比较；mean差乘Student自身腿/轮包络后按显式rad/rad/s标尺归一化，不重复解码。默认MSE配方不变。公共dataset引用可声明有时间列与eligible列的互不重叠窗口配额，按每个物理episode取原样本、保留角色/原sample_id；静态condition_values仅为有来源的场景标签，不能覆盖实测condition列。采样和损失进入原监督身份，不新建训练或数据生命周期。

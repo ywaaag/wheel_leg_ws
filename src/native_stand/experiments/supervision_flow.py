@@ -190,13 +190,6 @@ def execute(
             conditions = {
                 key: np.concatenate([c["conditions"][key] for c in chunks]) for key in names
             }
-            labels, owner, valid = label(
-                teachers,
-                torch.from_numpy(data["states"]),
-                conditions,
-                ActionLabels(**recipe.student_labels),
-                student_kind=recipe.student["kind"],
-            )
             behavior_valid = np.concatenate(
                 [
                     c["behavior_valid"]
@@ -205,7 +198,14 @@ def execute(
                     for c in chunks
                 ]
             )
-            valid &= torch.from_numpy(behavior_valid).bool()
+            labels, owner, valid = label(
+                teachers,
+                torch.from_numpy(data["states"]),
+                conditions,
+                ActionLabels(**recipe.student_labels),
+                student_kind=recipe.student["kind"],
+                row_valid=behavior_valid,
+            )
             from native_stand.artifacts.dataset import create_view
 
             normalized = [
